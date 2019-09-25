@@ -192,18 +192,16 @@ def reshape_conv2d_weights(weights: torch.Tensor) -> torch.Tensor:
     """
     sqrt1 = int(np.ceil(np.sqrt(weights.size(0))))
     sqrt2 = int(np.ceil(np.sqrt(weights.size(1))))
-    height, width = weights.size(2), weights.size(3)
+    height, width = weights.size(0), weights.size(1)  # EDITED (weights.size(2), weights.size(3))
     reshaped = torch.zeros(
-        sqrt1 * sqrt2 * weights.size(2), sqrt1 * sqrt2 * weights.size(3)
+        sqrt1 * sqrt2 * weights.size(0), sqrt1 * sqrt2 * weights.size(1)
     )
 
     for i in range(sqrt1):
         for j in range(sqrt1):
             for k in range(sqrt2):
                 for l in range(sqrt2):
-                    if i * sqrt1 + j < weights.size(0) and k * sqrt2 + l < weights.size(
-                        1
-                    ):
+                    if i * sqrt1 + j < weights.size(0) and k * sqrt2 + l < weights.size(1): #EDITED (weights.size(2), weights.size(3))
                         fltr = weights[i * sqrt1 + j, k * sqrt2 + l].view(height, width)
                         reshaped[
                             i * height
