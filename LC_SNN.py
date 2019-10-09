@@ -24,9 +24,20 @@ from bindsnet.analysis.plotting import (
     plot_spikes
     )
 
+import streamlit as st
+
+
 class LC_SNN:
-    def __init__(self, norm=0.5, n_train=1, competitive_weight=-100.):
-        self.create_network(norm=norm, competitive_weight=competitive_weight)
+    def __init__(self, norm=0.5, competitive_weight=-100., n_iter=1000, load=False):
+        self.n_iter = n_iter
+        if not load:
+            self.create_network(norm=norm, competitive_weight=competitive_weight)
+        else:
+            self.norm = None
+            self.competitive_weight = None
+            self.n_iter = None
+            self.time_max = 30
+
 
     def plot(self):
         plt.figure()
@@ -89,6 +100,8 @@ class LC_SNN:
         return weights_to_display
 
     def create_network(self, norm=0.5, competitive_weight=-100.):
+        self.norm = norm
+        self.competitive_weight = competitive_weight
         self.time_max = 30
         dt = 1
         intensity = 127.5
@@ -182,7 +195,8 @@ class LC_SNN:
 
 
 
-    def train(self, n_train=1, n_iter=100, plot=False):
+    def train(self, n_train=1, n_iter=None, plot=False):
+        n_iter = self.n_iter
         self.network.train(True)
         print('Training network...')
         n_train = n_train
@@ -190,8 +204,20 @@ class LC_SNN:
         for epoch in range(n_train):
             train_dataloader = torch.utils.data.DataLoader(
                 self.train_dataset, batch_size=1, shuffle=True)
+            progress_bar = st.progress(0)
+
+            status = st.empty()
+            t_start = t()
+
 
             for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+                progress_bar.progress(int((smth + 1)/n_iter*100))
+                t_now = t()
+                time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
+                speed = round((smth + 1) / (t_now - t_start), 2)
+                time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
+
+                status.text(f'{smth + 1}/{n_iter} [{time_from_start}] < [{time_left}], {speed}it/s')
             # for i, batch in list(zip(range(n_iter), train_dataloader)):
                 inpts = {"X": batch["encoded_image"].transpose(0, 1)}
 
@@ -247,9 +273,75 @@ class LC_SNN:
                     plt.close(fig_s)
                     plt.close(fig_w)
 
-
+            # status.text(f'{smth+1}/{n_iter} [{time_from_start}] < [{time_left}], {speed}it/s')
             self.network.reset_()  # Reset state variables
 
+
+        self.network.train(False);
+
+    def fit(self, X, y, n_iter=None, plot=False):
+        n_iter = self.n_iter
+        self.network.train(True)
+        print('Fitting network...')
+        smth = 0
+
+        for inp, label in tqdm(zip(X[:n_iter], y[:n_iter])):
+            inpts = {"X": inp}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            weights_XY = self.connection_XY.w
+            weights_XY = weights_XY.reshape(28, 28, -1)
+            weights_to_display = torch.zeros(0, 28*25)
+            i = 0
+            while i < 625:
+                for j in range(25):
+                    weights_to_display_row = torch.zeros(28, 0)
+                    for k in range(25):
+                        weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+                        i += 1
+                    weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+
+            self.weights_XY = weights_to_display.numpy()
+
+            spike_ims = None
+            spike_axes = None
+
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+            if plot:
+
+                self._spikes = {
+                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                    }
+
+                spike_ims, spike_axes, fig_s = plot_spikes_display(self._spikes, ims=spike_ims, axes=spike_axes,
+                                                                   figsize=(10, 8))
+
+
+                #display.clear_output(wait=True)
+
+                fig_w = plt.figure(figsize=(15, 13))
+                plt.title('Weights_XY')
+                plt.imshow(self.weights_XY, cmap='YlOrBr')
+                plt.colorbar()
+
+                if smth == 0:
+                    smth += 1
+                    display.display(fig_w, display_id='weights')
+                    display.display(fig_s, display_id='spikes')
+                else:
+                    display.update_display(fig_w, display_id='weights')
+                    display.update_display(fig_s, display_id='spikes')
+
+                plt.close(fig_s)
+                plt.close(fig_w)
+
+
+        self.network.reset_()  # Reset state variables
 
         self.network.train(False);
 
@@ -307,6 +399,22 @@ class LC_SNN:
         for layer in set(self.network.layers) - {"X"}:
             self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
             self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+
+        weights_XY = self.network.connections[('X', 'Y')].w
+
+        weights_XY = weights_XY.reshape(28, 28, -1)
+        weights_to_display = torch.zeros(0, 28*25)
+        i = 0
+        while i < 625:
+            for j in range(25):
+                weights_to_display_row = torch.zeros(28, 0)
+                for k in range(25):
+                    weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+                    i += 1
+                weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+
+        self.weights_XY = weights_to_display.numpy()
+
 
     def show_neuron(self, n):
         weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
@@ -395,3 +503,68 @@ class LC_SNN:
         self.network.reset_()
         print(f'Accuracy: {corrects.mean()}')
         return corrects.mean()
+
+    def score(self, X, y_correct):
+        self.network.train(False)
+        top_classes, votes = self.top_classes(n_iter=len(y_correct))
+        print('Calculating score...')
+
+        x = []
+
+        for inp, label in zip(X, y_correct):
+            inpts = {'X': inp}
+
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+            output = self._spikes['Y'].type(torch.int).sum(0)
+            top3 = output.argsort()[0:3]
+            n_1, n_2, n_3 = top3[0], top3[1], top3[2]
+            # n_best = n_1
+            # print(votes.shape)
+            # if votes[label][n_1] > votes[label][n_2]:
+            #     if votes[label][n_2] > votes[label][n_3]:
+            #         pass
+            #     else:
+            #         if votes[label][n_1] > votes[label][n_3]:
+            #             pass
+            # else:
+            #     if votes[label][n_2] > votes[label][n_3]:
+            #         n_best = n_2
+            #     else:
+            #         if votes[label][n_3] > votes[label][n_1]:
+            #             n_best = n_3
+
+            # x.append(top_classes[0][n_best])
+            x.append(top_classes[0][n_1])
+
+        corrects = []
+        for i in range(len(x)):
+            if x[i] == y_correct[i]:
+                corrects.append(1)
+            else:
+                corrects.append(0)
+        corrects = np.array(corrects)
+
+        self.network.reset_()
+        print(f'Accuracy: {corrects.mean()}')
+        return corrects.mean()
+
+    def get_params(self, **args):
+        return {'norm': self.norm,
+                'competitive_weight': self.competitive_weight,
+                'n_iter': self.n_iter
+                }
+
+    def set_params(self, norm, competitive_weight, n_iter):
+        display.clear_output(wait=True)
+        return LC_SNN(norm=norm, competitive_weight=competitive_weight, n_iter=n_iter)
+
+    def __repr__(self):
+        # return f'LC_SNN network with parameters:\nnorm = {self.norm}\ncompetitive_weights={self.competitive_weight}' \
+        #        f'\nn_iter={self.n_iter}'
+        return f'LC_SNN network with parameters:\n {self.get_params()}'
