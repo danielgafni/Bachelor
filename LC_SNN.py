@@ -18,7 +18,6 @@ from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import LocalConnection, Connection
 from bindsnet.analysis.plotting import (
     plot_input,
-    plot_spikes_display,
     plot_conv2d_weights,
     plot_voltages,
     plot_spikes
@@ -195,91 +194,65 @@ class LC_SNN:
 
 
 
-    def train(self, n_train=1, n_iter=None, plot=False):
+    def train(self, n_iter=None, plot=False, vis_interval=10):
         n_iter = self.n_iter
         self.network.train(True)
         print('Training network...')
-        n_train = n_train
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+        progress_bar = st.progress(0)
+        status = st.empty()
+        t_start = t()
+        cnt = 0
 
-        for epoch in range(n_train):
-            train_dataloader = torch.utils.data.DataLoader(
-                self.train_dataset, batch_size=1, shuffle=True)
-            progress_bar = st.progress(0)
+        if plot:
+            f = plt.figure(figsize=(15, 15))
+            plt.imshow(torch.randint(0, 2, (700, 700)).numpy(), cmap='YlOrBr')
+            plt.colorbar()
+            plot_weights = st.pyplot(f)
 
-            status = st.empty()
-            t_start = t()
+        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+            progress_bar.progress(int((smth + 1)/n_iter*100))
+            t_now = t()
+            time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
+            speed = round((smth + 1) / (t_now - t_start), 2)
+            time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
+            status.text(f'{smth + 1}/{n_iter} [{time_from_start}] < [{time_left}], {speed}it/s')
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
-
-            for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
-                progress_bar.progress(int((smth + 1)/n_iter*100))
-                t_now = t()
-                time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
-                speed = round((smth + 1) / (t_now - t_start), 2)
-                time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
-
-                status.text(f'{smth + 1}/{n_iter} [{time_from_start}] < [{time_left}], {speed}it/s')
-            # for i, batch in list(zip(range(n_iter), train_dataloader)):
-                inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-
-                self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-
-                weights_XY = self.connection_XY.w
-                weights_XY = weights_XY.reshape(28, 28, -1)
-                weights_to_display = torch.zeros(0, 28*25)
-                i = 0
-                while i < 625:
-                    for j in range(25):
-                        weights_to_display_row = torch.zeros(28, 0)
-                        for k in range(25):
-                            weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
-                            i += 1
-                        weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
-
-                self.weights_XY = weights_to_display.numpy()
-
-                spike_ims = None
-                spike_axes = None
-
-                self._spikes = {
-                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                    }
-
-                if plot:
+            if plot:
+                if (t_now - t_start) / vis_interval > cnt:
+                    weights_XY = self.connection_XY.w
+                    weights_XY = weights_XY.reshape(28, 28, -1)
+                    weights_to_display = torch.zeros(0, 28*25)
+                    i = 0
+                    while i < 625:
+                        for j in range(25):
+                            weights_to_display_row = torch.zeros(28, 0)
+                            for k in range(25):
+                                weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+                                i += 1
+                            weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+                    self.weights_XY = weights_to_display.numpy()
 
                     self._spikes = {
                         "X": self.spikes["X"].get("s").view(self.time_max, -1),
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
-
-                    spike_ims, spike_axes, fig_s = plot_spikes_display(self._spikes, ims=spike_ims, axes=spike_axes,
-                                                                       figsize=(10, 8))
-
-
-                    #display.clear_output(wait=True)
-
-                    fig_w = plt.figure(figsize=(15, 13))
+                    fig_w = plt.figure(figsize=(15, 15))
                     plt.title('Weights_XY')
                     plt.imshow(self.weights_XY, cmap='YlOrBr')
                     plt.colorbar()
-
-                    if smth == 0:
-                        display.display(fig_w, display_id='weights')
-                        display.display(fig_s, display_id='spikes')
-                    else:
-                        display.update_display(fig_w, display_id='weights')
-                        display.update_display(fig_s, display_id='spikes')
-
-                    plt.close(fig_s)
+                    plot_weights.pyplot(fig_w)
                     plt.close(fig_w)
+                    cnt += 1
+                else:
+                    pass
+        self.network.reset_()  # Reset state variables
+        self.network.train(False)
 
-            # status.text(f'{smth+1}/{n_iter} [{time_from_start}] < [{time_left}], {speed}it/s')
-            self.network.reset_()  # Reset state variables
-
-
-        self.network.train(False);
-
-    def fit(self, X, y, n_iter=None, plot=False):
+    def fit(self, X, y, n_iter=None):
         n_iter = self.n_iter
         self.network.train(True)
         print('Fitting network...')
@@ -310,35 +283,6 @@ class LC_SNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-
-            if plot:
-
-                self._spikes = {
-                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                    }
-
-                spike_ims, spike_axes, fig_s = plot_spikes_display(self._spikes, ims=spike_ims, axes=spike_axes,
-                                                                   figsize=(10, 8))
-
-
-                #display.clear_output(wait=True)
-
-                fig_w = plt.figure(figsize=(15, 13))
-                plt.title('Weights_XY')
-                plt.imshow(self.weights_XY, cmap='YlOrBr')
-                plt.colorbar()
-
-                if smth == 0:
-                    smth += 1
-                    display.display(fig_w, display_id='weights')
-                    display.display(fig_s, display_id='spikes')
-                else:
-                    display.update_display(fig_w, display_id='weights')
-                    display.update_display(fig_s, display_id='spikes')
-
-                plt.close(fig_s)
-                plt.close(fig_w)
 
 
         self.network.reset_()  # Reset state variables
@@ -414,6 +358,20 @@ class LC_SNN:
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
 
         self.weights_XY = weights_to_display.numpy()
+
+        # weights_to_display = torch.zeros(0, 28*25)
+        # i = 0
+        # while i < 625:
+        #     for j in range(25):
+        #         weights_to_display_row = torch.zeros(12, 0)
+        #         for k in range(25):
+        #             if len((weights_XY[:, :, i]>0).nonzero()) > 0:
+        #                 weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+        #                 i += 1
+        #             weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+        #
+        # self.weights_XY_formatted = weights_to_display.numpy()
+
 
 
     def show_neuron(self, n):

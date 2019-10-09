@@ -20,7 +20,7 @@ from LC_SNN import LC_SNN
 import streamlit as st
 
 
-@st.cache(ignore_hash=True, suppress_st_warning=True)
+# @st.cache(ignore_hash=True, suppress_st_warning=True)
 def create_network(norm, compettitive_weight, n_iter):
     with st.spinner('Creating network...'):
         net = LC_SNN(norm, compettitive_weight, n_iter)
@@ -28,7 +28,6 @@ def create_network(norm, compettitive_weight, n_iter):
         return net
 
 
-# @st.cache(ignore_hash=True)
 def plot_weights(net):
     f = plt.figure(figsize=(15, 15))
     plt.imshow(net.weights_XY, cmap='YlOrBr')
@@ -36,15 +35,16 @@ def plot_weights(net):
     st.markdown('# Network weights')
     st.write(f)
 
-def train_network(plot=False):
-    net.train(n_iter=n_iter, plot=False)
+def train_network(plot=False, vis_interval=10):
+    net.train(n_iter=n_iter, plot=plot, vis_interval=vis_interval)
     st.write('Network trained')
-    if plot:
-        plot_weights(net)
+    #if plot:
+    #    plot_weights(net)
 
 st.title('LC_SNN')
 to_plot = st.checkbox('Visialize', True)
 network_select = st.selectbox('Network source', ['Load network', 'Create network'])
+vis_interval = st.slider('Visualization interval, s', 1, 120, 60)
 
 if network_select == 'Create network':
     st.sidebar.markdown('# Parameters')
@@ -55,7 +55,7 @@ if network_select == 'Create network':
     st.write(net)
     to_train = st.sidebar.button('Train network')
     if to_train:
-        train_network(plot=to_plot)
+        train_network(plot=to_plot, vis_interval=vis_interval)
 
 if network_select == 'Load network':
     path = os.path.abspath(os.path.dirname(sys.argv[0]))
