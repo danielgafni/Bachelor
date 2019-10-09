@@ -1,4 +1,5 @@
 import torch
+import os
 import matplotlib.pyplot as plt
 from torchvision import transforms
 
@@ -20,33 +21,7 @@ from bindsnet.analysis.plotting import (
     plot_spikes_display
     )
 
-from IPython.display import clear_output
-
 import streamlit as st
-
-########################################################################################################################
-
-st.title('Hahahhahahahahhahahaha')
-
-
-time_max = 30
-dt = 1
-intensity = 127.5
-
-with st.spinner('Loading dataset...'):
-    train_dataset = MNIST(
-        PoissonEncoder(time=time_max, dt=dt),
-        None,
-        "MNIST",
-        download=False,
-        train=True,
-        transform=transforms.Compose(
-            [transforms.ToTensor(), transforms.Lambda(lambda x: x * intensity)]
-            )
-        )
-
-st.write('Dataset loaded.')
-
 
 @st.cache(ignore_hash=True)
 def get_network(norm):
@@ -128,22 +103,6 @@ def get_network(norm):
     return network
 
 
-st.sidebar.markdown('Hyperparameters')
-norm = st.sidebar.slider('norm', 0.001, 0.5, 0.2315)
-with st.spinner('Building network...'):
-    network = get_network(norm=norm)
-st.write('LC-SNN ready!')
-
-
-########################################################################################################################
-
-st.sidebar.markdown('Training parameters')
-visualize = st.sidebar.checkbox('Visualize')
-n_train = st.sidebar.slider('Number of passes through the training set', 1, 10, 1)
-n_iter = int(st.sidebar.text_input('Number of images to feed the network with', '10'))
-vis_interval = st.sidebar.slider('Time between visualisations, s', 1, 60, 10)
-
-
 def train(n_train=1, n_iter=10, vis_interval=10):
     progress_bar = st.progress(0)
     vis_counter = 0
@@ -194,7 +153,52 @@ def train(n_train=1, n_iter=10, vis_interval=10):
             network.reset_()  # Reset state variables
 
 
+########################################################################################################################
+
+st.title('LC-SNN')
+st.sidebar.selectbox('Network source', ['Create network', 'Load network'])
+
+
+time_max = 30
+dt = 1
+intensity = 127.5
+
+with st.spinner('Loading dataset...'):
+    train_dataset = MNIST(
+        PoissonEncoder(time=time_max, dt=dt),
+        None,
+        "MNIST",
+        download=False,
+        train=True,
+        transform=transforms.Compose(
+            [transforms.ToTensor(), transforms.Lambda(lambda x: x * intensity)]
+            )
+        )
+
+st.write('Dataset loaded.')
+st.sidebar.markdown('Hyperparameters')
+norm = st.sidebar.slider('norm', 0.001, 0.5, 0.2315)
+with st.spinner('Building network...'):
+    network = get_network(norm=norm)
+st.write('LC-SNN ready!')
+
+
+########################################################################################################################
+st.sidebar.markdown('Training parameters')
+visualize = st.sidebar.checkbox('Visualize')
+if_save = st.sidebar.checkbox('Save network after training')
+
+n_train = st.sidebar.slider('Number of passes through the training set', 1, 10, 1)
+n_iter = int(st.sidebar.text_input('Number of images to feed the network with', 10))
+
+
+vis_interval = st.sidebar.slider('Time between visualisations, s', 1, 60, 10)
+
+
 if_train = st.button('Train')
 
 if if_train:
     train(n_train=n_train, n_iter=n_iter, vis_interval=vis_interval)
+    if if_save:
+        network.save(f'networks\\norm-{norm}_n_iter-{n_iter}')
+        st.write(f'Network is saved at\n{os.getcwd()}\\networks\\norm-{norm}_n_iter-{n_iter}')

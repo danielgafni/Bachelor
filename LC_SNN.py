@@ -1,10 +1,13 @@
 import torch
+import numpy as np
 import matplotlib.pyplot as plt
 from torchvision import transforms
 
 from time import time as t
 import datetime
 from tqdm import tqdm
+from IPython import display
+
 
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
@@ -15,14 +18,15 @@ from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import LocalConnection, Connection
 from bindsnet.analysis.plotting import (
     plot_input,
-    plot_spikes,
+    plot_spikes_display,
     plot_conv2d_weights,
     plot_voltages,
+    plot_spikes
     )
 
 class LC_SNN:
-    def __init__(self, norm=0.5, n_train=1):
-        self.create_network(norm=norm)
+    def __init__(self, norm=0.5, n_train=1, competitive_weight=-100.):
+        self.create_network(norm=norm, competitive_weight=competitive_weight)
 
     def plot(self):
         plt.figure()
@@ -50,7 +54,7 @@ class LC_SNN:
             weights_XY = self.connection_XY.w
             weights_YY = self.connection_YY.w
 
-            _spikes = {
+            self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
@@ -59,7 +63,7 @@ class LC_SNN:
             inpt_axes, inpt_ims = plot_input(
                 image, inpt, label=label, axes=inpt_axes, ims=inpt_ims
                 )
-            spike_ims, spike_axes = plot_spikes(_spikes, ims=spike_ims, axes=spike_axes)
+            spike_ims, spike_axes = plot_spikes(self._spikes, ims=spike_ims, axes=spike_axes)
             f, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 10))
             weights_XY = weights_XY.reshape(28, 28, -1)
             weights_to_display = torch.zeros(0, 28*25)
@@ -84,7 +88,7 @@ class LC_SNN:
         self.network.reset_()  # Reset state variables
         return weights_to_display
 
-    def create_network(self, norm=0.5):
+    def create_network(self, norm=0.5, competitive_weight=-100.):
         self.time_max = 30
         dt = 1
         intensity = 127.5
@@ -153,7 +157,7 @@ class LC_SNN:
                     # change
                     for i in range(conv_size):
                         for j in range(conv_size):
-                            w[fltr1, i, j, fltr2, i, j] = -100.0
+                            w[fltr1, i, j, fltr2, i, j] = competitive_weight
 
         self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
 
@@ -178,15 +182,17 @@ class LC_SNN:
 
 
 
-    def train(self, n_train=1, n_iter=6000):
+    def train(self, n_train=1, n_iter=100, plot=False):
         self.network.train(True)
+        print('Training network...')
         n_train = n_train
+
         for epoch in range(n_train):
             train_dataloader = torch.utils.data.DataLoader(
                 self.train_dataset, batch_size=1, shuffle=True)
 
-            for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
-                #inpts = {"X": batch["encoded_image"]}
+            for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+            # for i, batch in list(zip(range(n_iter), train_dataloader)):
                 inpts = {"X": batch["encoded_image"].transpose(0, 1)}
 
                 self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -204,14 +210,77 @@ class LC_SNN:
                         weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
 
                 self.weights_XY = weights_to_display.numpy()
+
+                spike_ims = None
+                spike_axes = None
+
+                self._spikes = {
+                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                    }
+
+                if plot:
+
+                    self._spikes = {
+                        "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                        "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                        }
+
+                    spike_ims, spike_axes, fig_s = plot_spikes_display(self._spikes, ims=spike_ims, axes=spike_axes,
+                                                                       figsize=(10, 8))
+
+
+                    #display.clear_output(wait=True)
+
+                    fig_w = plt.figure(figsize=(15, 13))
+                    plt.title('Weights_XY')
+                    plt.imshow(self.weights_XY, cmap='YlOrBr')
+                    plt.colorbar()
+
+                    if smth == 0:
+                        display.display(fig_w, display_id='weights')
+                        display.display(fig_s, display_id='spikes')
+                    else:
+                        display.update_display(fig_w, display_id='weights')
+                        display.update_display(fig_s, display_id='spikes')
+
+                    plt.close(fig_s)
+                    plt.close(fig_w)
+
+
             self.network.reset_()  # Reset state variables
 
-        self.network.train(False);
-        #self.network.save(f'network_{str(datetime.datetime.today())}'[:-7].replace(' ', '_').replace(':', '-'))
-        return self.network
 
-    def weights_XY(self):
-        weights_XY = self.connection_XY.w
+        self.network.train(False);
+
+
+    def predict(self, n_iter=6000):
+        y = []
+        x = []
+        self.network.train(False)
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+            y.append(int(batch['label']))
+            output = self._spikes['Y'].type(torch.int).sum(0)
+            x.append(output)
+
+        self.network.reset_()  # Reset state variables
+
+        return tuple([x, y])
+
+    def plot_weights_XY(self):
+        weights_XY = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
         weights_to_display = torch.zeros(0, 28*25)
         i = 0
         while i < 625:
@@ -221,4 +290,108 @@ class LC_SNN:
                     weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
                     i += 1
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
-        return weights_to_display.numpy()
+        plt.figure(figsize=(15, 15))
+        plt.imshow(weights_to_display, cmap='YlOrBr')
+        plt.colorbar()
+
+    def load(self, file_path):
+        self.network = load(file_path)
+
+        self.spikes = {}
+        for layer in set(self.network.layers):
+            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=["s"], time=self.time_max)
+            self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
+            #print('GlobalMonitor.state_vars:', self.GlobalMonitor.state_vars)
+
+        self.voltages = {}
+        for layer in set(self.network.layers) - {"X"}:
+            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
+            self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+
+    def show_neuron(self, n):
+        weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
+        weights_to_show[:, :, n-1] = torch.ones(28, 28)
+        weights_to_display = torch.zeros(0, 28*25)
+        i = 0
+        while i < 625:
+            for j in range(25):
+                weights_to_display_row = torch.zeros(28, 0)
+                for k in range(25):
+                    weights_to_display_row = torch.cat((weights_to_display_row, weights_to_show[:, :, i]), dim=1)
+                    i += 1
+                weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+
+        plt.figure(figsize=(15, 15))
+        plt.title('Weights XY')
+
+        plt.imshow(weights_to_display.numpy(), cmap='YlOrBr')
+        plt.colorbar()
+
+    def top_classes(self, n_iter=100):
+        print('Calibrating top classes for each neuron...')
+        (x, y) = self.predict(n_iter=n_iter)
+        votes = torch.zeros(11, 625)
+        votes[10, :] = votes[10, :].fill_(1/n_iter)
+        for (label, layer) in zip(y, x):
+            for i, spike_sum in enumerate(layer):
+                votes[label, i] += spike_sum
+        for i in range(10):
+            votes[i, :] = votes[i, :] / len((np.array(y) == i).nonzero()[0])
+        top_classes = votes.argsort(dim=0, descending=True).numpy()
+        top_classes_formatted = np.where(top_classes!=10, top_classes, None)
+        return top_classes_formatted, votes
+
+    def accuracy(self, n_iter):
+        self.network.train(False)
+        top_classes, votes = self.top_classes(n_iter=n_iter)
+
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+
+        print('Calculating accuracy...')
+
+        x = []
+        y = []
+
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+            output = self._spikes['Y'].type(torch.int).sum(0)
+            top3 = output.argsort()[0:3]
+            label = int(batch['label'])
+            n_1, n_2, n_3 = top3[0], top3[1], top3[2]
+            n_best = n_1
+            if output[n_1] * votes[label][n_1] > output[n_2] * votes[label][n_2]:
+                if output[n_2] * votes[label][n_2] > output[n_3] * votes[label][n_3]:
+                    pass
+                else:
+                    if output[n_1] * votes[label][n_1] > output[n_3] * votes[label][n_3]:
+                        pass
+            else:
+                if output[n_2] * votes[label][n_2] > output[n_3] * votes[label][n_3]:
+                    n_best = n_2
+                else:
+                    if output[n_3] * votes[label][n_3] > output[n_1] * votes[label][n_1]:
+                        n_best = n_3
+
+            x.append(top_classes[0][n_best])
+            y.append(label)
+
+        corrects = []
+        for i in range(len(x)):
+            if x[i] == y[i]:
+                corrects.append(1)
+            else:
+                corrects.append(0)
+        corrects = np.array(corrects)
+
+        self.network.reset_()
+        print(f'Accuracy: {corrects.mean()}')
+        return corrects.mean()
