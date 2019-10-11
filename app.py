@@ -43,19 +43,22 @@ def train_network(plot=False, vis_interval=10):
 
 st.title('LC_SNN')
 to_plot = st.checkbox('Visialize', True)
-network_select = st.selectbox('Network source', ['Load network', 'Create network'])
 vis_interval = st.slider('Visualization interval, s', 1, 120, 60)
+network_select = st.selectbox('Network source', ['Load network', 'Create network'])
 
 if network_select == 'Create network':
     st.sidebar.markdown('# Parameters')
     norm = float(st.sidebar.text_input('norm', '0.2375'))
     compettitive_weight = float(st.sidebar.text_input('compettitive_weight', '-30'))
     n_iter = int(st.sidebar.text_input('n_iter', '100'))
+    to_save = st.sidebar.checkbox('Save network after training', True)
     net = create_network(norm=norm, compettitive_weight=compettitive_weight, n_iter=n_iter)
     st.write(net)
     to_train = st.sidebar.button('Train network')
     if to_train:
         train_network(plot=to_plot, vis_interval=vis_interval)
+        net.network.save(f'networks//norm={norm}_comp_weight={compettitive_weight}_n_iter={n_iter}')
+        st.write(f'Network accuracy is {net.accuracy(1000)}')
 
 if network_select == 'Load network':
     path = os.path.abspath(os.path.dirname(sys.argv[0]))
