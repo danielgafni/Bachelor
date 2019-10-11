@@ -398,7 +398,7 @@ class LC_SNN:
     def accuracy(self, n_iter):
         self.network.train(False)
         if not self.calibrated:
-            self.calibrate_top_classes(n_iter=n_iter)
+            self.calibrate_top_classes(n_iter=self.n_iter)
 
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
