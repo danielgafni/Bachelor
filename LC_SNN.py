@@ -29,6 +29,7 @@ import streamlit as st
 class LC_SNN:
     def __init__(self, norm=0.5, competitive_weight=-100., n_iter=1000, load=False):
         self.n_iter = n_iter
+        self.calibrated = False
         if not load:
             self.create_network(norm=norm, competitive_weight=competitive_weight)
         else:
@@ -276,9 +277,6 @@ class LC_SNN:
 
             self.weights_XY = weights_to_display.numpy()
 
-            spike_ims = None
-            spike_axes = None
-
             self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
@@ -359,20 +357,7 @@ class LC_SNN:
 
         self.weights_XY = weights_to_display.numpy()
 
-        # weights_to_display = torch.zeros(0, 28*25)
-        # i = 0
-        # while i < 625:
-        #     for j in range(25):
-        #         weights_to_display_row = torch.zeros(12, 0)
-        #         for k in range(25):
-        #             if len((weights_XY[:, :, i]>0).nonzero()) > 0:
-        #                 weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
-        #                 i += 1
-        #             weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
-        #
-        # self.weights_XY_formatted = weights_to_display.numpy()
-
-
+        # TODO formatted weights to display
 
     def show_neuron(self, n):
         weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
@@ -393,7 +378,7 @@ class LC_SNN:
         plt.imshow(weights_to_display.numpy(), cmap='YlOrBr')
         plt.colorbar()
 
-    def top_classes(self, n_iter=100):
+    def calibrate_top_classes(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
         (x, y) = self.predict(n_iter=n_iter)
         votes = torch.zeros(11, 625)
@@ -405,11 +390,15 @@ class LC_SNN:
             votes[i, :] = votes[i, :] / len((np.array(y) == i).nonzero()[0])
         top_classes = votes.argsort(dim=0, descending=True).numpy()
         top_classes_formatted = np.where(top_classes!=10, top_classes, None)
+        self.top_classes = top_classes_formatted
+        self.votes = votes
+        self.calibrated = True
         return top_classes_formatted, votes
 
     def accuracy(self, n_iter):
         self.network.train(False)
-        top_classes, votes = self.top_classes(n_iter=n_iter)
+        if not self.calibrated:
+            self.calibrate_top_classes(n_iter=n_iter)
 
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
@@ -434,20 +423,20 @@ class LC_SNN:
             label = int(batch['label'])
             n_1, n_2, n_3 = top3[0], top3[1], top3[2]
             n_best = n_1
-            if output[n_1] * votes[label][n_1] > output[n_2] * votes[label][n_2]:
-                if output[n_2] * votes[label][n_2] > output[n_3] * votes[label][n_3]:
+            if output[n_1] * self.votes[label][n_1] > output[n_2] * self.votes[label][n_2]:
+                if output[n_2] * self.votes[label][n_2] > output[n_3] * self.votes[label][n_3]:
                     pass
                 else:
-                    if output[n_1] * votes[label][n_1] > output[n_3] * votes[label][n_3]:
+                    if output[n_1] * self.votes[label][n_1] > output[n_3] * self.votes[label][n_3]:
                         pass
             else:
-                if output[n_2] * votes[label][n_2] > output[n_3] * votes[label][n_3]:
+                if output[n_2] * self.votes[label][n_2] > output[n_3] * self.votes[label][n_3]:
                     n_best = n_2
                 else:
-                    if output[n_3] * votes[label][n_3] > output[n_1] * votes[label][n_1]:
+                    if output[n_3] * self.votes[label][n_3] > output[n_1] * self.votes[label][n_1]:
                         n_best = n_3
 
-            x.append(top_classes[0][n_best])
+            x.append(self.top_classes[0][n_best])
             y.append(label)
 
         corrects = []
@@ -464,7 +453,8 @@ class LC_SNN:
 
     def score(self, X, y_correct):
         self.network.train(False)
-        top_classes, votes = self.top_classes(n_iter=len(y_correct))
+        if not self.calibrated:
+            self.calibrate_top_classes()
         print('Calculating score...')
 
         x = []
@@ -482,23 +472,7 @@ class LC_SNN:
             output = self._spikes['Y'].type(torch.int).sum(0)
             top3 = output.argsort()[0:3]
             n_1, n_2, n_3 = top3[0], top3[1], top3[2]
-            # n_best = n_1
-            # print(votes.shape)
-            # if votes[label][n_1] > votes[label][n_2]:
-            #     if votes[label][n_2] > votes[label][n_3]:
-            #         pass
-            #     else:
-            #         if votes[label][n_1] > votes[label][n_3]:
-            #             pass
-            # else:
-            #     if votes[label][n_2] > votes[label][n_3]:
-            #         n_best = n_2
-            #     else:
-            #         if votes[label][n_3] > votes[label][n_1]:
-            #             n_best = n_3
-
-            # x.append(top_classes[0][n_best])
-            x.append(top_classes[0][n_1])
+            x.append(self.top_classes[0][n_1])
 
         corrects = []
         for i in range(len(x)):
