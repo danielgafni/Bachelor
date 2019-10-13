@@ -46,6 +46,7 @@ to_plot = st.checkbox('Visialize', True)
 vis_interval = st.slider('Visualization interval, s', 1, 120, 60)
 network_select = st.selectbox('Network source', ['Load network', 'Create network'])
 
+# Creating network
 if network_select == 'Create network':
     st.sidebar.markdown('# Parameters')
     norm = float(st.sidebar.text_input('norm', '0.2375'))
@@ -60,6 +61,7 @@ if network_select == 'Create network':
         net.network.save(f'networks//norm={norm}_comp_weight={compettitive_weight}_n_iter={n_iter}')
         st.write(f'Network accuracy is {net.accuracy(1000)}')
 
+# Loading pre-trained network
 if network_select == 'Load network':
     path = os.path.abspath(os.path.dirname(sys.argv[0]))
     filename = st.text_input('Enter netowork path', path+'\\network')
@@ -72,3 +74,6 @@ if network_select == 'Load network':
         st.write('Network loaded')
         if to_plot:
             plot_weights(net)
+        st.write('Calculating accuracy...')
+        acc = net.accuracy(1000)
+        st.write(f'Network accuracy is {acc}')
