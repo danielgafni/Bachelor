@@ -38,7 +38,6 @@ class LC_SNN:
             self.n_iter = None
             self.time_max = 30
 
-
     def plot(self):
         plt.figure()
         test_dataloader = torch.utils.data.DataLoader(
@@ -193,8 +192,6 @@ class LC_SNN:
             self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
             self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
 
-
-
     def train(self, n_iter=None, plot=False, vis_interval=10):
         n_iter = self.n_iter
         self.network.train(True)
@@ -287,8 +284,21 @@ class LC_SNN:
 
         self.network.train(False);
 
+    def class_from_spikes(self):
+        sum_output = self.spikes['Y'].get('s').reshape(625, 30).sum(1)
+        res = torch.matmul(self.votes.type(torch.LongTensor), sum_output)
+        return res.argmax()
 
-    def predict(self, n_iter=6000):
+    def debug_predictions(self, n_iter):
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            print(f'Network top class:{self.class_from_spikes()}\n Correct label: {batch["label"]}')
+
+    def precict_many(self, n_iter=6000):
         y = []
         x = []
         self.network.train(False)
@@ -330,6 +340,21 @@ class LC_SNN:
 
     def load(self, file_path):
         self.network = load(file_path)
+        self.n_iter = 60000
+
+        dt = 1
+        intensity = 127.5
+
+        self.train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=dt),
+            None,
+            "MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose(
+                [transforms.ToTensor(), transforms.Lambda(lambda x: x * intensity)]
+                )
+            )
 
         self.spikes = {}
         for layer in set(self.network.layers):
@@ -380,20 +405,20 @@ class LC_SNN:
 
     def calibrate_top_classes(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
-        (x, y) = self.predict(n_iter=n_iter)
+        (x, y) = self.precict_many(n_iter=n_iter)
         votes = torch.zeros(11, 625)
-        votes[10, :] = votes[10, :].fill_(1/n_iter)
+        votes[10, :] = votes[10, :].fill_(1/(2*n_iter))
         for (label, layer) in zip(y, x):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
         for i in range(10):
             votes[i, :] = votes[i, :] / len((np.array(y) == i).nonzero()[0])
-        top_classes = votes.argsort(dim=0, descending=True).numpy()
-        top_classes_formatted = np.where(top_classes!=10, top_classes, None)
-        self.top_classes = top_classes_formatted
+        top_classes = votes.argmax(dim=0).numpy()
+        # top_classes_formatted = np.where(top_classes!=10, top_classes, None)
+        self.top_classes = top_classes
         self.votes = votes
         self.calibrated = True
-        return top_classes_formatted, votes
+        return top_classes, votes
 
     def accuracy(self, n_iter):
         self.network.train(False)
@@ -436,7 +461,7 @@ class LC_SNN:
                     if output[n_3] * self.votes[label][n_3] > output[n_1] * self.votes[label][n_1]:
                         n_best = n_3
 
-            x.append(self.top_classes[0][n_best])
+            x.append(self.top_classes[n_best])
             y.append(label)
 
         corrects = []
@@ -472,7 +497,7 @@ class LC_SNN:
             output = self._spikes['Y'].type(torch.int).sum(0)
             top3 = output.argsort()[0:3]
             n_1, n_2, n_3 = top3[0], top3[1], top3[2]
-            x.append(self.top_classes[0][n_1])
+            x.append(self.top_classes[n_1])
 
         corrects = []
         for i in range(len(x)):
