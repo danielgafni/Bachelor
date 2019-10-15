@@ -36,7 +36,7 @@ class LC_SNN:
             self.norm = None
             self.competitive_weight = None
             self.n_iter = None
-            self.time_max = 30
+            self.time_max = 100
 
     def plot(self):
         plt.figure()
@@ -285,7 +285,7 @@ class LC_SNN:
         self.network.train(False);
 
     def class_from_spikes(self):
-        sum_output = self.spikes['Y'].get('s').reshape(625, 30).sum(1)
+        sum_output = self.spikes['Y'].get('s').reshape(625, self.time_max).sum(1)
         res = torch.matmul(self.votes.type(torch.LongTensor), sum_output)
         return res.argmax()
 
@@ -298,7 +298,7 @@ class LC_SNN:
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             print(f'Network top class:{self.class_from_spikes()}\n Correct label: {batch["label"]}')
 
-    def precict_many(self, n_iter=6000):
+    def predict_many(self, n_iter=6000):
         y = []
         x = []
         self.network.train(False)
@@ -385,7 +385,7 @@ class LC_SNN:
         # TODO formatted weights to display
 
     def show_neuron(self, n):
-        weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
+        weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1).clone()
         weights_to_show[:, :, n-1] = torch.ones(28, 28)
         weights_to_display = torch.zeros(0, 28*25)
         i = 0
@@ -397,6 +397,7 @@ class LC_SNN:
                     i += 1
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
 
+
         plt.figure(figsize=(15, 15))
         plt.title('Weights XY')
 
@@ -405,7 +406,7 @@ class LC_SNN:
 
     def calibrate_top_classes(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
-        (x, y) = self.precict_many(n_iter=n_iter)
+        (x, y) = self.predict_many(n_iter=n_iter)
         votes = torch.zeros(11, 625)
         votes[10, :] = votes[10, :].fill_(1/(2*n_iter))
         for (label, layer) in zip(y, x):

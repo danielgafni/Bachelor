@@ -2,6 +2,9 @@ import torch
 import os
 import sys
 import matplotlib.pyplot as plt
+import plotly.graph_objs as go
+import numpy as np
+import pandas as pd
 from torchvision import transforms
 
 from time import time as t
@@ -34,6 +37,13 @@ def plot_weights(net):
     plt.colorbar()
     st.markdown('# Network weights')
     st.write(f)
+
+
+def plotly_plot_weights(net):
+    fig = go.Figure(data=go.Heatmap(z=net.weights_XY, colorscale = 'YlOrBr'))
+    fig.update_layout(width=800, height=800)
+    st.plotly_chart(fig)
+
 
 def train_network(plot=False, vis_interval=10):
     net.train(n_iter=n_iter, plot=plot, vis_interval=vis_interval)
@@ -73,7 +83,5 @@ if network_select == 'Load network':
         st.write(net)
         st.write('Network loaded')
         if to_plot:
-            plot_weights(net)
-        st.write('Calculating accuracy...')
-        acc = net.accuracy(1000)
-        st.write(f'Network accuracy is {acc}')
+            st.write('# Network weights')
+            plotly_plot_weights(net)
