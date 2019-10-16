@@ -222,7 +222,7 @@ class Network(torch.nn.Module):
                 )
 
             # Add to input: source's spikes multiplied by connection weights.
-            inpts[c[1]] += self.connections[c].compute(source.s).view(-1, 25, 5, 5)  #EDITED
+            inpts[c[1]] += self.connections[c].compute(source.s).view(inpts[c[1]].shape) #EDITED
 
         return inpts
 

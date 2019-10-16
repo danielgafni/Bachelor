@@ -185,7 +185,8 @@ class Connection(AbstractConnection):
                  decaying spike activation).
         """
         # Compute multiplication of spike activations by weights and add bias.
-        post = s.float().view(s.size(0), -1) @ self.w.view(625, 625) + self.b  # EDITED
+        size = s.float().view(s.size(0), -1).size()[1]
+        post = s.float().view(s.size(0), -1) @ self.w.view(size, size) + self.b  # EDITED
         return post.view(s.size(0), *self.target.shape)
 
     def update(self, **kwargs) -> None:
