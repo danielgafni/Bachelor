@@ -1,3 +1,5 @@
+import os
+
 import torch
 from torch.nn.modules.utils import _pair
 import numpy as np
@@ -9,7 +11,7 @@ from time import time as t
 import datetime
 from tqdm import tqdm
 from IPython import display
-
+import json
 
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
@@ -29,9 +31,11 @@ import streamlit as st
 
 
 class LC_SNN:
-    def __init__(self, norm=0.5, competitive_weight=-100., n_iter=1000, time_max=100, cropped_size=20,
+    def __init__(self, norm=0.5, c_w=-100., n_iter=1000, time_max=100, cropped_size=20,
                  kernel_size=12, n_filters = 25, stride=4,
                  load=False):
+        self.norm = norm
+        self.c_w = c_w
         self.n_iter = n_iter
         self.calibrated = False
         self.time_max = time_max
@@ -39,14 +43,26 @@ class LC_SNN:
         self.kernel_size = kernel_size
         self.n_filters = n_filters
         self.stride = stride
+
+        self.parameters = {
+            'norm': self.norm,
+            'c_w': self.c_w,
+            'n_iter': self.n_iter,
+            'time_max': self.time_max,
+            'cropped_size': self.cropped_size,
+            'kernel_size': self.kernel_size,
+            'stride': self.stride,
+            'n_filters': self.n_filters
+            }
+
         if not load:
-            self.create_network(norm=norm, competitive_weight=competitive_weight)
+            self.create_network(norm=norm, c_w=c_w)
         else:
             pass
 
-    def create_network(self, norm=0.5, competitive_weight=-100.):
+    def create_network(self, norm=0.5, c_w=-100.):
         self.norm = norm
-        self.competitive_weight = competitive_weight
+        self.c_w = c_w
         dt = 1
         intensity = 127.5
 
@@ -102,7 +118,7 @@ class LC_SNN:
             kernel_size=self.kernel_size,
             stride=self.stride,
             update_rule=PostPre,
-            norm=norm, #1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
+            norm=self.norm, #1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
             nu=[1e-4, 1e-2],
             wmin=self.wmin,
             wmax=self.wmax)
@@ -115,7 +131,7 @@ class LC_SNN:
                     # change
                     for i in range(conv_size):
                         for j in range(conv_size):
-                            w[fltr1, i, j, fltr2, i, j] = competitive_weight
+                            w[fltr1, i, j, fltr2, i, j] = c_w
 
         self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
 
@@ -155,9 +171,9 @@ class LC_SNN:
         self.conv_prod = int(np.prod(conv_size))
         self.kernel_prod = int(np.prod(self.kernel_size))
 
-        print(f'kernel_prod: {self.kernel_prod}')
-        print(f'conv_prod: {self.conv_prod}')
-        print(f'conv_size: {self.conv_size}')
+        # print(f'kernel_prod: {self.kernel_prod}')
+        # print(f'conv_prod: {self.conv_prod}')
+        # print(f'conv_size: {self.conv_size}')
         weights_to_display = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
                                                                n_filters=self.n_filters,
                                                                kernel_size=self.kernel_size,
@@ -178,7 +194,8 @@ class LC_SNN:
         fig.update_layout(height=800, width=800)
 
     def train(self, n_iter=None, plot=False, vis_interval=10):
-        n_iter = self.n_iter
+        if n_iter is None:
+            n_iter = self.n_iter
         self.network.train(True)
         print('Training network...')
         train_dataloader = torch.utils.data.DataLoader(
@@ -351,8 +368,6 @@ class LC_SNN:
 
         self.weights_XY = weights_to_display.numpy()
 
-        # TODO formatted weights to display
-
     def show_neuron(self, n):
         weights_to_show = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1).clone()
         weights_to_show[:, :, n-1] = torch.ones(self.cropped_size, self.cropped_size)
@@ -483,13 +498,13 @@ class LC_SNN:
 
     def get_params(self, **args):
         return {'norm': self.norm,
-                'competitive_weight': self.competitive_weight,
+                'c_w': self.c_w,
                 'n_iter': self.n_iter
                 }
 
-    def set_params(self, norm, competitive_weight, n_iter):
+    def set_params(self, norm, c_w, n_iter):
         display.clear_output(wait=True)
-        return LC_SNN(norm=norm, competitive_weight=competitive_weight, n_iter=n_iter)
+        return LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter)
 
     def visualize(self):
         # weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1).clone()
@@ -517,7 +532,47 @@ class LC_SNN:
         #print(weights_XY[:, :, 0])
         return fig_weights
 
+    def save(self, path):
+        path = 'networks//' + path
+        if not os.path.exists(path):
+            os.makedirs(path)
+        torch.save(self.network, path + '//network')
+        if self.calibrated:
+            torch.save(self.top_classes, path + '//top_classes')
+            torch.save(self.votes, path + '//votes')
+        with open(path + '//parameters.json', 'w') as file:
+            json.dump(self.parameters, file)
+
     def __repr__(self):
-        # return f'LC_SNN network with parameters:\nnorm = {self.norm}\ncompetitive_weights={self.competitive_weight}' \
+        # return f'LC_SNN network with parameters:\nnorm = {self.norm}\nc_ws={self.c_w}' \
         #        f'\nn_iter={self.n_iter}'
         return f'LC_SNN network with parameters:\n {self.get_params()}'
+
+def load_LC_SNN(path):
+    with open(path + '//parameters.json', 'r') as file:
+        parameters = json.load(file)
+    top_classes = None
+    if os.path.exists(path + '//top_classes'):
+        top_classes = torch.load(path + '//top_classes')
+    votes = None
+    if os.path.exists(path + '//votes'):
+        votes = torch.load(path + '//votes')
+    network = torch.load(path + '//network')
+
+    norm = parameters['norm']
+    c_w = parameters['c_w']
+    n_iter = parameters['n_iter']
+    time_max = parameters['time_max']
+    cropped_size = parameters['cropped_size']
+    kernel_size = parameters['kernel_size']
+    n_filters = parameters['n_filters']
+    stride = parameters['stride']
+
+    net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, cropped_size=cropped_size,
+                 kernel_size=kernel_size, n_filters=n_filters, stride=stride)
+
+    net.network = network
+    net.top_classes = top_classes
+    net.votes = votes
+
+    return net
