@@ -23,20 +23,18 @@ from LC_SNN import LC_SNN
 import streamlit as st
 
 
-# @st.cache(ignore_hash=True, suppress_st_warning=True)
-def create_network(norm, compettitive_weight, n_iter):
+@st.cache(ignore_hash=True, suppress_st_warning=True)
+def create_network(norm, compettitive_weight, n_iter, cropped_size, time_max, n_filters, stride):
     with st.spinner('Creating network...'):
-        net = LC_SNN(norm, compettitive_weight, n_iter)
+        net = LC_SNN(norm, compettitive_weight, n_iter, cropped_size=cropped_size, time_max=time_max,
+                     n_filters=n_filters, stride=stride)
         st.write('Network created')
         return net
 
 
 def plot_weights(net):
-    f = plt.figure(figsize=(15, 15))
-    plt.imshow(net.weights_XY, cmap='YlOrBr')
-    plt.colorbar()
-    st.markdown('# Network weights')
-    st.write(f)
+    fig = net.visualize()
+    st.write(fig)
 
 
 def plotly_plot_weights(net):
@@ -47,14 +45,13 @@ def plotly_plot_weights(net):
 
 def train_network(plot=False, vis_interval=10):
     net.train(n_iter=n_iter, plot=plot, vis_interval=vis_interval)
-    st.write('Network trained')
     #if plot:
     #    plot_weights(net)
 
 st.title('LC_SNN')
 to_plot = st.checkbox('Visialize', True)
-vis_interval = st.slider('Visualization interval, s', 1, 120, 60)
-network_select = st.selectbox('Network source', ['Load network', 'Create network'])
+vis_interval = st.slider('Visualization interval, s', 1, 120, 10)
+network_select = st.selectbox('Network source', ['Create network'])#['Load network', 'Create network'])
 
 # Creating network
 if network_select == 'Create network':
@@ -62,26 +59,37 @@ if network_select == 'Create network':
     norm = float(st.sidebar.text_input('norm', '0.2375'))
     compettitive_weight = float(st.sidebar.text_input('compettitive_weight', '-30'))
     n_iter = int(st.sidebar.text_input('n_iter', '100'))
+    time_max = int(st.sidebar.text_input('time_max', '250'))
+    cropped_size = int(st.sidebar.text_input('cropped_size', '20'))
+    n_filters = int(st.sidebar.text_input('n_filters', '25'))
+    stride = int(st.sidebar.text_input('stride', '4'))
     to_save = st.sidebar.checkbox('Save network after training', True)
-    net = create_network(norm=norm, compettitive_weight=compettitive_weight, n_iter=n_iter)
+    net = create_network(norm=norm, compettitive_weight=compettitive_weight, n_iter=n_iter, cropped_size=cropped_size,
+                         time_max=time_max, n_filters=n_filters, stride=stride)
     st.write(net)
     to_train = st.sidebar.button('Train network')
     if to_train:
-        train_network(plot=to_plot, vis_interval=vis_interval)
-        net.network.save(f'networks//norm={norm}_comp_weight={compettitive_weight}_n_iter={n_iter}')
-        st.write(f'Network accuracy is {net.accuracy(1000)}')
-
-# Loading pre-trained network
-if network_select == 'Load network':
-    path = os.path.abspath(os.path.dirname(sys.argv[0]))
-    filename = st.text_input('Enter netowork path', path+'\\network')
-    to_load = st.button('Load')
-
-    if to_load:
-        net = LC_SNN(load=True)
-        net.load(filename)
-        st.write(net)
-        st.write('Network loaded')
         if to_plot:
-            st.write('# Network weights')
-            plotly_plot_weights(net)
+            st.write('# Visualisation')
+        train_network(plot=to_plot, vis_interval=vis_interval)
+
+        if to_save:
+            if not os.path.exists(f'networks'):
+                os.makedirs(f'networks')
+            net.network.save(f'networks//norm={norm}_comp_weight={compettitive_weight}_n_iter={n_iter}')
+        #st.write(f'Network accuracy is {net.accuracy(1000)}')
+
+# # Loading pre-trained network
+# if network_select == 'Load network':
+#     path = os.path.abspath(os.path.dirname(sys.argv[0]))
+#     filename = st.text_input('Enter netowork path', path+'\\network')
+#     to_load = st.button('Load')
+#
+#     if to_load:
+#         net = LC_SNN(load=True)
+#         net.load(filename)
+#         st.write(net)
+#         st.write('Network loaded')
+#         if to_plot:
+#             st.write('# Network weights')
+#             net.visualize()

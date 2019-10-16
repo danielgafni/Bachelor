@@ -1,8 +1,10 @@
 import torch
+from torch.nn.modules.utils import _pair
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objs as go
 from torchvision import transforms
-
+from bindsnet.utils import reshape_locally_connected_weights
 from time import time as t
 import datetime
 from tqdm import tqdm
@@ -27,81 +29,24 @@ import streamlit as st
 
 
 class LC_SNN:
-    def __init__(self, norm=0.5, competitive_weight=-100., n_iter=1000, load=False):
+    def __init__(self, norm=0.5, competitive_weight=-100., n_iter=1000, time_max=100, cropped_size=20,
+                 kernel_size=12, n_filters = 25, stride=4,
+                 load=False):
         self.n_iter = n_iter
         self.calibrated = False
+        self.time_max = time_max
+        self.cropped_size = cropped_size
+        self.kernel_size = kernel_size
+        self.n_filters = n_filters
+        self.stride = stride
         if not load:
             self.create_network(norm=norm, competitive_weight=competitive_weight)
         else:
-            self.norm = None
-            self.competitive_weight = None
-            self.n_iter = None
-            self.time_max = 100
-
-    def plot(self):
-        plt.figure()
-        test_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
-
-        for whatever, batch in list(zip([0], test_dataloader)):
-            #Processing
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-            label = batch["label"]
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-
-            #Visualization
-            # Optionally plot various simulation information.
-            inpt_axes = None
-            inpt_ims = None
-            spike_ims = None
-            spike_axes = None
-            weights1_im = None
-            voltage_ims = None
-            voltage_axes = None
-            image = batch["image"].view(28, 28)
-
-            inpt = inpts["X"].view(self.time_max, 784).sum(0).view(28, 28)
-            weights_XY = self.connection_XY.w
-            weights_YY = self.connection_YY.w
-
-            self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                }
-            _voltages = {"Y": self.voltages["Y"].get("v").view(self.time_max, -1)}
-
-            inpt_axes, inpt_ims = plot_input(
-                image, inpt, label=label, axes=inpt_axes, ims=inpt_ims
-                )
-            spike_ims, spike_axes = plot_spikes(self._spikes, ims=spike_ims, axes=spike_axes)
-            f, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 10))
-            weights_XY = weights_XY.reshape(28, 28, -1)
-            weights_to_display = torch.zeros(0, 28*25)
-            i = 0
-            while i < 625:
-                for j in range(25):
-                    weights_to_display_row = torch.zeros(28, 0)
-                    for k in range(25):
-                        weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
-                        i += 1
-                    weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
-            im1 = ax1.imshow(weights_to_display.numpy())
-            im2 = ax2.imshow(weights_YY.reshape(5*5*25, 5*5*25).numpy())
-            f.colorbar(im1, ax=ax1)
-            f.colorbar(im2, ax=ax2)
-            ax1.set_title('XY weights')
-            ax2.set_title('YY weights')
-            f.show()
-            voltage_ims, voltage_axes = plot_voltages(
-                _voltages, ims=voltage_ims, axes=voltage_axes
-                )
-        self.network.reset_()  # Reset state variables
-        return weights_to_display
+            pass
 
     def create_network(self, norm=0.5, competitive_weight=-100.):
         self.norm = norm
         self.competitive_weight = competitive_weight
-        self.time_max = 30
         dt = 1
         intensity = 127.5
 
@@ -111,36 +56,38 @@ class LC_SNN:
             "MNIST",
             download=False,
             train=True,
-            transform=transforms.Compose(
-                [transforms.ToTensor(), transforms.Lambda(lambda x: x * intensity)]
-                )
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.cropped_size),
+                 transforms.ToTensor(),
+                 transforms.Lambda(lambda x: x * intensity)
+                 ])
             )
 
         # Hyperparameters
-        n_filters = 25
-        kernel_size = 12
-        stride = 4
+
         padding = 0
-        conv_size = int((28 - kernel_size + 2 * padding) / stride) + 1
-        per_class = int((n_filters * conv_size * conv_size) / 10)
+        conv_size = int((self.cropped_size - self.kernel_size + 2 * padding) / self.stride) + 1
+        per_class = int((self.n_filters * conv_size * conv_size) / 10)
         tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
-        refrac = 5
+        refrac = 2
 
-        wmin = 0
-        wmax = 1
+        self.wmin = 0
+        self.wmax = 1
 
         # Network
         self.network = Network(learning=True)
         self.GlobalMonitor = NetworkMonitor(self.network, state_vars=('v', 's', 'w'))
 
+        self.n_input = self.cropped_size**2
+        self.input_layer = Input(n=self.n_input, shape=(1, self.cropped_size, self.cropped_size), traces=True, refrac=refrac)
 
-        self.input_layer = Input(n=784, shape=(1, 28, 28), traces=True)
-
+        self.n_output = self.n_filters * conv_size * conv_size
+        self.output_shape = int(np.sqrt(self.n_output))
         self.output_layer = AdaptiveLIFNodes(
-            n=n_filters * conv_size * conv_size,
-            shape=(n_filters, conv_size, conv_size),
+            n=self.n_output,
+            shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
             trace_tc=tc_trace,
@@ -148,23 +95,22 @@ class LC_SNN:
             theta_plus=0.05,
             tc_theta_decay=1e6)
 
-
         self.connection_XY = LocalConnection(
             self.input_layer,
             self.output_layer,
-            n_filters=n_filters,
-            kernel_size=kernel_size,
-            stride=stride,
+            n_filters=self.n_filters,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
             update_rule=PostPre,
-            norm=norm, #1/(kernel_size ** 2),#0.4 * kernel_size ** 2,  # norm constant - check
+            norm=norm, #1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
             nu=[1e-4, 1e-2],
-            wmin=wmin,
-            wmax=wmax)
+            wmin=self.wmin,
+            wmax=self.wmax)
 
         # competitive connections
-        w = torch.zeros(n_filters, conv_size, conv_size, n_filters, conv_size, conv_size)
-        for fltr1 in range(n_filters):
-            for fltr2 in range(n_filters):
+        w = torch.zeros(self.n_filters, conv_size, conv_size, self.n_filters, conv_size, conv_size)
+        for fltr1 in range(self.n_filters):
+            for fltr2 in range(self.n_filters):
                 if fltr1 != fltr2:
                     # change
                     for i in range(conv_size):
@@ -185,12 +131,51 @@ class LC_SNN:
         for layer in set(self.network.layers):
             self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=["s"], time=self.time_max)
             self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
-            #print('GlobalMonitor.state_vars:', self.GlobalMonitor.state_vars)
 
         self.voltages = {}
         for layer in set(self.network.layers) - {"X"}:
             self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
             self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+
+        weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1).clone()
+        weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
+        i = 0
+        while i < self.n_output:
+            for j in range(int(self.n_output**0.5)):
+                weights_to_display_row = torch.zeros(self.cropped_size, 0)
+                for k in range(int(self.n_output**0.5)):
+                    weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+                    i += 1
+                weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+        self.weights_XY = weights_to_display.numpy()
+
+        ################################################################################################################
+        self.stride = self.stride
+        self.conv_size = conv_size
+        self.conv_prod = int(np.prod(conv_size))
+        self.kernel_prod = int(np.prod(self.kernel_size))
+
+        print(f'kernel_prod: {self.kernel_prod}')
+        print(f'conv_prod: {self.conv_prod}')
+        print(f'conv_size: {self.conv_size}')
+        weights_to_display = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
+                                                               n_filters=self.n_filters,
+                                                               kernel_size=self.kernel_size,
+                                                               conv_size=self.conv_size,
+                                                               locations=self.network.connections[('X', 'Y')].locations,
+                                                               input_sqrt=self.n_input)
+
+        # print(self.network.connections[('X', 'Y')].locations)
+        # print(self.network.connections[('X', 'Y')].locations.shape)
+        #
+        # mask = self.network.connections[('X', 'Y')].mask
+        # print(len((mask==True).nonzero()))
+        # source = self.network.connections[('X', 'Y')].w
+        # #weights_to_plot = weights_to_display.masked_scatter(mask=mask, source=source)
+        # #print(weights_to_plot)
+
+        fig = go.Figure(data=go.Heatmap(z=weights_to_display.numpy(), colorscale='YlOrBr'))
+        fig.update_layout(height=800, width=800)
 
     def train(self, n_iter=None, plot=False, vis_interval=10):
         n_iter = self.n_iter
@@ -200,15 +185,16 @@ class LC_SNN:
             self.train_dataset, batch_size=1, shuffle=True)
         progress_bar = st.progress(0)
         status = st.empty()
-        t_start = t()
+
         cnt = 0
-
         if plot:
-            f = plt.figure(figsize=(15, 15))
-            plt.imshow(torch.randint(0, 2, (700, 700)).numpy(), cmap='YlOrBr')
-            plt.colorbar()
-            plot_weights = st.pyplot(f)
+            fig_weights = self.visualize()
+            fig_weights.update_layout(width=800, height=800)
+            st.write('Weights XY')
+            weights_plot = st.plotly_chart(fig_weights)
+            #fig_weights.show()
 
+        t_start = t()
         for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
             progress_bar.progress(int((smth + 1)/n_iter*100))
             t_now = t()
@@ -221,29 +207,13 @@ class LC_SNN:
 
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
-                    weights_XY = self.connection_XY.w
-                    weights_XY = weights_XY.reshape(28, 28, -1)
-                    weights_to_display = torch.zeros(0, 28*25)
-                    i = 0
-                    while i < 625:
-                        for j in range(25):
-                            weights_to_display_row = torch.zeros(28, 0)
-                            for k in range(25):
-                                weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
-                                i += 1
-                            weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
-                    self.weights_XY = weights_to_display.numpy()
+                    fig_weights = self.visualize()
+                    weights_plot.plotly_chart(fig_weights)
 
                     self._spikes = {
                         "X": self.spikes["X"].get("s").view(self.time_max, -1),
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
-                    fig_w = plt.figure(figsize=(15, 15))
-                    plt.title('Weights_XY')
-                    plt.imshow(self.weights_XY, cmap='YlOrBr')
-                    plt.colorbar()
-                    plot_weights.pyplot(fig_w)
-                    plt.close(fig_w)
                     cnt += 1
                 else:
                     pass
@@ -261,13 +231,13 @@ class LC_SNN:
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
             weights_XY = self.connection_XY.w
-            weights_XY = weights_XY.reshape(28, 28, -1)
-            weights_to_display = torch.zeros(0, 28*25)
+            weights_XY = weights_XY.reshape(self.cropped_size, self.cropped_size, -1)
+            weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
             i = 0
-            while i < 625:
-                for j in range(25):
-                    weights_to_display_row = torch.zeros(28, 0)
-                    for k in range(25):
+            while i < self.n_output:
+                for j in range(int(self.n_output**0.5)):
+                    weights_to_display_row = torch.zeros(self.cropped_size, 0)
+                    for k in range(int(self.n_output**0.5)):
                         weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
                         i += 1
                     weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
@@ -285,7 +255,7 @@ class LC_SNN:
         self.network.train(False);
 
     def class_from_spikes(self):
-        sum_output = self.spikes['Y'].get('s').reshape(625, self.time_max).sum(1)
+        sum_output = self.spikes['Y'].get('s').reshape(self.n_output, self.time_max).sum(1)
         res = torch.matmul(self.votes.type(torch.LongTensor), sum_output)
         return res.argmax()
 
@@ -324,13 +294,13 @@ class LC_SNN:
         return tuple([x, y])
 
     def plot_weights_XY(self):
-        weights_XY = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1)
-        weights_to_display = torch.zeros(0, 28*25)
+        weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1)
+        weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
         i = 0
-        while i < 625:
-            for j in range(25):
-                weights_to_display_row = torch.zeros(28, 0)
-                for k in range(25):
+        while i < self.n_output:
+            for j in range(int(self.n_output**0.5)):
+                weights_to_display_row = torch.zeros(self.cropped_size, 0)
+                for k in range(int(self.n_output**0.5)):
                     weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
                     i += 1
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
@@ -360,7 +330,6 @@ class LC_SNN:
         for layer in set(self.network.layers):
             self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=["s"], time=self.time_max)
             self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
-            #print('GlobalMonitor.state_vars:', self.GlobalMonitor.state_vars)
 
         self.voltages = {}
         for layer in set(self.network.layers) - {"X"}:
@@ -369,13 +338,13 @@ class LC_SNN:
 
         weights_XY = self.network.connections[('X', 'Y')].w
 
-        weights_XY = weights_XY.reshape(28, 28, -1)
-        weights_to_display = torch.zeros(0, 28*25)
+        weights_XY = weights_XY.reshape(self.cropped_size, self.cropped_size, -1)
+        weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
         i = 0
-        while i < 625:
-            for j in range(25):
-                weights_to_display_row = torch.zeros(28, 0)
-                for k in range(25):
+        while i < self.n_output:
+            for j in range(int(self.n_output**0.5)):
+                weights_to_display_row = torch.zeros(self.cropped_size, 0)
+                for k in range(int(self.n_output**0.5)):
                     weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
                     i += 1
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
@@ -385,14 +354,14 @@ class LC_SNN:
         # TODO formatted weights to display
 
     def show_neuron(self, n):
-        weights_to_show = self.network.connections[('X', 'Y')].w.reshape(28, 28, -1).clone()
-        weights_to_show[:, :, n-1] = torch.ones(28, 28)
-        weights_to_display = torch.zeros(0, 28*25)
+        weights_to_show = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1).clone()
+        weights_to_show[:, :, n-1] = torch.ones(self.cropped_size, self.cropped_size)
+        weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
         i = 0
-        while i < 625:
-            for j in range(25):
-                weights_to_display_row = torch.zeros(28, 0)
-                for k in range(25):
+        while i < self.n_output:
+            for j in range(int(self.n_output**0.5)):
+                weights_to_display_row = torch.zeros(self.cropped_size, 0)
+                for k in range(int(self.n_output**0.5)):
                     weights_to_display_row = torch.cat((weights_to_display_row, weights_to_show[:, :, i]), dim=1)
                     i += 1
                 weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
@@ -407,7 +376,7 @@ class LC_SNN:
     def calibrate_top_classes(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
         (x, y) = self.predict_many(n_iter=n_iter)
-        votes = torch.zeros(11, 625)
+        votes = torch.zeros(11, self.n_output)
         votes[10, :] = votes[10, :].fill_(1/(2*n_iter))
         for (label, layer) in zip(y, x):
             for i, spike_sum in enumerate(layer):
@@ -521,6 +490,32 @@ class LC_SNN:
     def set_params(self, norm, competitive_weight, n_iter):
         display.clear_output(wait=True)
         return LC_SNN(norm=norm, competitive_weight=competitive_weight, n_iter=n_iter)
+
+    def visualize(self):
+        # weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.cropped_size, self.cropped_size, -1).clone()
+        # weights_to_display = torch.zeros(0, self.cropped_size*int(self.n_output**0.5))
+        # i = 0
+        # while i < self.n_output:
+        #     for j in range(int(self.n_output**0.5)):
+        #         weights_to_display_row = torch.zeros(self.cropped_size, 0)
+        #         for k in range(int(self.n_output**0.5)):
+        #             weights_to_display_row = torch.cat((weights_to_display_row, weights_XY[:, :, i]), dim=1)
+        #             i += 1
+        #         weights_to_display = torch.cat((weights_to_display, weights_to_display_row), dim=0)
+
+        weights_to_display = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
+                                                               n_filters=self.n_filters,
+                                                               kernel_size=self.kernel_size,
+                                                               conv_size=self.conv_size,
+                                                               locations=self.network.connections[('X', 'Y')].locations,
+                                                               input_sqrt=self.n_input)
+
+        fig_weights = go.Figure(data=go.Heatmap(z=weights_to_display.numpy(), colorscale='YlOrBr'))
+        fig_weights.update_layout(width=800, height=800)
+        #st.plotly_chart(fig_weights)
+        #fig_weights.show()
+        #print(weights_XY[:, :, 0])
+        return fig_weights
 
     def __repr__(self):
         # return f'LC_SNN network with parameters:\nnorm = {self.norm}\ncompetitive_weights={self.competitive_weight}' \
