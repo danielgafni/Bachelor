@@ -56,8 +56,8 @@ network_select = st.selectbox('Network source', ['Create network'])#['Load netwo
 # Creating network
 if network_select == 'Create network':
     st.sidebar.markdown('# Parameters')
-    norm = float(st.sidebar.text_input('norm', '0.2375'))
-    compettitive_weight = float(st.sidebar.text_input('compettitive_weight', '-30'))
+    norm = float(st.sidebar.text_input('norm', '0.2'))
+    compettitive_weight = float(st.sidebar.text_input('compettitive_weight', '-100'))
     n_iter = int(st.sidebar.text_input('n_iter', '100'))
     time_max = int(st.sidebar.text_input('time_max', '250'))
     cropped_size = int(st.sidebar.text_input('cropped_size', '20'))
