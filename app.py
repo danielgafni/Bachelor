@@ -23,7 +23,7 @@ from LC_SNN import LC_SNN
 import streamlit as st
 
 
-@st.cache(ignore_hash=True, suppress_st_warning=True)
+#@st.cache(ignore_hash=True, suppress_st_warning=True)
 def create_network(norm, compettitive_weight, n_iter, cropped_size, time_max, n_filters, stride, kernel_size):
     with st.spinner('Creating network...'):
         net = LC_SNN(norm, compettitive_weight, n_iter, cropped_size=cropped_size, time_max=time_max,
@@ -31,22 +31,17 @@ def create_network(norm, compettitive_weight, n_iter, cropped_size, time_max, n_
         st.write('Network created')
         return net
 
-
 def plot_weights(net):
-    fig = net.visualize()
-    st.write(fig)
-
-
-def plotly_plot_weights(net):
-    fig = go.Figure(data=go.Heatmap(z=net.weights_XY, colorscale = 'YlOrBr'))
-    fig.update_layout(width=800, height=800)
+    fig = net.plot_weights()
     st.plotly_chart(fig)
 
+def plot_spikes(net):
+    fig = net.plot_spikes()
+    st.plotly_chart(fig)
 
 def train_network(plot=False, vis_interval=10):
     net.train(n_iter=n_iter, plot=plot, vis_interval=vis_interval)
-    #if plot:
-    #    plot_weights(net)
+
 
 st.title('LC_SNN')
 to_plot = st.checkbox('Visialize', True)
