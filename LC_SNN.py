@@ -224,24 +224,36 @@ class LC_SNN:
         self.network.reset_()  # Reset state variables
         self.network.train(False)
 
-    def class_from_spikes(self):
+    def class_from_spikes(self, top_n=None):
+        if top_n is None:
+            top_n = self.votes.shape[1]
         sum_output = self._spikes['Y'].sum(0)
         res = torch.matmul(self.votes.type(torch.LongTensor), sum_output.type(torch.LongTensor))
         return res.argmax()
 
-    def debug_predictions(self, n_iter):
+    def debug(self, n_iter):
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
+        
+        x = []
+        y = []
 
         for i, batch in list(zip(range(n_iter), train_dataloader)):
+            
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            print(f'Network top class: {self.class_from_spikes()}\nCorrect label: {batch["label"][0]}\n')
-            self.plot_spikes()
+            prediction = self.class_from_spikes()
+            correct = batch["label"][0]
+            x.append(prediction)
+            y.append(correct)
+            print(f'Network prediction: {prediction}\nCorrect label: {correct}\n')
+            #self.plot_spikes()
+            
+        return tuple([x, y])
 
     def predict_many(self, n_iter=6000):
         y = []
@@ -283,6 +295,17 @@ class LC_SNN:
         self.votes = votes
         self.calibrated = True
         return top_classes, votes
+
+    def predict(self, batch, top_n):
+        inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+        self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+        self._spikes = {
+            "X": self.spikes["X"].get("s").view(self.time_max, -1),
+            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            }
+        prediction = self.class_from_spikes()
+        label = batch['label']
+        return tuple([prediction, label])
 
     def accuracy(self, n_iter):
         self.network.train(False)
@@ -377,9 +400,13 @@ class LC_SNN:
         return fig_spikes
 
     def plot_spikes(self):
-        fig_spikes = make_subplots(rows=2, cols=1, subplot_titles=['X spikes', 'Y spikes'])
-        spikes_Y = self._spikes['Y'].transpose(0, 1)
         spikes_X = self._spikes['X'].transpose(0, 1)
+        spikes_Y = self._spikes['Y'].transpose(0, 1)
+        width_X = spikes_X.shape[0] / (spikes_X.shape[0] + spikes_Y.shape[0])
+        width_Y = 1 - width_X
+        fig_spikes = make_subplots(rows=2, cols=1, subplot_titles=['X spikes', 'Y spikes'],
+                                   vertical_spacing=0.04, row_width=[width_Y, width_X])
+
         trace_X = go.Heatmap(z=spikes_X.numpy().astype(int), colorscale='YlOrBr')
         trace_Y = go.Heatmap(z=spikes_Y.numpy().astype(int), colorscale='YlOrBr')
         fig_spikes.add_trace(trace_X, row=1, col=1)
@@ -394,7 +421,7 @@ class LC_SNN:
         return fig_spikes
 
     def save(self, path):
-        path = 'networks//' + path
+        #path = 'networks//' + path
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + '//network')
@@ -442,4 +469,15 @@ def load_LC_SNN(path):
     net.network = network
     net.top_classes = top_classes
     net.votes = votes
+
+    net.spikes = {}
+    for layer in set(net.network.layers):
+        net.spikes[layer] = Monitor(net.network.layers[layer], state_vars=["s"], time=net.time_max)
+        net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
+
+    net._spikes = {
+        "X": net.spikes["X"].get("s").view(net.time_max, -1),
+        "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
+        }
+
     return net
