@@ -5,6 +5,7 @@ from time import time as t
 
 import numpy as np
 import plotly.graph_objs as go
+from sklearn.metrics import confusion_matrix
 import streamlit as st
 import torch
 from IPython import display
@@ -30,6 +31,8 @@ class LC_SNN:
         self.c_w = c_w
         self.n_iter = n_iter
         self.calibrated = False
+        self.conf_matrix = None
+        self.acc = None
         self.time_max = time_max
         self.cropped_size = cropped_size
         self.kernel_size = kernel_size
@@ -228,7 +231,12 @@ class LC_SNN:
         if top_n is None:
             top_n = self.votes.shape[1]
         sum_output = self._spikes['Y'].sum(0)
-        res = torch.matmul(self.votes.type(torch.LongTensor), sum_output.type(torch.LongTensor))
+        args = self.votes.argsort(descending=True)[:, 0:top_n]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, row in enumerate(args):
+            for j, neuron_number in enumerate(row):
+                top_n_votes[i, neuron_number] = self.votes[i, neuron_number]
+        res = torch.matmul(top_n_votes.type(torch.LongTensor), sum_output.type(torch.LongTensor))
         return res.argmax()
 
     def debug(self, n_iter):
@@ -279,7 +287,7 @@ class LC_SNN:
 
         return tuple([x, y])
 
-    def calibrate(self, n_iter=100):
+    def calibrate_2(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
         (x, y) = self.predict_many(n_iter=n_iter)
         votes = torch.zeros(11, self.n_output)
@@ -296,6 +304,22 @@ class LC_SNN:
         self.calibrated = True
         return top_classes, votes
 
+    def calibrate(self, n_iter=100):
+        print('Calibrating top classes for each neuron...')
+        (x, y) = self.predict_many(n_iter=n_iter)
+        votes_2 = torch.zeros(10, self.n_output)
+        for (label, layer) in zip(y, x):
+            for i, spike_sum in enumerate(layer):
+                votes_2[label, i] += spike_sum
+        for i in range(10):
+            votes_2[i, :] = votes_2[i, :] / len((np.array(y) == i).nonzero()[0])
+        top_classes_2 = votes_2.argmax(dim=0)
+        # top_classes_formatted = np.where(top_classes!=10, top_classes, None)
+        self.top_classes_2 = top_classes_2
+        self.votes_2 = votes_2
+        self.calibrated_2 = True
+        return top_classes_2, votes_2
+
     def predict(self, batch, top_n):
         inpts = {"X": batch["encoded_image"].transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -307,7 +331,7 @@ class LC_SNN:
         label = batch['label']
         return tuple([prediction, label])
 
-    def accuracy(self, n_iter):
+    def accuracy(self, n_iter, top_n=None):
         self.network.train(False)
         if not self.calibrated:
             self.calibrate(n_iter=self.n_iter)
@@ -330,7 +354,7 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction = self.class_from_spikes()
+            prediction = self.class_from_spikes(top_n=top_n)
             label = batch['label']
 
             x.append(prediction)
@@ -346,7 +370,23 @@ class LC_SNN:
 
         self.network.reset_()
         print(f'Accuracy: {corrects.mean()}')
-        return corrects.mean()
+        self.conf_matrix = confusion_matrix(y, x)
+        self.acc = corrects.mean()
+
+    def plot_confusion_matrix(self):
+        width = 800
+        height = int(width * self.conf_matrix.shape[0] / self.conf_matrix.shape[1])
+
+        fig_conf_matrix = go.Figure(data=go.Heatmap(z=self.conf_matrix, colorscale='YlOrBr'))
+        fig_conf_matrix.update_layout(width=width, height=height,
+                                 title=go.layout.Title(
+                                     text="Confusion matrix",
+                                     xref="paper",
+                                     x=0
+                                     )
+                                 )
+
+        return fig_conf_matrix
 
     def get_params(self, **args):
         return {'norm': self.norm,
