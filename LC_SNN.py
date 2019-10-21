@@ -307,18 +307,18 @@ class LC_SNN:
     def calibrate(self, n_iter=100):
         print('Calibrating top classes for each neuron...')
         (x, y) = self.predict_many(n_iter=n_iter)
-        votes_2 = torch.zeros(10, self.n_output)
+        votes = torch.zeros(10, self.n_output)
         for (label, layer) in zip(y, x):
             for i, spike_sum in enumerate(layer):
-                votes_2[label, i] += spike_sum
+                votes[label, i] += spike_sum
         for i in range(10):
-            votes_2[i, :] = votes_2[i, :] / len((np.array(y) == i).nonzero()[0])
-        top_classes_2 = votes_2.argmax(dim=0)
+            votes[i, :] = votes[i, :] / len((np.array(y) == i).nonzero()[0])
+        top_classes = votes.argmax(dim=0)
         # top_classes_formatted = np.where(top_classes!=10, top_classes, None)
-        self.top_classes_2 = top_classes_2
-        self.votes_2 = votes_2
-        self.calibrated_2 = True
-        return top_classes_2, votes_2
+        self.top_classes = top_classes
+        self.votes = votes
+        self.calibrated = True
+        return top_classes, votes
 
     def predict(self, batch, top_n):
         inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -331,7 +331,7 @@ class LC_SNN:
         label = batch['label']
         return tuple([prediction, label])
 
-    def accuracy(self, n_iter, top_n=None):
+    def accuracy(self, n_iter=1000, top_n=None):
         self.network.train(False)
         if not self.calibrated:
             self.calibrate(n_iter=self.n_iter)
