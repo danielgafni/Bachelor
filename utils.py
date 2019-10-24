@@ -13,7 +13,7 @@ def gridsearch(norms, comp_weights, n_iter, name, accuracy_iter=1000):
             print(f'Current accuracies:\n{accs}')
             print(f'Best accuracy:\n{accs.max()}')
             print(f'Current parameters:\nnorm={norm}\tcompetitive_weight={c_w}')
-            net = LC_SNN(norm=norm, competitive_weight=c_w, n_iter=n_iter)
+            net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter)
             net.train(n_iter)
             top_classes, votes = net.calibrate_top_classes(n_iter)
             acc = net.accuracy(accuracy_iter)
