@@ -27,7 +27,6 @@ from bindsnet.utils import reshape_locally_connected_weights
 class LC_SNN:
     def __init__(self, norm=0.2, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
-
         self.norm = norm
         self.c_w = c_w
         self.n_iter = n_iter
@@ -77,18 +76,15 @@ class LC_SNN:
         tc_decay = 20.
         thresh = -52
         refrac = 2
-
         self.wmin = 0
         self.wmax = 1
 
         # Network
         self.network = Network(learning=True)
         self.GlobalMonitor = NetworkMonitor(self.network, state_vars=('v', 's', 'w'))
-
         self.n_input = self.crop ** 2
         self.input_layer = Input(n=self.n_input, shape=(1, self.crop, self.crop), traces=True,
                                  refrac=refrac)
-
         self.n_output = self.n_filters * conv_size * conv_size
         self.output_shape = int(np.sqrt(self.n_output))
         self.output_layer = AdaptiveLIFNodes(
@@ -124,13 +120,10 @@ class LC_SNN:
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
         self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
-
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
-
         self.network.add_connection(self.connection_XY, source='X', target='Y')
         self.network.add_connection(self.connection_YY, source='Y', target='Y')
-
         self.network.add_monitor(self.GlobalMonitor, name='Network')
 
         self.spikes = {}
@@ -169,20 +162,16 @@ class LC_SNN:
             self.train_dataset, batch_size=1, shuffle=True)
         progress_bar = st.progress(0)
         status = st.empty()
-
         cnt = 0
         if plot:
             fig_weights = self.plot_weights_XY()
             fig_spikes = self.plot_spikes()
-
             weights_plot = st.plotly_chart(fig_weights)
             spikes_plot = st.plotly_chart(fig_spikes)
-
 
             if debug:
                 fig_weights.show()
                 fig_spikes.show()
-
 
         t_start = t()
         for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
@@ -204,18 +193,14 @@ class LC_SNN:
                 if (t_now - t_start) / vis_interval > cnt:
                     fig_weights = self.plot_weights_XY()
                     fig_spikes = self.plot_spikes()
-
                     weights_plot.plotly_chart(fig_weights)
                     spikes_plot.plotly_chart(fig_spikes)
-
                     cnt += 1
 
                     if debug:
                         display.clear_output(wait=True)
                         fig_weights.show()
                         fig_spikes.show()
-
-
                 else:
                     pass
         self.network.reset_()  # Reset state variables
@@ -226,7 +211,7 @@ class LC_SNN:
             top_n = self.votes.shape[1]
         sum_output = self._spikes['Y'].sum(0)
         if sum_output.sum(0).item() == 0:
-            return 'No spikes'
+            return -1
         args = self.votes.argsort(descending=True)[:, 0:top_n]
         top_n_votes = torch.zeros(self.votes.shape)
         for i, row in enumerate(args):
@@ -243,7 +228,6 @@ class LC_SNN:
         y = []
 
         for i, batch in list(zip(range(n_iter), train_dataloader)):
-            
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -255,8 +239,6 @@ class LC_SNN:
             x.append(prediction)
             y.append(correct)
             print(f'Network prediction: {prediction}\nCorrect label: {correct}\n')
-            #self.plot_spikes()
-            
         return tuple([x, y])
 
     def predict_many(self, n_iter=6000):
@@ -278,12 +260,11 @@ class LC_SNN:
             output = self._spikes['Y'].sum(0)
             x.append(output)
             y.append(int(batch['label']))
-
         self.network.reset_()  # Reset state variables
-
         return tuple([x, y])
 
     def calibrate(self, n_iter=None, top_n=None):
+        print('Calibrating network...')
         if n_iter is None:
             n_iter = self.n_iter
         labels = []
@@ -291,6 +272,7 @@ class LC_SNN:
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
+        print('Collecting acrivity data...')
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -299,9 +281,10 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             outputs.append(self._spikes['Y'].sum(0))
-            labels.append(int(batch['label']))
+            labels.append(batch['label'])
         votes = torch.zeros(10, self.n_output)
-        for (label, layer) in zip(labels, outputs):
+        print('Calculating votes...')
+        for (label, layer) in tqdm(zip(labels, outputs)):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
         for i in range(10):
@@ -312,9 +295,8 @@ class LC_SNN:
             top_n = self.votes.shape[1]
         scores = []
         labels_predicted = []
-        for label, output in zip(labels, outputs):
-            if output.sum(0).item() == 0:
-                label_predicted =  'No spikes'
+        print('Calculating accuracy...')
+        for label, output in tqdm(zip(labels, outputs)):
             args = self.votes.argsort(descending=True)[:, 0:top_n]
             top_n_votes = torch.zeros(self.votes.shape)
             for i, row in enumerate(args):
@@ -322,66 +304,76 @@ class LC_SNN:
                     top_n_votes[i, neuron_number] = self.votes[i, neuron_number]
             label_predicted = torch.matmul(top_n_votes.type(torch.FloatTensor),
                                            output.type(torch.FloatTensor)).argmax().item()
-            labels_predicted.append(label_predicted)
-            if label == label_predicted:
-                scores.append(1)
-            else:
+            if output.sum(0).item() == 0:
+                label_predicted = -1
                 scores.append(0)
+            else:
+                if label == label_predicted:
+                    scores.append(1)
+                else:
+                    scores.append(0)
+
+            labels_predicted.append(label_predicted)
+
         self.accuracy = np.array(scores).mean()
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
+        self.network.reset_()
 
     def calculate_accuracy(self, n_iter=1000, top_n=None):
         self.network.train(False)
         if not self.calibrated:
             self.calibrate(n_iter=self.n_iter)
-
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
-
         print('Calculating accuracy...')
-
         x = []
         y = []
-
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-
             self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label']
             prediction = self.class_from_spikes(top_n=top_n)
-            if not prediction is None:
-                x.append(prediction)
-                y.append(label)
-        corrects = []
+            x.append(prediction)
+            y.append(label)
+        scores = []
         for i in range(len(x)):
             if x[i] == y[i]:
-                corrects.append(1)
+                scores.append(1)
             else:
-                corrects.append(0)
-        corrects = np.array(corrects)
+                scores.append(0)
+        scores = np.array(scores)
         self.network.reset_()
-        print(f'Accuracy: {corrects.mean()}')
-        self.conf_matrix = confusion_matrix(y, x)
-        self.acc = corrects.mean()
+        print(f'Accuracy: {scores.mean()}')
+        return confusion_matrix(y, x), scores.mean()
 
     def plot_confusion_matrix(self):
         width = 800
         height = int(width * self.conf_matrix.shape[0] / self.conf_matrix.shape[1])
-
         fig_conf_matrix = go.Figure(data=go.Heatmap(z=self.conf_matrix, colorscale='YlOrBr'))
         fig_conf_matrix.update_layout(width=width, height=height,
-                                 title=go.layout.Title(
-                                     text="Confusion matrix",
-                                     xref="paper",
-                                     x=0
-                                     )
-                                 )
-
+                                      title=go.layout.Title(
+                                          text="Confusion Matrix",
+                                          xref="paper"),
+                                      margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                      xaxis=go.layout.XAxis(
+                                          title_text='Output',
+                                          tickmode='array',
+                                          tickvals=list(range(11)),
+                                          ticktext=['No spikes'] + list(range(10)),
+                                          zeroline=False
+                                          ),
+                                      yaxis=go.layout.YAxis(
+                                          title_text='Input',
+                                          tickmode='array',
+                                          tickvals=list(range(11)),
+                                          ticktext=['No spikes'] + list(range(10)),
+                                          zeroline=False
+                                          )
+                                      )
         return fig_conf_matrix
 
     def get_params(self, **args):
@@ -398,7 +390,7 @@ class LC_SNN:
 
     # TODO: add new params
 
-    def plot_weights_XY(self):
+    def plot_weights_XY(self, width=800, height=800):
         self.weights_XY = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
                                                             n_filters=self.n_filters,
                                                             kernel_size=self.kernel_size,
@@ -408,33 +400,47 @@ class LC_SNN:
 
 
         fig_weights = go.Figure(data=go.Heatmap(z=self.weights_XY.numpy(), colorscale='YlOrBr'))
-        fig_weights.update_layout(width=800, height=800,
-                                  title=go.layout.Title(
-                                      text="Weights XY",
-                                      xref="paper",
-                                      x=0
-                                      ),
-                                  # margin={
-                                  #       'l': 20,
-                                  #       'r': 20,
-                                  #       'b': 100,
-                                  #       't': 30,
-                                  #       # 'pad': 4
-                                  #       }
-                                   )
+        fig_weights.update_layout(width=width, height=800,
+                                      title=go.layout.Title(
+                                          text="Weights XY",
+                                          xref="paper"),
+                                      margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                      xaxis=go.layout.XAxis(
+                                          title_text='Neuron Index X',
+                                          tickmode='array',
+                                          tickvals=np.linspace(0, self.weights_XY.shape[0],
+                                                               self.output_shape + 1) +
+                                                   self.weights_XY.shape[0] / self.output_shape / 2,
+                                          ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                          zeroline=False
+                                          ),
+                                      yaxis=go.layout.YAxis(
+                                          title_text='Neuron Index Y',
+                                          tickmode='array',
+                                          tickvals=np.linspace(0, self.weights_XY.shape[1],
+                                                               self.output_shape + 1) +
+                                                   self.weights_XY.shape[1] / self.output_shape / 2,
+                                          ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                          zeroline=False
+                                          )
+                                      )
         return fig_weights
 
     def plot_spikes_Y(self):
         spikes = self._spikes['Y'].transpose(0, 1)
         width = 800
         height = int(width * spikes.shape[0] / spikes.shape[1])
-
         fig_spikes = go.Figure(data=go.Heatmap(z=spikes.numpy().astype(int), colorscale='YlOrBr'))
-        fig_spikes.update_layout(width=width, height=height,
+        fig_spikes.update_layout(width=width, height=width,
                                  title=go.layout.Title(
                                      text="Y spikes",
                                      xref="paper",
-                                     x=0
+                                     ),
+                                 xaxis=go.layout.XAxis(
+                                     title_text='Time'
+                                     ),
+                                 yaxis=go.layout.YAxis(
+                                     title_text='Neuron Index'
                                      )
                                  )
 
@@ -464,30 +470,28 @@ class LC_SNN:
     def accuracy_distribution(self):
         colnames = ['label', 'accuracy']
         accs = pd.DataFrame(columns=colnames)
-        for i in range(10):
+        for i in range(self.conf_matrix.shape[0]):
             true = 0
             total = 0
-            for j in range(10):
+            for j in range(1, self.conf_matrix.shape[1]):
                 if i != j:
                     total += self.conf_matrix[i][j]
                 else:
                     total += self.conf_matrix[i][j]
                     true += self.conf_matrix[i][j]
-            accs = accs.append(pd.DataFrame([[i, true/total]], columns=colnames), ignore_index=True)
+            accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
 
         return accs
 
-    def save(self, name=None):
-        # TODO: Database of ids
-        if name is None:
-            name = self.id
-        path = f'networks//{name}'
+    def save(self):
+        path = f'networks//{self.id}'
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + '//network')
         if self.calibrated:
             torch.save(self.votes, path + '//votes')
             torch.save(self.accuracy, path + '//accuracy')
+            torch.save(self.conf_matrix, path + '//confusion_martix')
 
         with open(path + '//parameters.json', 'w') as file:
             json.dump(self.parameters, file)
@@ -546,8 +550,8 @@ class LC_SNN:
         return f'LC_SNN network with parameters:\n {self.parameters}'
 
 
-def load_LC_SNN(name):
-    path = f'networks//{name}'
+def load_LC_SNN(id):
+    path = f'networks//{id}'
     if os.path.exists(path + '//parameters.json'):
         with open(path + '//parameters.json', 'r') as file:
             parameters = json.load(file)
@@ -563,6 +567,7 @@ def load_LC_SNN(name):
 
     accuracy = None
     votes = None
+    conf_matrix = None
 
     net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, crop=crop,
                  kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
@@ -574,11 +579,15 @@ def load_LC_SNN(name):
     if os.path.exists(path + '//accuracy'):
         accuracy = torch.load(path + '//accuracy')
 
+    if os.path.exists(path + '//confusion_matrix'):
+        conf_matrix = torch.load(path + '//confusion_matrix')
+
     network = torch.load(path + '//network')
 
     net.network = network
     net.votes = votes
     net.accuracy = accuracy
+    net.conf_matrix = conf_matrix
 
     net.spikes = {}
     for layer in set(net.network.layers):
@@ -610,4 +619,12 @@ def plot_image(batch):
 
     return fig_img
 
-# TODO: view network from database (plot of weights, params)
+
+def view_LC_SNN(id):
+    if not os.path.exists(f'networks//{id}'):
+        print('Network with such id does not exist')
+        return None
+    else:
+        with open(f'networks//{id}//parameters.json', 'r') as file:
+            parameters = json.load(file)
+        return parameters
