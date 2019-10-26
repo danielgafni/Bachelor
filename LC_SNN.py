@@ -481,7 +481,7 @@ class LC_SNN:
                     true += self.conf_matrix[i][j]
             accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
 
-        return accs
+        return accs[accs.label != -1]
 
     def save(self):
         path = f'networks//{self.id}'
