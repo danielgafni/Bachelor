@@ -24,9 +24,9 @@ import streamlit as st
 
 
 #@st.cache(ignore_hash=True, suppress_st_warning=True)
-def create_network(norm, compettitive_weight, n_iter, cropped_size, time_max, n_filters, stride, kernel_size):
+def create_network(norm, compettitive_weight, n_iter, crop, time_max, n_filters, stride, kernel_size):
     with st.spinner('Creating network...'):
-        net = LC_SNN(norm, compettitive_weight, n_iter, cropped_size=cropped_size, time_max=time_max,
+        net = LC_SNN(norm, compettitive_weight, n_iter, crop=crop, time_max=time_max,
                      n_filters=n_filters, stride=stride, kernel_size=kernel_size)
         st.write('Network created')
         return net
@@ -55,12 +55,12 @@ if network_select == 'Create network':
     compettitive_weight = float(st.sidebar.text_input('compettitive_weight', '-100'))
     n_iter = int(st.sidebar.text_input('n_iter', '1000'))
     time_max = int(st.sidebar.text_input('time_max', '250'))
-    cropped_size = int(st.sidebar.text_input('cropped_size', '20'))
+    crop = int(st.sidebar.text_input('crop', '20'))
     n_filters = int(st.sidebar.text_input('n_filters', '25'))
     stride = int(st.sidebar.text_input('stride', '4'))
     kernel_size = int(st.sidebar.text_input('kernel_size', '12'))
     to_save = st.sidebar.checkbox('Save network after training', True)
-    net = create_network(norm=norm, compettitive_weight=compettitive_weight, n_iter=n_iter, cropped_size=cropped_size,
+    net = create_network(norm=norm, compettitive_weight=compettitive_weight, n_iter=n_iter, crop=crop,
                          time_max=time_max, n_filters=n_filters, stride=stride, kernel_size=kernel_size)
     st.write(net)
     to_train = st.sidebar.button('Train network')
