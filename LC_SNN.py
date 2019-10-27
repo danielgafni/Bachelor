@@ -22,7 +22,8 @@ from bindsnet.network.monitors import Monitor, NetworkMonitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import Connection, LocalConnection
 from bindsnet.utils import reshape_locally_connected_weights
-
+import shutil
+import hashlib
 
 class LC_SNN:
     def __init__(self, norm=0.2, c_w=-100., n_iter=1000, time_max=250, crop=20,
@@ -51,7 +52,7 @@ class LC_SNN:
             'n_filters': self.n_filters,
             'intensity': self.intensity
             }
-        self.id = str(hash(str(self.parameters)) % ((sys.maxsize + 1) * 2))
+        self.id = hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
         self.create_network()
 
     def create_network(self):
@@ -498,9 +499,9 @@ class LC_SNN:
                 json.dump(self.parameters, file)
 
             if not os.path.exists(r'networks/networks.db'):
-                conn = sqlite3.connect(r'networks/nets.db')
+                conn = sqlite3.connect(r'networks/networks.db')
                 crs = conn.cursor()
-                crs.execute('''CREATE TABLE nets(
+                crs.execute('''CREATE TABLE networks(
                  id BLOB,
                  accuracy REAL,
                  n_iter INT,
@@ -511,10 +512,37 @@ class LC_SNN:
 
             conn = sqlite3.connect(r'networks/networks.db')
             crs = conn.cursor()
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.id, self.accuracy, self.n_iter, self.type))
+            crs.execute(f'SELECT id FROM networks WHERE id = "{self.id}"')
+            result = crs.fetchone()
+            if result:
+                pass
+            else:
+                crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.id, self.accuracy, self.n_iter, self.type))
 
             conn.commit()
             conn.close()
+
+    def delete(self, sure=False):
+        if not sure:
+            print('Are you sure you want to delete the network? [Y/N]')
+            if input() == 'Y':
+                shutil.rmtree(f'networks//{self.id}')
+                conn = sqlite3.connect(r'networks/networks.db')
+                crs = conn.cursor()
+                crs.execute(f'DELETE FROM networks WHERE id = "{self.id}"')
+                conn.commit()
+                conn.close()
+                print('Network deleted!')
+            else:
+                print('Deletion canceled...')
+        else:
+            shutil.rmtree(f'networks//{self.id}')
+            conn = sqlite3.connect(r'networks/networks.db')
+            crs = conn.cursor()
+            crs.execute(f'DELETE FROM networks WHERE id = "{self.id}"')
+            conn.commit()
+            conn.close()
+            print('Network deleted!')
 
     def feed_class(self, label, top_n=None, plot=False):
         train_dataloader = torch.utils.data.DataLoader(
@@ -615,11 +643,34 @@ def plot_image(batch):
     return fig_img
 
 
-def view_LC_SNN(id):
-    if not os.path.exists(f'networks//{id}'):
+def delete_LC_SNN(name, sure=False):
+    if not sure:
+        print('Are you sure you want to delete the network? [Y/N]')
+        if input() == 'Y':
+            shutil.rmtree(f'networks//{name}')
+            conn = sqlite3.connect(r'networks/networks.db')
+            crs = conn.cursor()
+            crs.execute(f'DELETE FROM networks WHERE id = "{name}"')
+            conn.commit()
+            conn.close()
+            print('Network deleted!')
+        else:
+            print('Deletion canceled...')
+    else:
+        shutil.rmtree(f'networks//{name}')
+        conn = sqlite3.connect(r'networks/networks.db')
+        crs = conn.cursor()
+        crs.execute(f'DELETE FROM networks WHERE id = "{name}"')
+        conn.commit()
+        conn.close()
+        print('Network deleted!')
+
+
+def view_LC_SNN(name):
+    if not os.path.exists(f'networks//{name}'):
         print('Network with such id does not exist')
         return None
     else:
-        with open(f'networks//{id}//parameters.json', 'r') as file:
+        with open(f'networks//{name}//parameters.json', 'r') as file:
             parameters = json.load(file)
         return parameters
