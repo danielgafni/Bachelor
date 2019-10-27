@@ -27,6 +27,7 @@ from bindsnet.utils import reshape_locally_connected_weights
 class LC_SNN:
     def __init__(self, norm=0.2, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
+        self.type = 'LC_SNN'
         self.norm = norm
         self.c_w = c_w
         self.n_iter = n_iter
@@ -484,42 +485,36 @@ class LC_SNN:
         return accs[accs.label != -1]
 
     def save(self):
-        path = f'networks//{self.id}'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        torch.save(self.network, path + '//network')
-        if self.calibrated:
-            torch.save(self.votes, path + '//votes')
-            torch.save(self.accuracy, path + '//accuracy')
-            torch.save(self.conf_matrix, path + '//confusion_martix')
+            path = f'networks//{self.id}'
+            if not os.path.exists(path):
+                os.makedirs(path)
+            torch.save(self.network, path + '//network')
+            if self.calibrated:
+                torch.save(self.votes, path + '//votes')
+                torch.save(self.accuracy, path + '//accuracy')
+                torch.save(self.conf_matrix, path + '//confusion_martix')
 
-        with open(path + '//parameters.json', 'w') as file:
-            json.dump(self.parameters, file)
+            with open(path + '//parameters.json', 'w') as file:
+                json.dump(self.parameters, file)
 
-        if not os.path.exists(r'networks/networks.db'):
+            if not os.path.exists(r'networks/networks.db'):
+                conn = sqlite3.connect(r'networks/nets.db')
+                crs = conn.cursor()
+                crs.execute('''CREATE TABLE nets(
+                 id BLOB,
+                 accuracy REAL,
+                 n_iter INT,
+                 type BLOB
+                 )''')
+                conn.commit()
+                conn.close()
+
             conn = sqlite3.connect(r'networks/networks.db')
             crs = conn.cursor()
-            crs.execute('''CREATE TABLE networks(
-             id BLOB,
-             accuracy REAL,
-             n_iter INT,
-             kernel_size INT,
-             stride INT,
-             n_filters INT,
-             crop INT,
-             norm REAL,
-             intensity REAL
-             )''')
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.id, self.accuracy, self.n_iter, self.type))
+
             conn.commit()
             conn.close()
-
-        conn = sqlite3.connect(r'networks/networks.db')
-        crs = conn.cursor()
-        crs.execute(f"INSERT INTO networks VALUES ("
-                    f"{self.id},{self.accuracy},{self.n_iter},{self.kernel_size},{self.stride},{self.n_filters},"
-                    f"{self.crop},{self.norm},{self.intensity})")
-        conn.commit()
-        conn.close()
 
     def feed_class(self, label, top_n=None, plot=False):
         train_dataloader = torch.utils.data.DataLoader(
