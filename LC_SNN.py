@@ -496,8 +496,6 @@ class LC_SNN:
     def confusion(self):
         return self.plot_confusion_matrix(self.average_confusion_matrix())
 
-
-
     def save(self):
             path = f'networks//{self.id}'
             if not os.path.exists(path):
@@ -506,7 +504,7 @@ class LC_SNN:
             if self.calibrated:
                 torch.save(self.votes, path + '//votes')
                 torch.save(self.accuracy, path + '//accuracy')
-                torch.save(self.conf_matrix, path + '//confusion_martix')
+                torch.save(self.conf_matrix, path + '//confusion_matrix')
 
             with open(path + '//parameters.json', 'w') as file:
                 json.dump(self.parameters, file)
