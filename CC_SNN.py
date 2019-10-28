@@ -26,7 +26,7 @@ import shutil
 import hashlib
 
 class LC_SNN:
-    def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+    def __init__(self, norm=0.2, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
         self.type = 'LC_SNN'
         self.norm = norm
