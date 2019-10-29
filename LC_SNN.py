@@ -523,7 +523,27 @@ class LC_SNN:
         return fig_confusion
     
     def votes_distribution(self):
-        return self.votes.sort(0, descending=True)[0].mean(axis=1)
+        votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
+                                                     mode='markers'))
+        votes_distibution_fig.update_layout(width=800, height=800,
+                                            title=go.layout.Title(
+                                                text="Votes Distribution",
+                                                xref="paper"),
+                                            margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                            xaxis=go.layout.XAxis(
+                                                title_text='Class',
+                                                tickmode='array',
+                                                tickvals=list(range(10)),
+                                                ticktext=list(range(1, 11)),
+                                                # zeroline=False
+                                                ),
+                                            yaxis=go.layout.YAxis(
+                                                title_text='Mean Vote',
+                                                # tick0=1,
+
+                                                )
+                                            )
+        return votes_distibution_fig
 
     def save(self):
             path = f'networks//{self.id}'
