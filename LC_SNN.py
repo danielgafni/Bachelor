@@ -494,7 +494,36 @@ class LC_SNN:
         return average_confuion_matrix
 
     def confusion(self):
-        return self.plot_confusion_matrix(self.average_confusion_matrix())
+        average_confusion_matrix = self.average_confusion_matrix()
+        fig_confusion = go.Figure(data=go.Heatmap(z=average_confusion_matrix, colorscale='YlOrBr',
+                                                  zmin=0,
+                                                  zmax=1
+                                                  )
+                                  )
+        fig_confusion.update_layout(width=800, height=800,
+                                    title=go.layout.Title(
+                                        text="Average Confusion Matrix",
+                                        xref="paper"),
+                                    margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                    xaxis=go.layout.XAxis(
+                                        title_text='Output',
+                                        tickmode='array',
+                                        tickvals=list(range(11)),
+                                        ticktext=['No spikes'] + list(range(10)),
+                                        zeroline=False
+                                        ),
+                                    yaxis=go.layout.YAxis(
+                                        title_text='Input',
+                                        tickmode='array',
+                                        tickvals=list(range(11)),
+                                        ticktext=list(range(10)),
+                                        zeroline=False
+                                        )
+                                    )
+        return fig_confusion
+    
+    def votes_distribution(self):
+        return self.votes.sort(0, descending=True)[0].mean(axis=1)
 
     def save(self):
             path = f'networks//{self.id}'
