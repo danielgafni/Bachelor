@@ -26,7 +26,7 @@ import shutil
 import hashlib
 
 class LC_SNN:
-    def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+    def __init__(self, norm=0.2, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
         self.type = 'LC_SNN'
         self.norm = norm
@@ -494,56 +494,9 @@ class LC_SNN:
         return average_confuion_matrix
 
     def confusion(self):
-        average_confusion_matrix = self.average_confusion_matrix()
-        fig_confusion = go.Figure(data=go.Heatmap(z=average_confusion_matrix, colorscale='YlOrBr',
-                                                  zmin=0,
-                                                  zmax=1
-                                                  )
-                                  )
-        fig_confusion.update_layout(width=800, height=800,
-                                    title=go.layout.Title(
-                                        text="Average Confusion Matrix",
-                                        xref="paper"),
-                                    margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
-                                    xaxis=go.layout.XAxis(
-                                        title_text='Output',
-                                        tickmode='array',
-                                        tickvals=list(range(11)),
-                                        ticktext=['No spikes'] + list(range(10)),
-                                        zeroline=False
-                                        ),
-                                    yaxis=go.layout.YAxis(
-                                        title_text='Input',
-                                        tickmode='array',
-                                        tickvals=list(range(11)),
-                                        ticktext=list(range(10)),
-                                        zeroline=False
-                                        )
-                                    )
-        return fig_confusion
-    
-    def votes_distribution(self):
-        votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
-                                                     mode='markers'))
-        votes_distibution_fig.update_layout(width=800, height=800,
-                                            title=go.layout.Title(
-                                                text="Votes Distribution",
-                                                xref="paper"),
-                                            margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
-                                            xaxis=go.layout.XAxis(
-                                                title_text='Class',
-                                                tickmode='array',
-                                                tickvals=list(range(10)),
-                                                ticktext=list(range(1, 11)),
-                                                # zeroline=False
-                                                ),
-                                            yaxis=go.layout.YAxis(
-                                                title_text='Mean Vote',
-                                                # tick0=1,
+        return self.plot_confusion_matrix(self.average_confusion_matrix())
 
-                                                )
-                                            )
-        return votes_distibution_fig
+
 
     def save(self):
             path = f'networks//{self.id}'
@@ -553,7 +506,7 @@ class LC_SNN:
             if self.calibrated:
                 torch.save(self.votes, path + '//votes')
                 torch.save(self.accuracy, path + '//accuracy')
-                torch.save(self.conf_matrix, path + '//confusion_matrix')
+                torch.save(self.conf_matrix, path + '//confusion_martix')
 
             with open(path + '//parameters.json', 'w') as file:
                 json.dump(self.parameters, file)
