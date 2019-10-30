@@ -41,6 +41,7 @@ class LC_SNN:
         self.n_filters = n_filters
         self.stride = stride
         self.intensity = intensity
+
         self.parameters = {
             'norm': self.norm,
             'c_w': self.c_w,
@@ -318,6 +319,7 @@ class LC_SNN:
             labels_predicted.append(label_predicted)
 
         self.accuracy = np.array(scores).mean()
+        self.parameters['accuracy'] = self.accuracy
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.network.reset_()
 
@@ -485,7 +487,34 @@ class LC_SNN:
                     true += self.conf_matrix[i][j]
             accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
 
-        return accs[accs.label != -1]
+        accs = accs[accs.label != -1]
+
+        accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
+                                                    mode='markers', marker_size=20))
+        # accs_distibution_fig.update_traces(marker=dict(size=16))
+
+        accs_distibution_fig.update_layout(width=800, height=800,
+                                            title=go.layout.Title(
+                                                text="Accuracy Distribution",
+                                                xref="paper"),
+                                            margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                            xaxis=go.layout.XAxis(
+                                                title_text='Class',
+                                                tickmode='array',
+                                                tickvals=list(range(10)),
+                                                ticktext=list(range(10)),
+                                                # zeroline=False
+                                                ),
+                                            yaxis=go.layout.YAxis(
+                                                title_text='Accuracy',
+                                                zeroline=False,
+                                                range=[0, 1]
+                                                # tick0=1,
+
+                                                )
+                                            )
+
+        return accs_distibution_fig
 
     def average_confusion_matrix(self):
         row_sums = self.conf_matrix.sum(axis=1)
@@ -524,7 +553,7 @@ class LC_SNN:
     
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
-                                                     mode='markers'))
+                                                     mode='markers', marker_size=20))
         votes_distibution_fig.update_layout(width=800, height=800,
                                             title=go.layout.Title(
                                                 text="Votes Distribution",
@@ -734,3 +763,17 @@ def view_LC_SNN(name):
         with open(f'networks//{name}//parameters.json', 'r') as file:
             parameters = json.load(file)
         return parameters
+
+def view_database():
+    database = pd.DataFrame(columns=[
+        'id', 'type', 'accuracy', 'n_iter', 'norm', 'n_filters', 'c_w', 'crop', 'kernel_size', 'stride', 'time_max'
+        ])
+    for name in os.listdir('networks'):
+        if '.' not in name:
+            parameters = view_LC_SNN(name)
+            if os.path.exists(f'networks//{name}//accuracy'):
+                parameters['accuracy'] = torch.load(f'networks//{name}//accuracy')
+            parameters['id'] = name
+            database = database.append(parameters, ignore_index=True)
+
+    return database
