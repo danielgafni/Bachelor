@@ -10,19 +10,19 @@ I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) us
 
 Currently I have trained 25- and 100-filter networks. Here is a figure with typical weights of a locally connected layer after 50000 iterations of training:
 
-![](C:\Users\Dan\Python_Notebooks\Lab\Bachelor\overview\weights_XY.png)
+![](overview\weights_XY.png)
 
 The overall accuracy of this network is 0.86. Here is the accuracy distribution between different labels:
 
-![](C:\Users\Dan\Python_Notebooks\Lab\Bachelor\overview\accuracy_distribution.png)
+![](overview\accuracy_distribution.png)
 
 And here is the confusion matrix:
 
-![](C:\Users\Dan\Python_Notebooks\Lab\Bachelor\overview\confsion_matrix.png)
+![](overview\confusion_matrix.png)
 
 I discovered, that statistically calculated votes (what I call the "calibration" of the network) give us the following votes distribution:
 
-![](C:\Users\Dan\Python_Notebooks\Lab\Bachelor\overview\votes_distribution.png)
+![](overview\votes_distribution.png)
 
 where by "vote" I call the level of certainty that a specific spiking neuron gives for a specific class. So on the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
 
