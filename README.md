@@ -18,7 +18,7 @@ The overall accuracy of this network is 0.86. Here is the accuracy distribution 
 
 And here is the confusion matrix:
 
-![](overview\confusion_matrix.png)
+![Confusion matrix](overview/confusion_matrix.png)
 
 I discovered, that statistically calculated votes (what I call the "calibration" of the network) give us the following votes distribution:
 
