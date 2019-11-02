@@ -1,0 +1,1 @@
+{"norm": 0.24, "c_w": -40.0, "n_iter": 5000, "time_max": 250, "crop": 20, "kernel_size": 12, "stride": 4, "n_filters": 100, "intensity": 127.5, "accuracy": 0.8666}
