@@ -8,7 +8,7 @@ I work with unsupervised learning on MNIST of Spiking Neural Networks.
 
 I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
 
-Currently I have trained 25- and 100-filter networks. Here is a figure with typical weights of a locally connected layer after 5000 iterations of training:
+Currently I have trained 25- and 100-filter networks. The networks only have one hidden layer. Here is a figure with typical weights of this locally connected layer after 5000 iterations of training:
 
 ![Weights XY](overview/weights_XY.png)
 
