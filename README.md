@@ -107,16 +107,19 @@ The network is ready. To save the network:
 net.save()
 ```
 
-To check network's accuracy, accuracy distribution, confusion matrix and votes distribution you can use:
+To check network's accuracy, accuracy distribution, confusion matrix, and votes distribution you can use:
 
 ```python
-net.accuracy
+accuracy = net.accuracy
 
-net.accuracy_distribution()
+accs, fig_accs = net.accuracy_distribution()
+fig_accs.show()
 
-net.confusion()
+fig_conf = net.confusion()
+fig_conf.show()
 
-net.votes_distribution()
+fig_votes_distr = net.votes_distribution()
+fig_votes_distr.show()
 ```
 
 ## Deleting a network
