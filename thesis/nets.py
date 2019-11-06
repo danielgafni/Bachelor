@@ -357,19 +357,34 @@ class LC_SNN:
         print(f'Accuracy: {scores.mean()}')
         return confusion_matrix(y, x), scores.mean()
 
-    def get_params(self, **args):
-        return {'norm': self.norm,
-                'c_w': self.c_w,
-                'n_iter': self.n_iter
-                }
+    def accuracy_class_top_n(self, n_iter=5000):
+        accs = torch.zeros(10, 10, n_iter)
 
-    # TODO: add new params
+        for label in range(10):
+            for i in range(n_iter):
+                train_dataloader = torch.utils.data.DataLoader(
+                    self.train_dataset, batch_size=1, shuffle=True)
 
-    def set_params(self, norm, c_w, n_iter):
-        display.clear_output(wait=True)
-        return LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter)
+                batch = next(iter(train_dataloader))
+                while batch['label'] != label:
+                    batch = next(iter(train_dataloader))
+                else:
+                    inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+                    self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+                    self._spikes = {
+                        "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                        "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                        }
 
-    # TODO: add new params
+                for top_n in range(10):
+                    prediction = self.class_from_spikes(top_n=top_n)
+                    if prediction == label:
+                        accs[label, top_n, i] = 1
+
+        return accs
+
+
+
 
     def plot_weights_XY(self, width=800, height=800):
         self.weights_XY = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,

@@ -21,7 +21,7 @@ def view_network(name):
 
 def view_database():
     database = pd.DataFrame(columns=[
-        'id', 'accuracy', 'n_iter', 'norm', 'n_filters', 'c_w', 'crop', 'kernel_size', 'stride', 'time_max'
+        'name', 'accuracy', 'n_iter', 'norm', 'n_filters', 'c_w', 'crop', 'kernel_size', 'stride', 'time_max'
         ])
     for name in os.listdir('networks'):
         if '.' not in name:
