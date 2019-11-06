@@ -387,7 +387,7 @@ class LC_SNN:
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
-                text='Accuracy dependance from top_n'
+                text='Accuracy dependence from top_n'
                 )
             )
 
