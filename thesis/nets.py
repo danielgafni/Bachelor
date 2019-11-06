@@ -378,7 +378,7 @@ class LC_SNN:
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
 
-                for top_n in range(10):
+                for top_n in range(1, 11):
                     prediction = self.class_from_spikes(top_n=top_n)
                     if prediction == label:
                         accs[label, top_n, i] = 1
@@ -520,7 +520,7 @@ class LC_SNN:
                                                 )
                                             )
 
-        return accs_distibution_fig
+        return accs, accs_distibution_fig
 
     def average_confusion_matrix(self):
         row_sums = self.conf_matrix.sum(axis=1)
