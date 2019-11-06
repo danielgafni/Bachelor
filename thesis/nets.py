@@ -13,14 +13,14 @@ from plotly.subplots import make_subplots
 from torchvision import transforms
 from tqdm import tqdm
 import sqlite3
-from .bindsnet.datasets import MNIST
-from .bindsnet.encoding import PoissonEncoder
-from .bindsnet.learning import PostPre
-from .bindsnet.network import Network
-from .bindsnet.network.monitors import Monitor, NetworkMonitor
-from .bindsnet.network.nodes import AdaptiveLIFNodes, Input
-from .bindsnet.network.topology import Connection, LocalConnection
-from .bindsnet.utils import reshape_locally_connected_weights
+from bindsnet.datasets import MNIST
+from bindsnet.encoding import PoissonEncoder
+from bindsnet.learning import PostPre
+from bindsnet.network import Network
+from bindsnet.network.monitors import Monitor, NetworkMonitor
+from bindsnet.network.nodes import AdaptiveLIFNodes, Input
+from bindsnet.network.topology import Connection, LocalConnection
+from bindsnet.utils import reshape_locally_connected_weights
 import shutil
 import hashlib
 
@@ -177,7 +177,7 @@ class LC_SNN:
                 fig_spikes.show()
 
         t_start = t()
-        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             progress_bar.progress(int((smth + 1) / n_iter * 100))
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
@@ -213,14 +213,15 @@ class LC_SNN:
         if top_n is None:
             top_n = self.votes.shape[1]
         sum_output = self._spikes['Y'].sum(0)
-        if sum_output.sum(0).item() == 0:
-            return -1
+
         args = self.votes.argsort(descending=True)[:, 0:top_n]
         top_n_votes = torch.zeros(self.votes.shape)
         for i, row in enumerate(args):
             for j, neuron_number in enumerate(row):
                 top_n_votes[i, neuron_number] = self.votes[i, neuron_number]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
+        if res.sum(0).item() == 0:
+            return -1
         return res.argmax().item()
 
     def debug(self, n_iter):
@@ -251,7 +252,7 @@ class LC_SNN:
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
 
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
 
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -276,7 +277,7 @@ class LC_SNN:
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
         print('Collecting acrivity data...')
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -287,7 +288,7 @@ class LC_SNN:
             labels.append(batch['label'])
         votes = torch.zeros(10, self.n_output)
         print('Calculating votes...')
-        for (label, layer) in tqdm(zip(labels, outputs)):
+        for (label, layer) in tqdm(zip(labels, outputs), ncols=100):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
         for i in range(10):
@@ -299,7 +300,7 @@ class LC_SNN:
         scores = []
         labels_predicted = []
         print('Calculating accuracy...')
-        for label, output in tqdm(zip(labels, outputs)):
+        for label, output in tqdm(zip(labels, outputs), ncols=100):
             args = self.votes.argsort(descending=True)[:, 0:top_n]
             top_n_votes = torch.zeros(self.votes.shape)
             for i, row in enumerate(args):
@@ -335,7 +336,7 @@ class LC_SNN:
         print('Calculating accuracy...')
         x = []
         y = []
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -357,11 +358,12 @@ class LC_SNN:
         print(f'Accuracy: {scores.mean()}')
         return confusion_matrix(y, x), scores.mean()
 
-    def accuracy_class_top_n(self, n_iter=5000):
+    def accuracy_from_top_n(self, n_iter=5000):
         accs = torch.zeros(10, 10, n_iter)
-
         for label in range(10):
-            for i in range(n_iter):
+            display.clear_output(wait=True)
+            print(f'Calculating accuracy for label {label}...')
+            for i in tqdm(range(n_iter), ncols=100):
                 train_dataloader = torch.utils.data.DataLoader(
                     self.train_dataset, batch_size=1, shuffle=True)
 
@@ -381,7 +383,21 @@ class LC_SNN:
                     if prediction == label:
                         accs[label, top_n, i] = 1
 
-        return accs
+        errors = accs.std(axis=-1)
+
+        fig = go.Figure().update_layout(
+            title=go.layout.Title(
+                text='Accuracy dependance from top_n'
+                )
+            )
+
+        for label in range(10):
+            fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
+                            error_y=dict(array=errors[label, :].numpy(), visible=True))
+        fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1).mean(axis=0).numpy(), name=f'Overall accuracy',
+                        error_y=dict(array=accs.mean(axis=0).std(axis=1).numpy(), visible=True))
+
+        return accs, errors, fig
 
 
 

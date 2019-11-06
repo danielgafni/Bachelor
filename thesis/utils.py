@@ -4,7 +4,7 @@ import torch
 import json
 import pandas as pd
 import plotly.graph_objs as go
-from .bindsnet.network.monitors import Monitor
+from bindsnet.network.monitors import Monitor
 from shutil import rmtree
 from sqlite3 import connect
 
