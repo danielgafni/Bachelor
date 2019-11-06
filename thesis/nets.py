@@ -359,7 +359,7 @@ class LC_SNN:
         return confusion_matrix(y, x), scores.mean()
 
     def accuracy_from_top_n(self, n_iter=5000):
-        accs = torch.zeros(10, 10, n_iter)
+        accs = torch.zeros(10, 9, n_iter)
         for label in range(10):
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
@@ -381,7 +381,7 @@ class LC_SNN:
                 for top_n in range(1, 10):
                     prediction = self.class_from_spikes(top_n=top_n)
                     if prediction == label:
-                        accs[label, top_n, i] = 1
+                        accs[label, top_n-1, i] = 1
 
         errors = accs.std(axis=-1)
 
