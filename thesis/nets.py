@@ -358,7 +358,7 @@ class LC_SNN:
         print(f'Accuracy: {scores.mean()}')
         return confusion_matrix(y, x), scores.mean()
 
-    def accuracy_from_top_n(self, n_iter=5000):
+    def accuracy_on_top_n(self, n_iter=5000):
         accs = torch.zeros(10, 9, n_iter)
         for label in range(10):
             display.clear_output(wait=True)
@@ -387,7 +387,7 @@ class LC_SNN:
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
-                text='Accuracy dependence from top_n'
+                text='Accuracy dependence on top_n'
                 )
             )
 
