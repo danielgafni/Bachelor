@@ -394,7 +394,7 @@ class LC_SNN:
         for label in range(10):
             fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
                             error_y=dict(array=errors[label, :].numpy(), visible=True))
-        fig.add_scatter(x=list(range(1, 10)), y=accs.mean(axis=-1).mean(axis=0).numpy(), name=f'Overall accuracy',
+        fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
                         error_y=dict(array=accs.mean(axis=0).std(axis=1).numpy(), visible=True))
 
         return accs, errors, fig
