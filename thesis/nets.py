@@ -288,7 +288,7 @@ class LC_SNN:
             labels.append(batch['label'])
         votes = torch.zeros(10, self.n_output)
         print('Calculating votes...')
-        for (label, layer) in tqdm(zip(labels, outputs), ncols=100):
+        for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
         for i in range(10):
@@ -300,7 +300,7 @@ class LC_SNN:
         scores = []
         labels_predicted = []
         print('Calculating accuracy...')
-        for label, output in tqdm(zip(labels, outputs), ncols=100):
+        for label, output in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             args = self.votes.argsort(descending=True)[:, 0:top_n]
             top_n_votes = torch.zeros(self.votes.shape)
             for i, row in enumerate(args):
