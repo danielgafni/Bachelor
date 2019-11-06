@@ -23,6 +23,8 @@ from bindsnet.network.topology import Connection, LocalConnection
 from bindsnet.utils import reshape_locally_connected_weights
 import shutil
 import hashlib
+from statsmodels.stats.proportion import proportion_confint
+
 
 
 class LC_SNN:
@@ -359,7 +361,7 @@ class LC_SNN:
         return confusion_matrix(y, x), scores.mean()
 
     def accuracy_on_top_n(self, n_iter=5000):
-        accs = torch.zeros(10, 9, n_iter)
+        scores = torch.zeros(10, 9, n_iter)
         for label in range(10):
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
@@ -381,9 +383,10 @@ class LC_SNN:
                 for top_n in range(1, 10):
                     prediction = self.class_from_spikes(top_n=top_n)
                     if prediction == label:
-                        accs[label, top_n-1, i] = 1
+                        scores[label, top_n-1, i] = 1
 
-        errors = accs.std(axis=-1)
+        errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
+                  proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0])/2
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
@@ -392,12 +395,12 @@ class LC_SNN:
             )
 
         for label in range(10):
-            fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
-                            error_y=dict(array=errors[label, :].numpy(), visible=True))
-        fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
-                        error_y=dict(array=accs.mean(axis=0).std(axis=1).numpy(), visible=True))
+            fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
+                            error_y=dict(array=errors[label, :], visible=True))
+        fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
+                        error_y=dict(array=scores.mean(axis=0).std(axis=1), visible=True))
 
-        return accs, errors, fig
+        return scores, errors, fig
 
 
 
