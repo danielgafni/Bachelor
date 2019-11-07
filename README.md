@@ -35,12 +35,13 @@ In the paper I'm reproducing only the top3 classes are used in the voting mechan
 
 # Usage
 
-Run the following code in Jupyter Notebook
+Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
 ## Basic imports
 
 ```python
-from LC_SNN import LC_SNN, load_LC_SNN, view_database
+from thesis.nets import LC_SNN
+from thesis.utils import view_database, load_network, delete_network
 ```
 
 To view current networks database use
@@ -51,7 +52,7 @@ view_database()
 
 Output:
 
-| id                                                       | accuracy | n_iter | norm                | n_filters | c_w    | crop | kernel_size | stride | time_max | intensity |
+| name                                                     | accuracy | n_iter | norm                | n_filters | c_w    | crop | kernel_size | stride | time_max | intensity |
 | -------------------------------------------------------- | -------- | ------ | ------------------- | --------- | ------ | ---- | ----------- | ------ | -------- | --------- |
 | 077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848 | 0.8616   | 5000   | 0.24                | 100       | -50.0  | 20   | 12          | 4      | 250      | 127.5     |
 | 10706382198294901892                                     | 0.7655   | 10000  | 0.49000000000000005 | 25        | -100.0 | 20   | 12          | 4      | 250      | 127.5     |
@@ -62,10 +63,10 @@ Output:
 
 ## Loading an existing network
 
-Copy the id of a network you want to load.
+Copy the name of a network you want to load.
 
 ```python
-net = load_LC_SNN('077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848')
+net = load_network('077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848')
 ```
 
 Network loaded. Now you can check it's behavior:
@@ -106,15 +107,32 @@ The network is ready. To save the network:
 net.save()
 ```
 
-To check network's accuracy, accuracy distribution, confusion matrix and votes distribution you can use:
+To check network's accuracy, accuracy distribution, confusion matrix, and votes distribution you can use:
 
 ```python
-net.accuracy
+accuracy = net.accuracy
 
-net.accuracy_distribution()
+accs, fig_accs = net.accuracy_distribution()
+fig_accs.show()
 
-net.confusion()
+fig_conf = net.confusion()
+fig_conf.show()
 
-net.votes_distribution()
+fig_votes_distr = net.votes_distribution()
+fig_votes_distr.show()
+```
+
+## Deleting a network
+
+run
+
+```python
+net.delete()
+```
+
+or
+
+```python
+delete_network(net.name)
 ```
 

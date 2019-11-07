@@ -1,1 +1,1 @@
-{"norm": 0.47000000000000003, "c_w": -100.0, "n_iter": 10000, "time_max": 250, "crop": 20, "kernel_size": 12, "stride": 4, "n_filters": 25, "intensity": 127.5}
+{"norm": 0.47000000000000003, "c_w": -100.0, "n_iter": 10000, "time_max": 250, "crop": 20, "kernel_size": 12, "stride": 4, "n_filters": 25, "intensity": 127.5, "type": "LC_SNN"}
