@@ -240,7 +240,7 @@ class LC_SNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            prediction = self.class_from_spikes()[0].item()
+            prediction = self.class_from_spikes()[0]
             correct = batch["label"][0]
             x.append(prediction)
             y.append(correct)
@@ -346,7 +346,7 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label']
-            prediction = self.class_from_spikes(top_n=top_n)[0].item()
+            prediction = self.class_from_spikes(top_n=top_n)[0]
             x.append(prediction)
             y.append(label)
         scores = []
@@ -382,7 +382,7 @@ class LC_SNN:
                         }
 
                 for top_n in range(1, 11):
-                    prediction = self.class_from_spikes(top_n=top_n)[0].item()
+                    prediction = self.class_from_spikes(top_n=top_n)[0]
                     if prediction == label:
                         scores[label, top_n-1, i] = 1
 
@@ -657,7 +657,7 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction = self.class_from_spikes(top_n=top_n)[0].item()
+            prediction = self.class_from_spikes(top_n=top_n)[0]
             print(f'Prediction: {prediction}')
             if plot:
                 self.plot_spikes().show()
