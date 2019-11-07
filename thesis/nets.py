@@ -212,7 +212,7 @@ class LC_SNN:
 
     def class_from_spikes(self, top_n=None):
         if top_n is None:
-            top_n = self.votes.shape[1]
+            top_n = 10
         sum_output = self._spikes['Y'].sum(0)
 
         args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
@@ -222,7 +222,7 @@ class LC_SNN:
                 top_n_votes[label, j] = self.votes[label, j]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
-            return -1
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
         return res.argsort(descending=True)
 
     def debug(self, n_iter):
@@ -326,7 +326,7 @@ class LC_SNN:
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.network.reset_()
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None, label=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None):
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -357,8 +357,10 @@ class LC_SNN:
                 scores.append(0)
         scores = np.array(scores)
         self.network.reset_()
-        print(f'Accuracy: {scores.mean()}')
-        return confusion_matrix(y, x), scores.mean()
+        conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
+        error = (conf_interval[1] - conf_interval[0]) / 2
+        print(f'Accuracy: {scores.mean()} with 95% confidence error {round(error, 2)}')
+        return confusion_matrix(y, x), scores.mean(), error
 
     def accuracy_on_top_n(self, n_iter=5000):
         self.network.train(False)
