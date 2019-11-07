@@ -130,6 +130,8 @@ def load_network(name):
             "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
             }
 
+        net.network.train(False)
+
     return net
 
 

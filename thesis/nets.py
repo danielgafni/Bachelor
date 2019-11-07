@@ -23,6 +23,7 @@ from bindsnet.network.topology import Connection, LocalConnection
 from bindsnet.utils import reshape_locally_connected_weights
 import shutil
 import hashlib
+from statsmodels.stats.proportion import proportion_confint
 
 
 class LC_SNN:
@@ -211,20 +212,21 @@ class LC_SNN:
 
     def class_from_spikes(self, top_n=None):
         if top_n is None:
-            top_n = self.votes.shape[1]
+            top_n = 10
         sum_output = self._spikes['Y'].sum(0)
 
-        args = self.votes.argsort(descending=True)[:, 0:top_n]
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
         top_n_votes = torch.zeros(self.votes.shape)
-        for i, row in enumerate(args):
-            for j, neuron_number in enumerate(row):
-                top_n_votes[i, neuron_number] = self.votes[i, neuron_number]
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
-            return -1
-        return res.argmax().item()
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res.argsort(descending=True)
 
     def debug(self, n_iter):
+        self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
         
@@ -238,7 +240,7 @@ class LC_SNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            prediction = self.class_from_spikes()
+            prediction = self.class_from_spikes()[0]
             correct = batch["label"][0]
             x.append(prediction)
             y.append(correct)
@@ -246,9 +248,9 @@ class LC_SNN:
         return tuple([x, y])
 
     def predict_many(self, n_iter=6000):
+        self.network.train(False)
         y = []
         x = []
-        self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
 
@@ -276,7 +278,7 @@ class LC_SNN:
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
-        print('Collecting acrivity data...')
+        print('Collecting activity data...')
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -296,16 +298,16 @@ class LC_SNN:
         self.votes = votes
         self.calibrated = True
         if top_n is None:
-            top_n = self.votes.shape[1]
+            top_n = self.votes.shape[0]
         scores = []
         labels_predicted = []
         print('Calculating accuracy...')
         for label, output in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
-            args = self.votes.argsort(descending=True)[:, 0:top_n]
+            args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
             top_n_votes = torch.zeros(self.votes.shape)
-            for i, row in enumerate(args):
-                for j, neuron_number in enumerate(row):
-                    top_n_votes[i, neuron_number] = self.votes[i, neuron_number]
+            for i, top_i in enumerate(args):
+                for j, label in enumerate(top_i):
+                    top_n_votes[label, j] = self.votes[label, j]
             label_predicted = torch.matmul(top_n_votes.type(torch.FloatTensor),
                                            output.type(torch.FloatTensor)).argmax().item()
             if output.sum(0).item() == 0:
@@ -324,7 +326,7 @@ class LC_SNN:
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.network.reset_()
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None, label=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None):
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -344,7 +346,7 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label']
-            prediction = self.class_from_spikes(top_n=top_n)
+            prediction = self.class_from_spikes(top_n=top_n)[0]
             x.append(prediction)
             y.append(label)
         scores = []
@@ -355,11 +357,14 @@ class LC_SNN:
                 scores.append(0)
         scores = np.array(scores)
         self.network.reset_()
-        print(f'Accuracy: {scores.mean()}')
-        return confusion_matrix(y, x), scores.mean()
+        conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
+        error = (conf_interval[1] - conf_interval[0]) / 2
+        print(f'Accuracy: {scores.mean()} with 95% confidence error {round(error, 2)}')
+        return confusion_matrix(y, x), scores.mean(), error
 
     def accuracy_on_top_n(self, n_iter=5000):
-        accs = torch.zeros(10, 9, n_iter)
+        self.network.train(False)
+        scores = torch.zeros(10, 10, n_iter)
         for label in range(10):
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
@@ -378,12 +383,13 @@ class LC_SNN:
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
 
-                for top_n in range(1, 10):
-                    prediction = self.class_from_spikes(top_n=top_n)
+                for top_n in range(1, 11):
+                    prediction = self.class_from_spikes(top_n=top_n)[0]
                     if prediction == label:
-                        accs[label, top_n-1, i] = 1
+                        scores[label, top_n-1, i] = 1
 
-        errors = accs.std(axis=-1)
+        errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
+                  proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0])/2
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
@@ -392,14 +398,12 @@ class LC_SNN:
             )
 
         for label in range(10):
-            fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
-                            error_y=dict(array=errors[label, :].numpy(), visible=True))
-        fig.add_scatter(x=list(range(1, 11)), y=accs.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
-                        error_y=dict(array=accs.mean(axis=0).std(axis=1).numpy(), visible=True))
+            fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
+                            error_y=dict(array=errors[label, :], visible=True))
+        fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
+                        error_y=dict(array=errors.mean(axis=0), visible=True))
 
-        return accs, errors, fig
-
-
+        return scores, errors, fig
 
 
     def plot_weights_XY(self, width=800, height=800):
@@ -480,6 +484,7 @@ class LC_SNN:
         return fig_spikes
 
     def accuracy_distribution(self):
+        self.network.train(False)
         colnames = ['label', 'accuracy']
         accs = pd.DataFrame(columns=colnames)
         for i in range(self.conf_matrix.shape[0]):
@@ -654,7 +659,7 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction = self.class_from_spikes(top_n=top_n)
+            prediction = self.class_from_spikes(top_n=top_n)[0]
             print(f'Prediction: {prediction}')
             if plot:
                 self.plot_spikes().show()
