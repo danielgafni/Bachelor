@@ -321,10 +321,12 @@ class LC_SNN:
 
             labels_predicted.append(label_predicted)
 
-        self.accuracy = np.array(scores).mean()
+        # self.accuracy = np.array(scores).mean()
+        self.accuracy = self.conf_matrix.trace() / self.conf_matrix.sum()
         self.parameters['accuracy'] = self.accuracy
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.network.reset_()
+        print(self.conf_matrix.trace() / self.conf_matrix.sum())
 
     def calculate_accuracy(self, n_iter=1000, top_n=None):
         if top_n is None:
@@ -356,10 +358,11 @@ class LC_SNN:
             else:
                 scores.append(0)
         scores = np.array(scores)
-        self.network.reset_()
         conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
         error = (conf_interval[1] - conf_interval[0]) / 2
         print(f'Accuracy: {scores.mean()} with 95% confidence error {round(error, 2)}')
+        self.network.reset_()
+
         return confusion_matrix(y, x), scores.mean(), error
 
     def accuracy_on_top_n(self, n_iter=5000):
@@ -382,11 +385,13 @@ class LC_SNN:
                         "X": self.spikes["X"].get("s").view(self.time_max, -1),
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
+                    self.network.reset_()
+
 
                 for top_n in range(1, 11):
-                    prediction = self.class_from_spikes(top_n=top_n)[0]
-                    if prediction == label:
-                        scores[label, top_n-1, i] = 1
+                        prediction = self.class_from_spikes(top_n=top_n)[0]
+                        if prediction == label:
+                            scores[label, top_n-1, i] = 1
 
         errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
                   proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0])/2
@@ -394,6 +399,16 @@ class LC_SNN:
         fig = go.Figure().update_layout(
             title=go.layout.Title(
                 text='Accuracy dependence on top_n'
+                ),
+            xaxis=go.layout.XAxis(
+                title_text='top_n',
+                tickmode='array',
+                tickvals=list(range(10)),
+                ticktext=list(range(1, 11)),
+                ),
+            yaxis=go.layout.YAxis(
+                title_text='Accuracy',
+                range=[0, 1]
                 )
             )
 
@@ -645,6 +660,7 @@ class LC_SNN:
             print('Network deleted!')
 
     def feed_class(self, label, top_n=None, plot=False):
+        self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
 
