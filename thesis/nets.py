@@ -397,7 +397,7 @@ class LC_SNN:
                 title_text='top_n',
                 tickmode='array',
                 tickvals=list(range(10)),
-                ticktext=list(range(1, 11)),
+                ticktext=list(range(10)),
                 ),
             yaxis=go.layout.YAxis(
                 title_text='Accuracy',
@@ -683,7 +683,7 @@ class LC_SNN:
 
 
 class CC_SNN:
-    def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+    def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
         self.type = 'CC_SNN'
         self.norm = norm
@@ -1051,7 +1051,7 @@ class CC_SNN:
                 title_text='top_n',
                 tickmode='array',
                 tickvals=list(range(10)),
-                ticktext=list(range(1, 11)),
+                ticktext=list(range(10)),
                 ),
             yaxis=go.layout.YAxis(
                 title_text='Accuracy',
