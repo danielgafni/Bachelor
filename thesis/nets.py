@@ -44,6 +44,7 @@ class LC_SNN:
         self.intensity = intensity
 
         self.parameters = {
+            'type': self.type,
             'norm': self.norm,
             'c_w': self.c_w,
             'n_iter': self.n_iter,
@@ -493,7 +494,7 @@ class LC_SNN:
 
     def accuracy_distribution(self):
         self.network.train(False)
-        colnames = ['label', 'accuracy']
+        colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
         for i in range(self.conf_matrix.shape[0]):
             true = 0
@@ -504,14 +505,14 @@ class LC_SNN:
                 else:
                     total += self.conf_matrix[i][j]
                     true += self.conf_matrix[i][j]
-            accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
+            error = (proportion_confint(true, total, alpha=0.05)[1] -
+                     proportion_confint(true, total, alpha=0.05)[0]) / 2
+            accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
 
         accs = accs[accs.label != -1]
-
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
+                                                    error_y=dict(array=accs['error'], visible=True),
                                                     mode='markers', marker_size=20))
-        # accs_distibution_fig.update_traces(marker=dict(size=16))
-
         accs_distibution_fig.update_layout(width=800, height=800,
                                             title=go.layout.Title(
                                                 text="Accuracy Distribution",
@@ -530,7 +531,7 @@ class LC_SNN:
                                                 range=[0, 1]
                                                 # tick0=1,
 
-                                                )
+                                                ),
                                             )
 
         return accs, accs_distibution_fig
@@ -700,6 +701,7 @@ class CC_SNN:
         self.intensity = intensity
 
         self.parameters = {
+            'type': self.type,
             'norm': self.norm,
             'c_w': self.c_w,
             'n_iter': self.n_iter,
@@ -1143,7 +1145,7 @@ class CC_SNN:
 
     def accuracy_distribution(self):
         self.network.train(False)
-        colnames = ['label', 'accuracy']
+        colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
         for i in range(self.conf_matrix.shape[0]):
             true = 0
@@ -1154,14 +1156,14 @@ class CC_SNN:
                 else:
                     total += self.conf_matrix[i][j]
                     true += self.conf_matrix[i][j]
-            accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
+            error = (proportion_confint(true, total, alpha=0.05)[1] -
+                     proportion_confint(true, total, alpha=0.05)[0]) / 2
+            accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
 
         accs = accs[accs.label != -1]
-
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
+                                                    error_y=dict(array=accs['error'], visible=True),
                                                     mode='markers', marker_size=20))
-        # accs_distibution_fig.update_traces(marker=dict(size=16))
-
         accs_distibution_fig.update_layout(width=800, height=800,
                                            title=go.layout.Title(
                                                text="Accuracy Distribution",
@@ -1180,7 +1182,7 @@ class CC_SNN:
                                                range=[0, 1]
                                                # tick0=1,
 
-                                               )
+                                               ),
                                            )
 
         return accs, accs_distibution_fig

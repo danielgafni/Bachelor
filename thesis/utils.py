@@ -132,6 +132,41 @@ def load_network(name):
 
         net.network.train(False)
 
+    if type == 'CC_SNN':
+        net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, crop=crop,
+                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
+
+        net.name = name
+
+        if os.path.exists(path + '//votes'):
+            votes = torch.load(path + '//votes')
+            net.calibrated = True
+
+        if os.path.exists(path + '//accuracy'):
+            accuracy = torch.load(path + '//accuracy')
+
+        if os.path.exists(path + '//confusion_matrix'):
+            conf_matrix = torch.load(path + '//confusion_matrix')
+
+        network = torch.load(path + '//network')
+
+        net.network = network
+        net.votes = votes
+        net.accuracy = accuracy
+        net.conf_matrix = conf_matrix
+
+        net.spikes = {}
+        for layer in set(net.network.layers):
+            net.spikes[layer] = Monitor(net.network.layers[layer], state_vars=["s"], time=net.time_max)
+            net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
+
+        net._spikes = {
+            "X": net.spikes["X"].get("s").view(net.time_max, -1),
+            "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
+            }
+
+        net.network.train(False)
+
     return net
 
 
