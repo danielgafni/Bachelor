@@ -707,7 +707,7 @@ class LC_SNN:
             print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
         if plot:
             self.plot_spikes().show()
-            plot_image(image.squeeze().numpy()).show()
+            plot_image(np.flipud(image.squeeze().numpy())).show()
 
         return prediction[0:k], confidence[0:k]
 
@@ -1390,7 +1390,7 @@ class CC_SNN:
             print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
         if plot:
             self.plot_spikes().show()
-            plot_image(image.squeeze().numpy()).show()
+            plot_image(np.flipud(image.squeeze().numpy())).show()
 
         return prediction[0:k], confidence[0:k]
 
