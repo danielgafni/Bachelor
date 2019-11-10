@@ -913,8 +913,8 @@ class CC_SNN:
                 top_n_votes[label, j] = self.votes[label, j]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res.argsort(descending=True)
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor), torch.zeros(10)
+        return res.argsort(descending=True), (res / res.sum())[(res / res.sum()).argsort(descending=True)]
 
     def debug(self, n_iter):
         self.network.train(False)
