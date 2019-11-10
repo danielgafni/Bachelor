@@ -24,6 +24,9 @@ from bindsnet.utils import reshape_locally_connected_weights
 import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
+from PIL import Image
+import PIL.ImageOps
+from matplotlib import pyplot as plt
 
 
 class LC_SNN:
@@ -44,6 +47,7 @@ class LC_SNN:
         self.intensity = intensity
 
         self.parameters = {
+            'type': self.type,
             'norm': self.norm,
             'c_w': self.c_w,
             'n_iter': self.n_iter,
@@ -222,8 +226,8 @@ class LC_SNN:
                 top_n_votes[label, j] = self.votes[label, j]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res.argsort(descending=True)
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor), torch.zeros(10)
+        return res.argsort(descending=True), (res / res.sum())[(res / res.sum()).argsort(descending=True)]
 
     def debug(self, n_iter):
         self.network.train(False)
@@ -240,7 +244,7 @@ class LC_SNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            prediction = self.class_from_spikes()[0]
+            prediction, confidence = self.class_from_spikes()
             correct = batch["label"][0]
             x.append(prediction)
             y.append(correct)
@@ -321,7 +325,7 @@ class LC_SNN:
         self.accuracy = self.conf_matrix.trace() / self.conf_matrix.sum()
         self.parameters['accuracy'] = self.accuracy
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None, k=1):
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -333,6 +337,7 @@ class LC_SNN:
         print('Calculating accuracy...')
         x = []
         y = []
+        predictions = []
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -341,12 +346,13 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label']
-            prediction = self.class_from_spikes(top_n=top_n)[0]
-            x.append(prediction)
+            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            x.append(prediction[0])
+            predictions.append(prediction)
             y.append(label)
         scores = []
         for i in range(len(x)):
-            if x[i] == y[i]:
+            if y[i] in predictions[i][0:k]:
                 scores.append(1)
             else:
                 scores.append(0)
@@ -380,11 +386,10 @@ class LC_SNN:
                         }
                     self.network.reset_()
 
-
                 for top_n in range(1, 11):
-                        prediction = self.class_from_spikes(top_n=top_n)[0]
-                        if prediction == label:
-                            scores[label, top_n-1, i] = 1
+                    prediction, confidence = self.class_from_spikes(top_n=top_n)
+                    if prediction == label:
+                        scores[label, top_n-1, i] = 1
 
         errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
                   proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0])/2
@@ -493,7 +498,7 @@ class LC_SNN:
 
     def accuracy_distribution(self):
         self.network.train(False)
-        colnames = ['label', 'accuracy']
+        colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
         for i in range(self.conf_matrix.shape[0]):
             true = 0
@@ -504,15 +509,15 @@ class LC_SNN:
                 else:
                     total += self.conf_matrix[i][j]
                     true += self.conf_matrix[i][j]
-            accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
+            error = (proportion_confint(true, total, alpha=0.05)[1] -
+                     proportion_confint(true, total, alpha=0.05)[0]) / 2
+            accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
 
         accs = accs[accs.label != -1]
-
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
-                                                    mode='markers', marker_size=20))
-        # accs_distibution_fig.update_traces(marker=dict(size=16))
-
-        accs_distibution_fig.update_layout(width=800, height=800,
+                                                    error_y=dict(array=accs['error'], visible=True),
+                                                    mode='markers', marker_size=10))
+        accs_distibution_fig.update_layout(width=800, height=400,
                                             title=go.layout.Title(
                                                 text="Accuracy Distribution",
                                                 xref="paper"),
@@ -530,7 +535,7 @@ class LC_SNN:
                                                 range=[0, 1]
                                                 # tick0=1,
 
-                                                )
+                                                ),
                                             )
 
         return accs, accs_distibution_fig
@@ -572,8 +577,8 @@ class LC_SNN:
     
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
-                                                     mode='markers', marker_size=20))
-        votes_distibution_fig.update_layout(width=800, height=800,
+                                                     mode='markers', marker_size=15))
+        votes_distibution_fig.update_layout(width=800, height=400,
                                             title=go.layout.Title(
                                                 text="Votes Distribution",
                                                 xref="paper"),
@@ -652,7 +657,7 @@ class LC_SNN:
             conn.close()
             print('Network deleted!')
 
-    def feed_class(self, label, top_n=None, plot=False):
+    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
@@ -668,13 +673,44 @@ class LC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction = self.class_from_spikes(top_n=top_n)[0]
-            print(f'Prediction: {prediction}')
+            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            if to_print:
+                print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
             if plot:
                 self.plot_spikes().show()
-                plot_image(batch).show()
+                plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
-        return prediction
+
+        return prediction[0:k], confidence[0:k]
+
+    def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
+        self.network.train(False)
+        img = Image.open(fp=path).convert('1')
+        transform=transforms.Compose([
+            transforms.Resize(size=(self.crop, self.crop)),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x * self.intensity)
+            ])
+        image = self.intensity - transform(img)
+        pe = PoissonEncoder(time=self.time_max, dt=1)
+        encoded_image = pe.enc(torch.tensor(np.array(image)).type(torch.FloatTensor),
+                               time=self.time_max, transform=True).unsqueeze(0)
+        inpts = {'X': encoded_image.transpose(0, 1)}
+        self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+        self._spikes = {
+            "X": self.spikes["X"].get("s").view(self.time_max, -1),
+            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            }
+
+        prediction, confidence = self.class_from_spikes(top_n=top_n)
+        if to_print:
+            print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
+        if plot:
+            self.plot_spikes().show()
+            plot_image(np.flipud(image.squeeze().numpy())).show()
+
+        return prediction[0:k], confidence[0:k]
+
 
     def __repr__(self):
         # return f'LC_SNN network with parameters:\nnorm = {self.norm}\nc_ws={self.c_w}' \
@@ -700,6 +736,7 @@ class CC_SNN:
         self.intensity = intensity
 
         self.parameters = {
+            'type': self.type,
             'norm': self.norm,
             'c_w': self.c_w,
             'n_iter': self.n_iter,
@@ -975,7 +1012,7 @@ class CC_SNN:
         self.parameters['accuracy'] = self.accuracy
 
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None, k=1):
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -987,6 +1024,7 @@ class CC_SNN:
         print('Calculating accuracy...')
         x = []
         y = []
+        predictions = []
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -995,12 +1033,13 @@ class CC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label']
-            prediction = self.class_from_spikes(top_n=top_n)[0]
-            x.append(prediction)
+            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            x.append(prediction[0])
+            predictions.append(prediction)
             y.append(label)
         scores = []
         for i in range(len(x)):
-            if x[i] == y[i]:
+            if y[i] in predictions[i][0:k]:
                 scores.append(1)
             else:
                 scores.append(0)
@@ -1033,7 +1072,6 @@ class CC_SNN:
                         "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                         }
                     self.network.reset_()
-
 
                 for top_n in range(1, 11):
                     prediction = self.class_from_spikes(top_n=top_n)[0]
@@ -1143,7 +1181,7 @@ class CC_SNN:
 
     def accuracy_distribution(self):
         self.network.train(False)
-        colnames = ['label', 'accuracy']
+        colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
         for i in range(self.conf_matrix.shape[0]):
             true = 0
@@ -1154,15 +1192,15 @@ class CC_SNN:
                 else:
                     total += self.conf_matrix[i][j]
                     true += self.conf_matrix[i][j]
-            accs = accs.append(pd.DataFrame([[i-1, true/total]], columns=colnames), ignore_index=True)
+            error = (proportion_confint(true, total, alpha=0.05)[1] -
+                     proportion_confint(true, total, alpha=0.05)[0]) / 2
+            accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
 
         accs = accs[accs.label != -1]
-
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
-                                                    mode='markers', marker_size=20))
-        # accs_distibution_fig.update_traces(marker=dict(size=16))
-
-        accs_distibution_fig.update_layout(width=800, height=800,
+                                                    error_y=dict(array=accs['error'], visible=True),
+                                                    mode='markers', marker_size=10))
+        accs_distibution_fig.update_layout(width=800, height=400,
                                            title=go.layout.Title(
                                                text="Accuracy Distribution",
                                                xref="paper"),
@@ -1177,10 +1215,10 @@ class CC_SNN:
                                            yaxis=go.layout.YAxis(
                                                title_text='Accuracy',
                                                zeroline=False,
-                                               range=[0, 1]
+                                               # range=[0, 1]
                                                # tick0=1,
 
-                                               )
+                                               ),
                                            )
 
         return accs, accs_distibution_fig
@@ -1222,8 +1260,8 @@ class CC_SNN:
 
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
-                                                     mode='markers', marker_size=20))
-        votes_distibution_fig.update_layout(width=800, height=800,
+                                                     mode='markers', marker_size=15))
+        votes_distibution_fig.update_layout(width=800, height=400,
                                             title=go.layout.Title(
                                                 text="Votes Distribution",
                                                 xref="paper"),
@@ -1302,7 +1340,7 @@ class CC_SNN:
             conn.close()
             print('Network deleted!')
 
-    def feed_class(self, label, top_n=None, plot=False):
+    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
@@ -1318,25 +1356,53 @@ class CC_SNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction = self.class_from_spikes(top_n=top_n)[0]
-            print(f'Prediction: {prediction}')
+            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            if to_print:
+                print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
             if plot:
                 self.plot_spikes().show()
-                plot_image(batch).show()
+                plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
-        return prediction
+
+        return prediction[0:k], confidence[0:k]
+
+    def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
+        self.network.train(False)
+        img = Image.open(fp=path).convert('1')
+        transform=transforms.Compose([
+            transforms.Resize(size=(self.crop, self.crop)),
+            transforms.ToTensor(),
+            transforms.Lambda(lambda x: x * self.intensity)
+            ])
+        image = self.intensity - transform(img)
+        pe = PoissonEncoder(time=self.time_max, dt=1)
+        encoded_image = pe.enc(torch.tensor(np.array(image)).type(torch.FloatTensor),
+                               time=self.time_max, transform=True).unsqueeze(0)
+        inpts = {'X': encoded_image.transpose(0, 1)}
+        self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+        self._spikes = {
+            "X": self.spikes["X"].get("s").view(self.time_max, -1),
+            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            }
+
+        prediction, confidence = self.class_from_spikes(top_n=top_n)
+        if to_print:
+            print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
+        if plot:
+            self.plot_spikes().show()
+            plot_image(np.flipud(image.squeeze().numpy())).show()
+
+        return prediction[0:k], confidence[0:k]
 
     def __repr__(self):
         return f'CC_SNN network with parameters:\n {self.parameters}'
 
 
-def plot_image(batch):
-    image = batch['image']
-
+def plot_image(image):
     width = 400
     height = int(width * image.shape[0] / image.shape[1])
 
-    fig_img = go.Figure(data=go.Heatmap(z=np.flipud(image[0, 0, :, :].numpy()), colorscale='YlOrBr'))
+    fig_img = go.Figure(data=go.Heatmap(z=image, colorscale='YlOrBr'))
     fig_img.update_layout(width=width, height=height,
                              title=go.layout.Title(
                                  text="Image",
