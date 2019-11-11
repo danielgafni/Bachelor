@@ -28,7 +28,7 @@ from PIL import Image
 
 
 class AbstractSNN:
-    def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+    def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1, type_='Abstract SNN'):
         self.type = type_
         self.norm = norm
@@ -259,8 +259,6 @@ class AbstractSNN:
 
         return confusion_matrix(y, x), scores.mean(), error
 
-
-
     def accuracy_distribution(self):
         self.network.train(False)
         colnames = ['label', 'accuracy', 'error']
@@ -420,6 +418,8 @@ class AbstractSNN:
                                          )
                                      )
 
+        return fig_weights_XY
+
     def plot_spikes_Y(self):
         spikes = self._spikes['Y'].transpose(0, 1)
         width = 800
@@ -576,11 +576,14 @@ class AbstractSNN:
         return f'Network with parameters:\n {self.parameters}'
 
 
+########################################################################################################################
+
+
 class LC_SNN(AbstractSNN):
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
 
-        super().__init__(self, n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          type_='LC_SNN')
 
@@ -679,7 +682,7 @@ class CC_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
 
-        super().__init__(self, n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          type_='CC_SNN')
 
@@ -765,7 +768,24 @@ class CC_SNN(AbstractSNN):
 
         self.weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.weights_XY_shape,
                                                                          self.weights_XY_shape)
+
     def get_weights_XY(self):
         weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.weights_XY_shape,
                                                                     self.weights_XY_shape)
         return weights_XY
+
+
+def plot_image(image):
+    width = 400
+    height = int(width * image.shape[0] / image.shape[1])
+
+    fig_img = go.Figure(data=go.Heatmap(z=image, colorscale='YlOrBr'))
+    fig_img.update_layout(width=width, height=height,
+                          title=go.layout.Title(
+                              text="Image",
+                              xref="paper",
+                              x=0
+                              )
+                          )
+
+    return fig_img
