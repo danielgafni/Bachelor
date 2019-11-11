@@ -29,7 +29,9 @@ from PIL import Image
 
 class AbstractSNN:
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
-                 kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1, type_='Abstract SNN'):
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
+                 competitive_learn=False,
+                 type_='Abstract SNN'):
         self.type = type_
         self.norm = norm
         self.c_w = c_w
@@ -189,13 +191,14 @@ class AbstractSNN:
             label_predicted = torch.matmul(top_n_votes.type(torch.FloatTensor),
                                            output.type(torch.FloatTensor)).argmax().item()
             if output.sum(0).item() == 0:
-                label_predicted = -1
-
+                label_predicted = torch.zeros(1).fill_(-1)
             labels_predicted.append(label_predicted)
 
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.accuracy = self.conf_matrix.trace() / self.conf_matrix.sum()
         self.parameters['accuracy'] = self.accuracy
+
+        return labels, labels_predicted
 
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
@@ -581,10 +584,12 @@ class AbstractSNN:
 
 class LC_SNN(AbstractSNN):
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
-                 kernel_size=12, n_filters=25, stride=4, intensity=127.5):
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5,
+                 competitive_learn=False,):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
+                         competitive_learn=competitive_learn,
                          type_='LC_SNN')
 
     def create_network(self):
@@ -680,10 +685,12 @@ class LC_SNN(AbstractSNN):
 
 class CC_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
-                 kernel_size=12, n_filters=25, stride=4, intensity=127.5):
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5,
+                 competitive_learn=False):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
+                         competitive_learn=competitive_learn,
                          type_='CC_SNN')
 
     def create_network(self):
