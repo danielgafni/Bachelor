@@ -176,12 +176,14 @@ class PostPre(LearningRule):
         # Pre-synaptic update.
         if self.nu[0]:
             update = self.reduction(torch.bmm(source_s, target_x), dim=0)
-            self.connection.w -= self.nu[0] * update
+            # print(self.connection.w.shape)
+            # print(update.shape)
+            self.connection.w -= self.nu[0] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
 
         # Post-synaptic update.
         if self.nu[1]:
             update = self.reduction(torch.bmm(source_x, target_s), dim=0)
-            self.connection.w += self.nu[1] * update
+            self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
 
         super().update()
 
