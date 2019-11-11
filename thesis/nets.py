@@ -30,7 +30,7 @@ from PIL import Image
 class AbstractSNN:
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
-                 competitive_learn=False,
+                 c_l=False,
                  type_='Abstract SNN'):
         self.type = type_
         self.norm = norm
@@ -46,6 +46,7 @@ class AbstractSNN:
         self.stride = stride
         self.intensity = intensity
         self.dt = dt
+        self.c_l = c_l
 
         self.parameters = {
             'type': self.type,
@@ -58,7 +59,8 @@ class AbstractSNN:
             'stride': self.stride,
             'n_filters': self.n_filters,
             'intensity': self.intensity,
-            'dt': self.dt
+            'dt': self.dt,
+            'c_l': self.c_l
             }
 
         self.create_network()
@@ -149,15 +151,19 @@ class AbstractSNN:
         return res.argsort(descending=True), (res / res.sum())[(res / res.sum()).argsort(descending=True)]
 
     def calibrate(self, n_iter=None, top_n=None):
+        # TODO: calibration with a linear classifier
+        self.network.train(False)
         print('Calibrating network...')
         if n_iter is None:
             n_iter = self.n_iter
         labels = []
         outputs = []
-        self.network.train(False)
+
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
+
         print('Collecting activity data...')
+
         for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -166,11 +172,11 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             outputs.append(self._spikes['Y'].sum(0))
-            labels.append(batch['label'])
-            votes = torch.zeros(10, self.n_output)
+            labels.append(batch['label'].item())
             self.network.reset_()
 
         print('Calculating votes...')
+        votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
@@ -191,14 +197,12 @@ class AbstractSNN:
             label_predicted = torch.matmul(top_n_votes.type(torch.FloatTensor),
                                            output.type(torch.FloatTensor)).argmax().item()
             if output.sum(0).item() == 0:
-                label_predicted = torch.zeros(1).fill_(-1)
+                label_predicted = -1
             labels_predicted.append(label_predicted)
 
         self.conf_matrix = confusion_matrix(labels, labels_predicted)
         self.accuracy = self.conf_matrix.trace() / self.conf_matrix.sum()
         self.parameters['accuracy'] = self.accuracy
-
-        return labels, labels_predicted
 
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
@@ -585,11 +589,11 @@ class AbstractSNN:
 class LC_SNN(AbstractSNN):
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 competitive_learn=False,):
+                 c_l=False,):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         competitive_learn=competitive_learn,
+                         c_l=c_l,
                          type_='LC_SNN')
 
     def create_network(self):
@@ -644,7 +648,18 @@ class LC_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
-        self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
+        if self.c_l:
+            self.connection_YY = Connection(self.output_layer,
+                                            self.output_layer,
+                                            update_rule=PostPre,
+                                            nu=[-1e-2, 0],
+                                            wmin=-60,
+                                            wmax=0,
+                                            w=w)
+        else:
+            self.connection_YY = Connection(self.output_layer,
+                                            self.output_layer,
+                                            w=w)
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
         self.network.add_connection(self.connection_XY, source='X', target='Y')
@@ -686,11 +701,11 @@ class LC_SNN(AbstractSNN):
 class CC_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 competitive_learn=False):
+                 c_l=False):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         competitive_learn=competitive_learn,
+                         c_l=c_l,
                          type_='CC_SNN')
 
     def create_network(self):
