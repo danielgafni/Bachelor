@@ -675,7 +675,7 @@ class LC_SNN(AbstractSNN):
         return weights_XY
 
 
-class CC_SNN:
+class CC_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5):
 
