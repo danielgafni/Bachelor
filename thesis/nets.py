@@ -25,14 +25,12 @@ import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
 from PIL import Image
-import PIL.ImageOps
-from matplotlib import pyplot as plt
 
 
-class LC_SNN:
+class AbstractSNN:
     def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
-                 kernel_size=12, n_filters=25, stride=4, intensity=127.5):
-        self.type = 'LC_SNN'
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1):
+        self.type = 'Abstract SNN'
         self.norm = norm
         self.c_w = c_w
         self.n_iter = n_iter
@@ -45,6 +43,7 @@ class LC_SNN:
         self.n_filters = n_filters
         self.stride = stride
         self.intensity = intensity
+        self.dt = dt
 
         self.parameters = {
             'type': self.type,
@@ -56,15 +55,15 @@ class LC_SNN:
             'kernel_size': self.kernel_size,
             'stride': self.stride,
             'n_filters': self.n_filters,
-            'intensity': self.intensity
+            'intensity': self.intensity,
+            'dt': self.dt
             }
-        self.name = hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
-        self.create_network()
 
-    def create_network(self):
-        dt = 1
+        self.create_network()
+        self.name = hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
+
         self.train_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=dt),
+            PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
             download=False,
@@ -75,6 +74,74 @@ class LC_SNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+
+    def create_network(self):
+        pass
+
+    def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
+        if n_iter is None:
+            n_iter = self.n_iter
+        self.network.train(True)
+        print('Training network...')
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+        progress_bar = st.progress(0)
+        status = st.empty()
+        cnt = 0
+        if plot:
+            fig_weights = self.plot_weights_XY()
+            fig_spikes = self.plot_spikes()
+            fig_weights.show()
+            fig_spikes.show()
+
+        if app:
+            weights_plot = st.plotly_chart(fig_weights)
+            spikes_plot = st.plotly_chart(fig_spikes)
+
+        t_start = t()
+        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+            progress_bar.progress(int((smth + 1) / n_iter * 100))
+            t_now = t()
+            time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
+            speed = (smth + 1) / (t_now - t_start)
+            time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
+            status.text(f'{smth + 1}/{n_iter} [{time_from_start}] < [{time_left}], {round(speed, 2)}it/s')
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+            if plot:
+                if (t_now - t_start) / vis_interval > cnt:
+                    display.clear_output(wait=True)
+                    fig_weights = self.plot_weights_XY()
+                    fig_spikes = self.plot_spikes()
+                    fig_weights.show()
+                    fig_spikes.show()
+                    cnt += 1
+
+            if app:
+                weights_plot.plotly_chart(fig_weights)
+                spikes_plot.plotly_chart(fig_spikes)
+                cnt += 1
+
+        self.network.reset_()  # Reset state variables
+        self.network.train(False)
+
+
+class LC_SNN(AbstractSNN):
+    def __init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5):
+        self.type = 'LC_SNN'
+
+        super().__init__(self, norm=0.48, c_w=-100., n_iter=1000, time_max=250, crop=20,
+                         kernel_size=12, n_filters=25, stride=4, intensity=127.5)
+
+
+    def create_network(self):
 
         # Hyperparameters
         padding = 0
