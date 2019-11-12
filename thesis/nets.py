@@ -221,7 +221,7 @@ class AbstractSNN:
                                             )
         return votes_distibution_fig
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None, k=1):
+    def calculate_accuracy(self, n_iter=1000, top_n=None):
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -240,19 +240,19 @@ class AbstractSNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            label = batch['label']
+            label = batch['label'].item()
             prediction, confidence = self.class_from_spikes(top_n=top_n)
-            x.append(prediction[0])
-            predictions.append(prediction)
+            x.append(prediction[0].item())
             y.append(label)
             self.network.reset_()
 
         scores = []
         for i in range(len(x)):
-            if y[i] in predictions[i][0:k]:
+            if y[i] == x[i]:
                 scores.append(1)
             else:
                 scores.append(0)
+
         scores = np.array(scores)
         conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
         error = (conf_interval[1] - conf_interval[0]) / 2
@@ -266,20 +266,29 @@ class AbstractSNN:
         self.network.train(False)
         colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
-        for i in range(self.conf_matrix.shape[0]):
-            true = 0
-            total = 0
-            for j in range(1, self.conf_matrix.shape[1]):
-                if i != j:
-                    total += self.conf_matrix[i][j]
-                else:
-                    total += self.conf_matrix[i][j]
-                    true += self.conf_matrix[i][j]
-            error = (proportion_confint(true, total, alpha=0.05)[1] -
-                     proportion_confint(true, total, alpha=0.05)[0]) / 2
-            accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
+        if self.conf_matrix.shape[1] == 10:
+            for i in range(self.conf_matrix.shape[1]):
+                true = self.conf_matrix[i, i]
+                total = self.conf_matrix[:, i].sum()
 
-        accs = accs[accs.label != -1]
+                error = (proportion_confint(true, total, alpha=0.05)[1] -
+                         proportion_confint(true, total, alpha=0.05)[0]) / 2
+
+                accs = accs.append(pd.DataFrame([[i, true/total, error]], columns=colnames), ignore_index=True)
+
+        if self.conf_matrix.shape[1] == 11:
+            for i in range(self.conf_matrix.shape[1]):
+                true = self.conf_matrix[i, i]
+                total = self.conf_matrix[:, i].sum()
+
+                error = (proportion_confint(true, total, alpha=0.05)[1] -
+                         proportion_confint(true, total, alpha=0.05)[0]) / 2
+
+                accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
+
+            accs = accs[accs['label'] != -1]
+
+
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
                                                     error_y=dict(array=accs['error'], visible=True),
                                                     mode='markers', marker_size=10))
