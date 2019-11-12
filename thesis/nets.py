@@ -79,6 +79,19 @@ class AbstractSNN:
                 ])
             )
 
+        self.test_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=False,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
+
     def create_network(self):
         pass
 
@@ -150,7 +163,7 @@ class AbstractSNN:
             return torch.zeros(10).fill_(-1).type(torch.LongTensor), torch.zeros(10)
         return res.argsort(descending=True), (res / res.sum())[(res / res.sum()).argsort(descending=True)]
 
-    def calibrate(self, n_iter=None, top_n=None):
+    def calibrate(self, n_iter=None):
         # TODO: calibration with a linear classifier
         self.network.train(False)
         print('Calibrating network...')
@@ -184,25 +197,6 @@ class AbstractSNN:
             votes[i, :] = votes[i, :] / len((np.array(labels) == i).nonzero()[0])
         self.votes = votes
         self.calibrated = True
-        if top_n is None:
-            top_n = self.votes.shape[0]
-        labels_predicted = []
-        print('Calculating accuracy...')
-        for label, output in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
-            args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-            top_n_votes = torch.zeros(self.votes.shape)
-            for i, top_i in enumerate(args):
-                for j, label in enumerate(top_i):
-                    top_n_votes[label, j] = self.votes[label, j]
-            label_predicted = torch.matmul(top_n_votes.type(torch.FloatTensor),
-                                           output.type(torch.FloatTensor)).argmax().item()
-            if output.sum(0).item() == 0:
-                label_predicted = -1
-            labels_predicted.append(label_predicted)
-
-        self.conf_matrix = confusion_matrix(labels, labels_predicted)
-        self.accuracy = self.conf_matrix.trace() / self.conf_matrix.sum()
-        self.parameters['accuracy'] = self.accuracy
 
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
@@ -234,13 +228,12 @@ class AbstractSNN:
             print('The network is not calibrated!')
             return None
         self.network.train(False)
-        train_dataloader = torch.utils.data.DataLoader(
+        test_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
-        print('Calculating accuracy...')
         x = []
         y = []
         predictions = []
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -252,6 +245,8 @@ class AbstractSNN:
             x.append(prediction[0])
             predictions.append(prediction)
             y.append(label)
+            self.network.reset_()
+
         scores = []
         for i in range(len(x)):
             if y[i] in predictions[i][0:k]:
@@ -262,9 +257,10 @@ class AbstractSNN:
         conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
         error = (conf_interval[1] - conf_interval[0]) / 2
         print(f'Accuracy: {scores.mean()} with 95% confidence error {round(error, 2)}')
-        self.network.reset_()
 
-        return confusion_matrix(y, x), scores.mean(), error
+        self.conf_matrix = confusion_matrix(y, x)
+        self.accuracy = scores.mean()
+        self.error = error
 
     def accuracy_distribution(self):
         self.network.train(False)
@@ -317,12 +313,12 @@ class AbstractSNN:
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
             for i in tqdm(range(n_iter), ncols=100):
-                train_dataloader = torch.utils.data.DataLoader(
+                test_dataloader = torch.utils.data.DataLoader(
                     self.train_dataset, batch_size=1, shuffle=True)
 
-                batch = next(iter(train_dataloader))
+                batch = next(iter(test_dataloader))
                 while batch['label'] != label:
-                    batch = next(iter(train_dataloader))
+                    batch = next(iter(test_dataloader))
                 else:
                     inpts = {"X": batch["encoded_image"].transpose(0, 1)}
                     self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -652,8 +648,8 @@ class LC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer,
                                             self.output_layer,
                                             update_rule=PostPre,
-                                            nu=[-1e-2, 0],
-                                            wmin=-60,
+                                            nu=[-1e-2, 1e-2],
+                                            wmin=self.c_w,
                                             wmax=0,
                                             w=w)
         else:
