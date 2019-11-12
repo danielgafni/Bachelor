@@ -380,14 +380,14 @@ class AbstractSNN:
                                     xaxis=go.layout.XAxis(
                                         title_text='Output',
                                         tickmode='array',
-                                        tickvals=list(range(11)),
+                                        tickvals=list(range(-1, 10)),
                                         ticktext=['No spikes'] + list(range(10)),
                                         zeroline=False
                                         ),
                                     yaxis=go.layout.YAxis(
                                         title_text='Input',
                                         tickmode='array',
-                                        tickvals=list(range(11)),
+                                        tickvals=list(range(10)),
                                         ticktext=list(range(10)),
                                         zeroline=False
                                         )
