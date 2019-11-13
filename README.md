@@ -102,7 +102,9 @@ Then to train the network (and be able so see the progress) run
 ```python
 net.train(plot=True, debug=True)
 
-net.calibrate()
+net.calibrate(n_iter=5000)
+
+net.calculate_accuracy(n_iter=5000)
 ```
 
 The network is ready. To save the network:
