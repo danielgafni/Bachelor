@@ -265,7 +265,6 @@ class AbstractSNN:
         self.error = error
 
     def accuracy_distribution(self):
-
         self.network.train(False)
         colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
@@ -374,7 +373,7 @@ class AbstractSNN:
 
     def confusion(self):
         row_sums = self.conf_matrix.sum(axis=1)
-        average_confusion_matrix = self.conf_matrix[1:] / row_sums[:, np.newaxis][1:]
+        average_confusion_matrix = self.conf_matrix[1:, 1:] / row_sums[:, np.newaxis][1:]
         fig_confusion = go.Figure(data=go.Heatmap(z=average_confusion_matrix, colorscale='YlOrBr',
                                                   zmin=0,
                                                   zmax=1
@@ -388,7 +387,7 @@ class AbstractSNN:
                                     xaxis=go.layout.XAxis(
                                         title_text='Output',
                                         tickmode='array',
-                                        tickvals=list(range(-1, 10)),
+                                        tickvals=list(range(0, 11)),
                                         ticktext=['No spikes'] + list(range(10)),
                                         zeroline=False
                                         ),
