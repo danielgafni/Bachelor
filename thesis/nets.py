@@ -281,7 +281,7 @@ class AbstractSNN:
         if self.conf_matrix.shape[1] == 11:
             for i in range(self.conf_matrix.shape[1]):
                 true = self.conf_matrix[i, i]
-                total = self.conf_matrix[:, i].sum()
+                total = self.conf_matrix[i, :].sum()
 
                 error = (proportion_confint(true, total, alpha=0.05)[1] -
                          proportion_confint(true, total, alpha=0.05)[0]) / 2
@@ -373,7 +373,7 @@ class AbstractSNN:
 
     def confusion(self):
         row_sums = self.conf_matrix.sum(axis=1)
-        average_confusion_matrix = self.conf_matrix[1:, 1:] / row_sums[:, np.newaxis][1:]
+        average_confusion_matrix = np.nan_to_num(self.conf_matrix / row_sums)[1:, 1:]
         fig_confusion = go.Figure(data=go.Heatmap(z=average_confusion_matrix, colorscale='YlOrBr',
                                                   zmin=0,
                                                   zmax=1
@@ -381,14 +381,14 @@ class AbstractSNN:
                                   )
         fig_confusion.update_layout(width=800, height=800,
                                     title=go.layout.Title(
-                                        text="Average Confusion Matrix",
+                                        text="Confusion Matrix",
                                         xref="paper"),
                                     margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                     xaxis=go.layout.XAxis(
                                         title_text='Output',
                                         tickmode='array',
-                                        tickvals=list(range(0, 11)),
-                                        ticktext=['No spikes'] + list(range(10)),
+                                        tickvals=list(range(10)),
+                                        ticktext=list(range(10)),
                                         zeroline=False
                                         ),
                                     yaxis=go.layout.YAxis(
