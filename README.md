@@ -35,6 +35,7 @@ I'm currently in the process of finding the best parameters for the network, so 
 # Work to do in the future
 
 * Compare to a network with a convolution layer
+* Compare calibration with a linear classifier trained on network outputs
 * Introduce a training mechanism of the competition weights.
 
 # Usage
