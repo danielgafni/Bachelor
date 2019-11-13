@@ -160,8 +160,8 @@ class AbstractSNN:
                 top_n_votes[label, j] = self.votes[label, j]
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor), torch.zeros(10)
-        return res.argsort(descending=True), (res / res.sum())[(res / res.sum()).argsort(descending=True)]
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res.argsort(descending=True)
 
     def calibrate(self, n_iter=None):
         # TODO: calibration with a linear classifier
@@ -232,7 +232,6 @@ class AbstractSNN:
             self.train_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
-        predictions = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -241,7 +240,7 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label'].item()
-            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            prediction = self.class_from_spikes(top_n=top_n)
             x.append(prediction[0].item())
             y.append(label)
             self.network.reset_()
@@ -256,7 +255,7 @@ class AbstractSNN:
         scores = np.array(scores)
         conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
         error = (conf_interval[1] - conf_interval[0]) / 2
-        print(f'Accuracy: {scores.mean()} with 95% confidence error {round(error, 2)}')
+        print(f'Accuracy: {scores.mean()} with 95% confidence interval {round(error, 2)}')
 
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
@@ -338,7 +337,7 @@ class AbstractSNN:
                     self.network.reset_()
 
                 for top_n in range(1, 11):
-                    prediction, confidence = self.class_from_spikes(top_n=top_n)
+                    prediction = self.class_from_spikes(top_n=top_n)
                     if prediction == label:
                         scores[label, top_n-1, i] = 1
 
@@ -488,14 +487,14 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
 
-            prediction, confidence = self.class_from_spikes(top_n=top_n)
+            prediction = self.class_from_spikes(top_n=top_n)
             if to_print:
-                print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
+                print(f'Prediction: {prediction[0:k]}')
             if plot:
                 self.plot_spikes().show()
                 plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
-        return prediction[0:k], confidence[0:k]
+        return prediction[0:k]
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
         self.network.train(False)
@@ -516,14 +515,14 @@ class AbstractSNN:
             "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
             }
 
-        prediction, confidence = self.class_from_spikes(top_n=top_n)
+        prediction = self.class_from_spikes(top_n=top_n)
         if to_print:
-            print(f'Prediction: {prediction[0:k]}\nConfidence: {confidence[0:k]}')
+            print(f'Prediction: {prediction[0:k]}')
         if plot:
             self.plot_spikes().show()
             plot_image(np.flipud(image.squeeze().numpy())).show()
 
-        return prediction[0:k], confidence[0:k]
+        return prediction[0:k]
 
     def save(self):
         path = f'networks//{self.name}'
