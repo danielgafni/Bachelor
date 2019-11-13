@@ -25,6 +25,7 @@ import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
 from PIL import Image
+from sklearn.linear_model import LogisticRegression
 
 
 class AbstractSNN:
@@ -204,6 +205,75 @@ class AbstractSNN:
         self.votes = votes
         self.calibrated = True
 
+    def calibrate_linear_classifier(self, n_iter=None):
+        self.network.train(False)
+        print('Calibrating network...')
+        if n_iter is None:
+            n_iter = self.n_iter
+        labels = []
+        outputs = []
+
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+
+        print('Collecting activity data...')
+
+        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+            outputs.append(self._spikes['Y'].sum(0))
+            labels.append(batch['label'].item())
+            self.network.reset_()
+
+        print('Calibrating classifier...')
+        self.classifier = LogisticRegression(solver='sag', n_jobs=-1)
+        self.classifier.fit(outputs, labels)
+
+    def calculate_accuracy_linear_classifier(self, n_iter=None):
+        self.network.reset_()
+        if top_n is None:
+            top_n = 10
+        if not self.calibrated:
+            print('The network is not calibrated!')
+            return None
+        self.network.train(False)
+        test_dataloader = torch.utils.data.DataLoader(
+            self.test_dataset, batch_size=1, shuffle=True)
+        x = []
+        y = []
+        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
+
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+            label = batch['label'].item()
+            prediction = self.class_from_spikes(top_n=top_n)
+            x.append(prediction[0].item())
+            y.append(label)
+
+        scores = []
+        for i in range(len(x)):
+            if y[i] == x[i]:
+                scores.append(1)
+            else:
+                scores.append(0)
+
+        scores = np.array(scores)
+        conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
+        error = (conf_interval[1] - conf_interval[0]) / 2
+        print(f'Accuracy: {scores.mean()} with 95% confidence interval {round(error, 2)}')
+
+        self.conf_matrix = confusion_matrix(y, x)
+        self.accuracy = scores.mean()
+        self.error = error
+
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
                                                      mode='markers', marker_size=15))
@@ -236,7 +306,7 @@ class AbstractSNN:
             return None
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            self.test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
@@ -406,6 +476,9 @@ class AbstractSNN:
         return fig_confusion
 
     def get_weights_XY(self):
+        pass
+
+    def get_weights_YY(self):
         pass
 
     def plot_weights_XY(self, width=800):
