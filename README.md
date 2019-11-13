@@ -20,7 +20,7 @@ And here is the confusion matrix:
 
 ![Confusion matrix](overview/confusion_matrix.png)
 
-I discovered, that statistically calculated votes (what I call the "calibration" of the network) give us the following votes distribution:
+I discovered, that statistically calculated votes (what I call the "calibration" of the network) give us the following votes distribution: 
 
 ![Votes distribution](overview/votes_distribution.png)
 
