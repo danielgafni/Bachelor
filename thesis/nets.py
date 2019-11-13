@@ -191,7 +191,7 @@ class AbstractSNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            outputs.append(self._spikes['Y'].sum(0))
+            outputs.append(self._spikes['Y'].sum(0).numpy())
             labels.append(batch['label'].item())
             self.network.reset_()
 
@@ -225,7 +225,7 @@ class AbstractSNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            outputs.append(self._spikes['Y'].sum(0))
+            outputs.append(self._spikes['Y'].sum(0).numpy())
             labels.append(batch['label'].item())
             self.network.reset_()
 
@@ -234,9 +234,9 @@ class AbstractSNN:
         self.classifier.fit(outputs, labels)
 
     def calculate_accuracy_linear_classifier(self, n_iter=None):
+        print('Calculating accuracy...')
         self.network.reset_()
-        if top_n is None:
-            top_n = 10
+
         if not self.calibrated:
             print('The network is not calibrated!')
             return None
@@ -245,6 +245,7 @@ class AbstractSNN:
             self.test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
+        print('Collecting activity data...')
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
 
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -254,25 +255,14 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label'].item()
-            prediction = self.class_from_spikes(top_n=top_n)
-            x.append(prediction[0].item())
+            x.append(self._spikes['Y'].sum(0).numpy())
             y.append(label)
 
-        scores = []
-        for i in range(len(x)):
-            if y[i] == x[i]:
-                scores.append(1)
-            else:
-                scores.append(0)
+        score = self.classifier.score(x, y)
+        y_predict = self.classifier.predict(x)
 
-        scores = np.array(scores)
-        conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
-        error = (conf_interval[1] - conf_interval[0]) / 2
-        print(f'Accuracy: {scores.mean()} with 95% confidence interval {round(error, 2)}')
-
-        self.conf_matrix = confusion_matrix(y, x)
-        self.accuracy = scores.mean()
-        self.error = error
+        self.conf_matrix = confusion_matrix(y, y_predict)
+        self.accuracy = score
 
     def votes_distribution(self):
         votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
@@ -606,6 +596,32 @@ class AbstractSNN:
                 plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
         return prediction[0:k]
+
+    def feed_class_linear_classifier(self, label, to_print=True, plot=False):
+        self.network.reset_()
+        self.network.train(False)
+        train_dataloader = torch.utils.data.DataLoader(
+            self.train_dataset, batch_size=1, shuffle=True)
+
+        batch = next(iter(train_dataloader))
+        while batch['label'] != label:
+            batch = next(iter(train_dataloader))
+        else:
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+
+        prediction = self.classifier.predict([self._spikes['Y'].sum(0).numpy()])
+        if to_print:
+            print(f'Prediction: {prediction[0]}')
+        if plot:
+            self.plot_spikes().show()
+            plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
+
+        return prediction[0]
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
         self.network.reset_()
