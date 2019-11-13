@@ -1,0 +1,1 @@
+{"type": "CC_SNN", "norm": 50, "c_w": -50, "n_iter": 100, "time_max": 250, "crop": 20, "kernel_size": 12, "stride": 4, "n_filters": 25, "intensity": 127.5, "accuracy": 0.721}

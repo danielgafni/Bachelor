@@ -703,7 +703,7 @@ class LC_SNN(AbstractSNN):
         return weights_XY
 
 
-class CC_SNN(AbstractSNN):
+class C_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False):
@@ -711,7 +711,7 @@ class CC_SNN(AbstractSNN):
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l,
-                         type_='CC_SNN')
+                         type_='C_SNN')
 
     def create_network(self):
         # Hyperparameters
