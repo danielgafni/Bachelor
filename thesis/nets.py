@@ -236,7 +236,7 @@ class AbstractSNN:
             return None
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            self.test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
