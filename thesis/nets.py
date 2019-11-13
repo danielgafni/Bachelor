@@ -117,6 +117,8 @@ class AbstractSNN:
 
         t_start = t()
         for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+
+
             progress_bar.progress(int((smth + 1) / n_iter * 100))
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
@@ -145,8 +147,8 @@ class AbstractSNN:
                 spikes_plot.plotly_chart(fig_spikes)
                 cnt += 1
 
-        self.network.reset_()  # Reset state variables
         self.network.train(False)
+        self.network.reset_()
 
     def class_from_spikes(self, top_n=None):
         if top_n is None:
@@ -222,6 +224,7 @@ class AbstractSNN:
         return votes_distibution_fig
 
     def calculate_accuracy(self, n_iter=1000, top_n=None):
+        self.network.reset_()
         if top_n is None:
             top_n = 10
         if not self.calibrated:
@@ -233,6 +236,7 @@ class AbstractSNN:
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
+
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -243,7 +247,6 @@ class AbstractSNN:
             prediction = self.class_from_spikes(top_n=top_n)
             x.append(prediction[0].item())
             y.append(label)
-            self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -262,13 +265,14 @@ class AbstractSNN:
         self.error = error
 
     def accuracy_distribution(self):
+
         self.network.train(False)
         colnames = ['label', 'accuracy', 'error']
         accs = pd.DataFrame(columns=colnames)
-        if self.conf_matrix.shape[1] == 10:
+        if self.conf_matrix.shape[0] == 10:
             for i in range(self.conf_matrix.shape[1]):
                 true = self.conf_matrix[i, i]
-                total = self.conf_matrix[:, i].sum()
+                total = self.conf_matrix[i, :].sum()
 
                 error = (proportion_confint(true, total, alpha=0.05)[1] -
                          proportion_confint(true, total, alpha=0.05)[0]) / 2
@@ -472,6 +476,7 @@ class AbstractSNN:
         return fig_spikes
 
     def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
+        self.network.reset_()
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
             self.train_dataset, batch_size=1, shuffle=True)
@@ -497,6 +502,7 @@ class AbstractSNN:
         return prediction[0:k]
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
+        self.network.reset_()
         self.network.train(False)
         img = Image.open(fp=path).convert('1')
         transform=transforms.Compose([
