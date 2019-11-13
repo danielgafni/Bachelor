@@ -39,6 +39,14 @@ I'm currently in the process of finding the best parameters for the network, so 
 
 # Usage
 
+To reproduce my results download this repository and install all required packages:
+
+```
+pip install -r requirements.txt
+```
+
+Install [bindsnet](https://github.com/Hananel-Hazan/bindsnet) and replace its directory in path with the one I provide. It contains important bugfixes.
+
 Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
 ## Basic imports
