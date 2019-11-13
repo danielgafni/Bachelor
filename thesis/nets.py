@@ -106,19 +106,20 @@ class AbstractSNN:
         status = st.empty()
         cnt = 0
         if plot:
-            fig_weights = self.plot_weights_XY()
+            fig_weights_XY = self.plot_weights_XY()
+            fig_weights_YY = self.plot_weights_YY()
             fig_spikes = self.plot_spikes()
-            fig_weights.show()
+            fig_weights_XY.show()
+            fig_weights_YY.show()
             fig_spikes.show()
 
         if app:
-            weights_plot = st.plotly_chart(fig_weights)
+            plot_weights_XY = st.plotly_chart(fig_weights_XY)
+            plot_weights_YY = st.plotly_chart(fig_weights_YY)
             spikes_plot = st.plotly_chart(fig_spikes)
 
         t_start = t()
         for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
-
-
             progress_bar.progress(int((smth + 1) / n_iter * 100))
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
@@ -136,14 +137,17 @@ class AbstractSNN:
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
                     display.clear_output(wait=True)
-                    fig_weights = self.plot_weights_XY()
+                    fig_weights_XY = self.plot_weights_XY()
+                    fig_weights_YY = self.plot_weights_YY()
                     fig_spikes = self.plot_spikes()
-                    fig_weights.show()
+                    fig_weights_XY.show()
+                    fig_weights_YY.show()
                     fig_spikes.show()
                     cnt += 1
 
             if app:
-                weights_plot.plotly_chart(fig_weights)
+                plot_weights_XY.plotly_chart(fig_weights_XY)
+                plot_weights_YY.plotly_chart(fig_weights_YY)
                 spikes_plot.plotly_chart(fig_spikes)
                 cnt += 1
 
@@ -434,6 +438,36 @@ class AbstractSNN:
 
         return fig_weights_XY
 
+    def plot_weights_YY(self, width=800):
+        self.weights_YY = self.get_weights_YY()
+        fig_weights_YY = go.Figure(data=go.Heatmap(z=self.weights_YY.numpy(), colorscale='YlOrBr'))
+        fig_weights_YY.update_layout(width=width, height=800,
+                                     title=go.layout.Title(
+                                         text="Weights YY",
+                                         xref="paper"),
+                                     margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                                     xaxis=go.layout.XAxis(
+                                         title_text='Neuron Index X',
+                                         tickmode='array',
+                                         tickvals=np.linspace(0, self.weights_YY.shape[0],
+                                                              self.output_shape + 1) +
+                                                  self.weights_YY.shape[0] / self.output_shape / 2,
+                                         ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                         zeroline=False
+                                         ),
+                                     yaxis=go.layout.YAxis(
+                                         title_text='Neuron Index Y',
+                                         tickmode='array',
+                                         tickvals=np.linspace(0, self.weights_YY.shape[1],
+                                                              self.output_shape + 1) +
+                                                  self.weights_YY.shape[1] / self.output_shape / 2,
+                                         ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                         zeroline=False
+                                         )
+                                     )
+
+        return fig_weights_YY
+
     def plot_spikes_Y(self):
         spikes = self._spikes['Y'].transpose(0, 1)
         width = 800
@@ -643,7 +677,7 @@ class LC_SNN(AbstractSNN):
             stride=self.stride,
             update_rule=PostPre,
             norm=self.norm,  # 1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
-            nu=[1e-4, 1e-2],
+            nu=[1e-4, 1e-1],
             wmin=self.wmin,
             wmax=self.wmax)
 
@@ -661,7 +695,7 @@ class LC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer,
                                             self.output_layer,
                                             update_rule=PostPre,
-                                            nu=[-1e-2, 1e-2],
+                                            nu=[-0.3, 0.3],
                                             wmin=self.c_w,
                                             wmax=0,
                                             w=w)
@@ -706,10 +740,16 @@ class LC_SNN(AbstractSNN):
                                                        input_sqrt=self.n_input)
         return weights_XY
 
+    def get_weights_YY(self):
+        shape_YY = self.network.connections[('Y', 'Y')].w.shape
+        weights_YY = self.network.connections[('Y', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_YY))),
+                                                                    int(np.sqrt(np.prod(shape_YY))))
+        return weights_YY
+
 
 class C_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
-                 kernel_size=12, n_filters=25, stride=4, intensity=127.5,
+                 kernel_size=8, n_filters=25, stride=4, intensity=127.5,
                  c_l=False):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
@@ -745,8 +785,6 @@ class C_SNN(AbstractSNN):
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
-        total_kernel_size = int(np.prod(self.kernel_size))
-        norm=0.5 * int(np.sqrt(total_kernel_size))
 
         self.connection_XY = Conv2dConnection(
             self.input_layer,
@@ -754,7 +792,7 @@ class C_SNN(AbstractSNN):
             kernel_size=self.kernel_size,
             stride=self.stride,
             update_rule=PostPre,
-            norm=self.norm,  # 1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
+            norm=self.norm,
             nu=[1e-4, 1e-2],
             wmin=self.wmin,
             wmax=self.wmax)
@@ -769,7 +807,19 @@ class C_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
-        self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
+        if self.c_l:
+            self.connection_YY = Connection(self.output_layer,
+                                            self.output_layer,
+                                            update_rule=PostPre,
+                                            nu=[-0.3, 0.3],
+                                            wmin=self.c_w,
+                                            wmax=0,
+                                            w=w)
+        else:
+            self.connection_YY = Connection(self.output_layer,
+                                            self.output_layer,
+                                            w=w)
+
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
         self.network.add_connection(self.connection_XY, source='X', target='Y')
@@ -805,6 +855,12 @@ class C_SNN(AbstractSNN):
                                                                     self.weights_XY_shape)
         return weights_XY
 
+    def get_weights_YY(self):
+        shape_YY = self.network.connections[('Y', 'Y')].w.shape
+        weights_YY = self.network.connections[('Y', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_YY))),
+                                                                   int(np.sqrt(np.prod(shape_YY))))
+        return weights_YY
+
 
 def plot_image(image):
     width = 400
@@ -820,3 +876,7 @@ def plot_image(image):
                           )
 
     return fig_img
+
+
+# TODO: calibration with a linear classifier
+# TODO: gridsearch C_SNN
