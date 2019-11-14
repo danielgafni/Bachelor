@@ -25,7 +25,7 @@ import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
 from PIL import Image
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier, RidgeClassifier
 
 
 class AbstractSNN:
@@ -230,16 +230,20 @@ class AbstractSNN:
             self.network.reset_()
 
         print('Calibrating classifier...')
-        self.classifier = LogisticRegression(solver='sag', n_jobs=-1)
+
+
+        self.classifier = SGDClassifier(n_jobs=-1)
+
+
         self.classifier.fit(outputs, labels)
 
     def calculate_accuracy_linear_classifier(self, n_iter=None):
         print('Calculating accuracy...')
         self.network.reset_()
 
-        if not self.calibrated:
-            print('The network is not calibrated!')
-            return None
+        # if not self.calibrated:
+        #     print('The network is not calibrated!')
+        #     return None
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
             self.test_dataset, batch_size=1, shuffle=True)
@@ -784,7 +788,7 @@ class LC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer,
                                             self.output_layer,
                                             update_rule=PostPre,
-                                            nu=[-0.3, 0.3],
+                                            nu=[-1e-3, 1e-3],
                                             wmin=self.c_w,
                                             wmax=0,
                                             w=w)
@@ -900,7 +904,7 @@ class C_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer,
                                             self.output_layer,
                                             update_rule=PostPre,
-                                            nu=[-0.3, 0.3],
+                                            nu=[-0.05, 0.05],
                                             wmin=self.c_w,
                                             wmax=0,
                                             w=w)
