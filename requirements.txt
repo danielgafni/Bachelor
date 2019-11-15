@@ -1,3 +1,4 @@
+dash
 argh==0.26.2
 astor==0.8.0
 attrs==19.2.0
