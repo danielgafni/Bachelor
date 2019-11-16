@@ -78,7 +78,7 @@ def plot_LC_SNNs(n_filters=None):
 
 def load_network(name):
     path = f'networks//{name}'
-    if os.path.exists(path + '//parameters.json'):
+    try:
         with open(path + '//parameters.json', 'r') as file:
             parameters = json.load(file)
             norm = parameters['norm']
@@ -91,6 +91,8 @@ def load_network(name):
             stride = parameters['stride']
             intensity = parameters['intensity']
             type = parameters['type']
+    except FileNotFoundError:
+        raise FileNotFoundError
 
     accuracy = None
     votes = None

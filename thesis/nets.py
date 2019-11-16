@@ -93,9 +93,6 @@ class AbstractSNN:
                 ])
             )
 
-    def create_network(self):
-        pass
-
     def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
         if n_iter is None:
             n_iter = self.n_iter
@@ -152,8 +149,9 @@ class AbstractSNN:
                 spikes_plot.plotly_chart(fig_spikes)
                 cnt += 1
 
-        self.network.train(False)
         self.network.reset_()
+
+        self.network.train(False)
 
     def class_from_spikes(self, top_n=None):
         if top_n is None:
@@ -231,9 +229,7 @@ class AbstractSNN:
 
         print('Calibrating classifier...')
 
-
         self.classifier = SGDClassifier(n_jobs=-1)
-
 
         self.classifier.fit(outputs, labels)
 
@@ -733,11 +729,12 @@ class LC_SNN(AbstractSNN):
                          type_='LC_SNN')
 
     def create_network(self):
+
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
         per_class = int((self.n_filters * conv_size * conv_size) / 10)
-        tc_trace = 20.
+        tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -770,7 +767,7 @@ class LC_SNN(AbstractSNN):
             stride=self.stride,
             update_rule=PostPre,
             norm=self.norm,  # 1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
-            nu=[1e-4, 1e-1],
+            nu=[1e-4, 1e-2],
             wmin=self.wmin,
             wmax=self.wmax)
 
@@ -784,18 +781,15 @@ class LC_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
-        if self.c_l:
-            self.connection_YY = Connection(self.output_layer,
-                                            self.output_layer,
-                                            update_rule=PostPre,
-                                            nu=[-1e-3, 1e-3],
-                                            wmin=self.c_w,
-                                            wmax=0,
-                                            w=w)
+        if not self.c_l:
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
-            self.connection_YY = Connection(self.output_layer,
-                                            self.output_layer,
-                                            w=w)
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+                                            update_rule=PostPre,
+                                            nu=[-0.01, 0.01],
+                                            wmin=self.c_w,
+                                            wmax=0)
+
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
         self.network.add_connection(self.connection_XY, source='X', target='Y')
