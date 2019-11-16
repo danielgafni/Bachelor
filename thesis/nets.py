@@ -150,7 +150,6 @@ class AbstractSNN:
                 cnt += 1
 
         self.network.reset_()
-
         self.network.train(False)
 
     def class_from_spikes(self, top_n=None):
@@ -848,7 +847,8 @@ class C_SNN(AbstractSNN):
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        tc_trace = 20.
+        per_class = int((self.n_filters * conv_size * conv_size) / 10)
+        tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -894,18 +894,14 @@ class C_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
-        if self.c_l:
-            self.connection_YY = Connection(self.output_layer,
-                                            self.output_layer,
-                                            update_rule=PostPre,
-                                            nu=[-0.05, 0.05],
-                                            wmin=self.c_w,
-                                            wmax=0,
-                                            w=w)
+        if not self.c_l:
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
-            self.connection_YY = Connection(self.output_layer,
-                                            self.output_layer,
-                                            w=w)
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+                                            update_rule=PostPre,
+                                            nu=[-0.01, 0.01],
+                                            wmin=self.c_w,
+                                            wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
@@ -932,10 +928,8 @@ class C_SNN(AbstractSNN):
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
         self.kernel_prod = int(np.prod(self.kernel_size))
-        self.weights_XY_shape = int(np.sqrt(np.prod(self.network.connections[('X', 'Y')].w.shape)))
 
-        self.weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.weights_XY_shape,
-                                                                         self.weights_XY_shape)
+        self.weights_XY = self.get_weights_XY()
 
     def get_weights_XY(self):
         weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.weights_XY_shape,
