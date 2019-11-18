@@ -843,7 +843,7 @@ class LC_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=self.nu,
+                                            nu=[-self.nu, self.nu],
                                             wmin=self.c_w,
                                             wmax=0)
 
@@ -957,7 +957,7 @@ class C_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=self.nu,
+                                            nu=[-self.nu, self.nu],
                                             wmin=self.c_w,
                                             wmax=0)
 
