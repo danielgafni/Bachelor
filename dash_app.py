@@ -165,12 +165,17 @@ app.layout = html.Div(children=[
             html.Div(id='box-norm', children=[
                 html.Label(id='label-norm', children='norm'),
                 dcc.Input(id='parameter-norm', type='number', value='0.45')
-                ], style={'rowCount': '2'}, className='three columns'),
+                ], style={'rowCount': '2'}, className='four columns'),
 
             html.Div(id='box-c_w', children=[
                 html.Label(id='label-c_w', children='Competitive weight'),
-                dcc.Input(id='parameter-c_w', type='number', value='-60')
-                ], style={'rowCount': '2'}, className='three columns'),
+                dcc.Input(id='parameter-c_w', type='number', value='-100')
+                ], style={'rowCount': '2'}, className='four columns'),
+
+            html.Div(id='box-n_filters', children=[
+                html.Label(id='label-n_filters', children='Number of filters'),
+                dcc.Input(id='parameter-n_filters', type='number', value='25')
+                ], style={'rowCount': '2'}, className='four columns'),
 
             html.Div(id='box-create-network', children=[
                 html.Label(id='label-create-network', children='Create network'),
@@ -194,7 +199,6 @@ app.layout = html.Div(children=[
                 dcc.Input(id='train-n_iter', value='100', style={'padding': '10 10'}),
                 html.Button(id='train', children='Train network'),
                 html.Button(id='stop', children='Stop training'),
-                html.Button(id='update', children='Update plots'),
                 html.Label(id='n_iter-counter', children='n_iter: 0 / 1000, 0 it/s'),
                  ]),
 
@@ -204,7 +208,8 @@ app.layout = html.Div(children=[
         style={'display': 'inline-block', 'padding': '5 5 5 5', 'rowCount': 1}
         ),
 
-    html.Div(id='net-input', style={'display': 'none'}, children=r'{"source": "create", "norm": 0.26, "c_w": -100}'),
+    html.Div(id='net-input', style={'display': 'none'}, children=r'{"source": "create", "norm": 0.26, "c_w": -100, '
+                                                                 r'"n_filters": 25}'),
 
     html.Div(id='stash', style={'display': 'none'}, children=''),
 
@@ -242,19 +247,21 @@ def update_xy(n_clicks, vis_interval):
     [State('network-source', 'value'),
      State('network-name', 'value'),
      State('parameter-norm', 'value'),
-     State('parameter-c_w', 'value')]
+     State('parameter-c_w', 'value'),
+     State('parameter-n_filters', 'value')]
     )
-def update_net_input(n_clicks_load, n_clicks_create, network_source, name, norm, c_w):
+def update_net_input(n_clicks_load, n_clicks_create, network_source, name, norm, c_w, n_filters):
     if network_source == 'create':
         input_dict = {
             'source': 'create',
             'norm': norm,
-            'c_w': c_w
+            'c_w': c_w,
+            'n_filters': n_filters
             }
     if network_source == 'load':
         input_dict = {
             'source': 'load',
-            'name' : name
+            'name': name
             }
 
     return json.dumps(input_dict)
@@ -270,7 +277,8 @@ def global_network(input_string):
         print('Creating network...')
         norm = float(input_dict['norm'])
         c_w = float(input_dict['c_w'])
-        net = LC_SNN_app(norm=norm, c_w=c_w)
+        n_filters = int(input_dict['n_filters'])
+        net = LC_SNN_app(norm=norm, c_w=c_w, n_filters=n_filters)
         weights_XY = net.plot_weights_XY().update_layout(height=600, width=600)
         return net
 
