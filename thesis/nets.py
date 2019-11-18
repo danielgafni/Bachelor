@@ -6,7 +6,6 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objs as go
 from sklearn.metrics import confusion_matrix
-import streamlit as st
 import torch
 from IPython import display
 from plotly.subplots import make_subplots
@@ -31,8 +30,12 @@ from sklearn.linear_model import LogisticRegression, SGDClassifier, RidgeClassif
 class AbstractSNN:
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
-                 c_l=False,
+                 c_l=False, nu=None,
                  type_='Abstract SNN'):
+        self.n_iter_counter = 0
+        if nu is None:
+            nu = [0.01, 0.01]
+        self.nu = nu
         self.type = type_
         self.norm = norm
         self.c_w = c_w
@@ -61,13 +64,15 @@ class AbstractSNN:
             'n_filters': self.n_filters,
             'intensity': self.intensity,
             'dt': self.dt,
-            'c_l': self.c_l
+            'c_l': self.c_l,
+            'nu': self.nu
             }
 
         self.create_network()
         self.name = hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
-        self.train_dataset = MNIST(
+    def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
+        train_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -79,29 +84,12 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
-
-        self.test_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            ".//MNIST",
-            download=False,
-            train=False,
-            transform=transforms.Compose([
-                transforms.CenterCrop(self.crop),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: x * self.intensity)
-                ])
-            )
-
-    def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
         if n_iter is None:
             n_iter = self.n_iter
         self.network.train(True)
         print('Training network...')
         train_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
-        progress_bar = st.progress(0)
-        status = st.empty()
+            train_dataset, batch_size=1, shuffle=True)
         cnt = 0
         if plot:
             fig_weights_XY = self.plot_weights_XY()
@@ -111,19 +99,12 @@ class AbstractSNN:
             fig_weights_YY.show()
             fig_spikes.show()
 
-        if app:
-            plot_weights_XY = st.plotly_chart(fig_weights_XY)
-            plot_weights_YY = st.plotly_chart(fig_weights_YY)
-            spikes_plot = st.plotly_chart(fig_spikes)
-
         t_start = t()
         for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
-            progress_bar.progress(int((smth + 1) / n_iter * 100))
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
             speed = (smth + 1) / (t_now - t_start)
             time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
-            status.text(f'{smth + 1}/{n_iter} [{time_from_start}] < [{time_left}], {round(speed, 2)}it/s')
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
@@ -142,12 +123,6 @@ class AbstractSNN:
                     fig_weights_YY.show()
                     fig_spikes.show()
                     cnt += 1
-
-            if app:
-                plot_weights_XY.plotly_chart(fig_weights_XY)
-                plot_weights_YY.plotly_chart(fig_weights_YY)
-                spikes_plot.plotly_chart(fig_spikes)
-                cnt += 1
 
         self.network.reset_()
         self.network.train(False)
@@ -168,7 +143,18 @@ class AbstractSNN:
         return res.argsort(descending=True)
 
     def calibrate(self, n_iter=None):
-        # TODO: calibration with a linear classifier
+        train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         self.network.train(False)
         print('Calibrating network...')
         if n_iter is None:
@@ -177,7 +163,7 @@ class AbstractSNN:
         outputs = []
 
         train_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            train_dataset, batch_size=1, shuffle=True)
 
         print('Collecting activity data...')
 
@@ -205,13 +191,25 @@ class AbstractSNN:
     def calibrate_linear_classifier(self, n_iter=None):
         self.network.train(False)
         print('Calibrating network...')
+        train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         if n_iter is None:
             n_iter = self.n_iter
         labels = []
         outputs = []
 
         train_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            train_dataset, batch_size=1, shuffle=True)
 
         print('Collecting activity data...')
 
@@ -233,6 +231,18 @@ class AbstractSNN:
         self.classifier.fit(outputs, labels)
 
     def calculate_accuracy_linear_classifier(self, n_iter=None):
+        test_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=False,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         print('Calculating accuracy...')
         self.network.reset_()
 
@@ -241,7 +251,7 @@ class AbstractSNN:
         #     return None
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
-            self.test_dataset, batch_size=1, shuffle=True)
+            test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
         print('Collecting activity data...')
@@ -287,6 +297,18 @@ class AbstractSNN:
         return votes_distibution_fig
 
     def calculate_accuracy(self, n_iter=1000, top_n=None):
+        test_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=False,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         self.network.reset_()
         if top_n is None:
             top_n = 10
@@ -295,7 +317,7 @@ class AbstractSNN:
             return None
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
-            self.test_dataset, batch_size=1, shuffle=True)
+            test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
@@ -381,6 +403,18 @@ class AbstractSNN:
         return accs, accs_distibution_fig
 
     def accuracy_on_top_n(self, n_iter=5000):
+        train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         self.network.train(False)
         scores = torch.zeros(10, 10, n_iter)
         for label in range(10):
@@ -388,7 +422,7 @@ class AbstractSNN:
             print(f'Calculating accuracy for label {label}...')
             for i in tqdm(range(n_iter), ncols=100):
                 test_dataloader = torch.utils.data.DataLoader(
-                    self.train_dataset, batch_size=1, shuffle=True)
+                    train_dataset, batch_size=1, shuffle=True)
 
                 batch = next(iter(test_dataloader))
                 while batch['label'] != label:
@@ -571,10 +605,22 @@ class AbstractSNN:
         return fig_spikes
 
     def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
+        train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         self.network.reset_()
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            train_dataset, batch_size=1, shuffle=True)
 
         batch = next(iter(train_dataloader))
         while batch['label'] != label:
@@ -597,10 +643,22 @@ class AbstractSNN:
         return prediction[0:k]
 
     def feed_class_linear_classifier(self, label, to_print=True, plot=False):
+        train_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
         self.network.reset_()
         self.network.train(False)
         train_dataloader = torch.utils.data.DataLoader(
-            self.train_dataset, batch_size=1, shuffle=True)
+            train_dataset, batch_size=1, shuffle=True)
 
         batch = next(iter(train_dataloader))
         while batch['label'] != label:
@@ -710,7 +768,7 @@ class AbstractSNN:
             conn.close()
             print('Network deleted!')
 
-    def __repr__(self):
+    def __str__(self):
         return f'Network with parameters:\n {self.parameters}'
 
 
@@ -720,11 +778,11 @@ class AbstractSNN:
 class LC_SNN(AbstractSNN):
     def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False,):
+                 c_l=False, nu=None):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l,
+                         c_l=c_l, nu=nu,
                          type_='LC_SNN')
 
     def create_network(self):
@@ -785,7 +843,7 @@ class LC_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-0.01, 0.01],
+                                            nu=self.nu,
                                             wmin=self.c_w,
                                             wmax=0)
 
@@ -836,11 +894,11 @@ class LC_SNN(AbstractSNN):
 class C_SNN(AbstractSNN):
     def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
                  kernel_size=8, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False):
+                 c_l=False, nu=None):
 
         super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l,
+                         c_l=c_l, nu=nu,
                          type_='C_SNN')
 
     def create_network(self):
@@ -899,7 +957,7 @@ class C_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-0.01, 0.01],
+                                            nu=self.nu,
                                             wmin=self.c_w,
                                             wmax=0)
 
