@@ -34,7 +34,7 @@ class AbstractSNN:
                  type_='Abstract SNN'):
         self.n_iter_counter = 0
         if nu is None:
-            nu = [0.01, 0.01]
+            nu = 0.03
         self.nu = nu
         self.type = type_
         self.norm = norm
@@ -188,7 +188,7 @@ class AbstractSNN:
         self.votes = votes
         self.calibrated = True
 
-    def calibrate_linear_classifier(self, n_iter=None):
+    def calibrate_lc(self, n_iter=None):
         self.network.train(False)
         print('Calibrating network...')
         train_dataset = MNIST(
@@ -230,7 +230,7 @@ class AbstractSNN:
 
         self.classifier.fit(outputs, labels)
 
-    def calculate_accuracy_linear_classifier(self, n_iter=None):
+    def calculate_accuracy_lc(self, n_iter=None):
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -642,7 +642,7 @@ class AbstractSNN:
 
         return prediction[0:k]
 
-    def feed_class_linear_classifier(self, label, to_print=True, plot=False):
+    def feed_class_lc(self, label, to_print=True, plot=False):
         train_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -739,7 +739,8 @@ class AbstractSNN:
         crs.execute('SELECT id FROM networks WHERE id = ?', (self.name, ))
         result = crs.fetchone()
         if result:
-            pass
+            print('Rewriting existing network...')
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
         else:
             crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
 
