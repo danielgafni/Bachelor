@@ -91,6 +91,12 @@ def load_network(name):
             stride = parameters['stride']
             intensity = parameters['intensity']
             type = parameters['type']
+            c_l = False
+            if 'c_l' in parameters.keys():
+                c_l = parameters['c_l']
+            nu = 0
+            if nu in parameters.keys():
+                nu = parameters['nu']
     except FileNotFoundError:
         raise FileNotFoundError
 
@@ -100,7 +106,8 @@ def load_network(name):
 
     if type == 'LC_SNN':
         net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, crop=crop,
-                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
+                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
+                     c_l=c_l, nu=nu)
         net.name = name
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
