@@ -24,7 +24,7 @@ import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
 from PIL import Image
-from sklearn.linear_model import LogisticRegression, SGDClassifier
+from sklearn.linear_model import SGDClassifier
 
 
 class AbstractSNN:
@@ -989,8 +989,9 @@ class C_SNN(AbstractSNN):
         self.weights_XY = self.get_weights_XY()
 
     def get_weights_XY(self):
-        weights_XY = self.network.connections[('X', 'Y')].w.reshape(self.weights_XY_shape,
-                                                                    self.weights_XY_shape)
+        shape_XY = self.network.connections[('X', 'Y')].w.shape
+        weights_XY = self.network.connections[('X', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_XY))),
+                                                                    int(np.sqrt(np.prod(shape_XY))))
         return weights_XY
 
     def get_weights_YY(self):
