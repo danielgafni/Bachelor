@@ -24,7 +24,7 @@ import shutil
 import hashlib
 from statsmodels.stats.proportion import proportion_confint
 from PIL import Image
-from sklearn.linear_model import LogisticRegression, SGDClassifier, RidgeClassifier
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 
 
 class AbstractSNN:
@@ -34,7 +34,7 @@ class AbstractSNN:
                  type_='Abstract SNN'):
         self.n_iter_counter = 0
         if nu is None:
-            nu = 0.03
+            nu = 1
         self.nu = nu
         self.type = type_
         self.norm = norm
@@ -227,7 +227,6 @@ class AbstractSNN:
         print('Calibrating classifier...')
 
         self.classifier = SGDClassifier(n_jobs=-1)
-
         self.classifier.fit(outputs, labels)
 
     def calculate_accuracy_lc(self, n_iter=None):
@@ -834,7 +833,6 @@ class LC_SNN(AbstractSNN):
         for fltr1 in range(self.n_filters):
             for fltr2 in range(self.n_filters):
                 if fltr1 != fltr2:
-                    # change
                     for i in range(conv_size):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
@@ -845,7 +843,7 @@ class LC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, self.nu],
-                                            wmin=self.c_w,
+                                            wmin=self.c_w*1.2,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -959,7 +957,7 @@ class C_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, self.nu],
-                                            wmin=self.c_w,
+                                            wmin=self.c_w*1.2,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -1018,5 +1016,6 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: calibration with a linear classifier
-# TODO: gridsearch C_SNN
+# TODO: calculate accuracy of different networks with a linear classifier
+# TODO: gridsearch C_SNN (25 filters)
+# TODO: fix 0s of c_w

@@ -8,7 +8,7 @@ I work with unsupervised learning on MNIST of Spiking Neural Networks.
 
 I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
 
-Currently I have trained 25- and 100-filter networks. The networks only have one hidden layer. Here is a figure with typical weights of this locally connected layer after 5000 iterations of training:
+Currently I have trained 25- and 100-filter networks. The networks only have one hidden layer. Here is a figure with typical weights of this locally connected layer of 100 filters after 5000 iterations of training:
 
 ![Weights XY](overview/weights_XY.png)
 
@@ -35,8 +35,7 @@ I'm currently in the process of finding the best parameters for the network, so 
 # Work to do in the future
 
 * Compare to a network with a convolution layer
-* Compare calibration with a linear classifier trained on network outputs
-* Introduce a training mechanism of the competition weights.
+* Compare to a network with trainable competition weights.
 
 # Usage
 
@@ -46,7 +45,9 @@ To reproduce my results download this repository and install all required packag
 pip install -r requirements.txt
 ```
 
-Install [bindsnet](https://github.com/Hananel-Hazan/bindsnet) and replace its directory in path with the one I provide. It contains important bugfixes.
+Install [bindsnet](https://github.com/Hananel-Hazan/bindsnet) and replace its directory with the one I provide. It contains important bugfixes.
+
+All my code is located in the **thesis** directory.
 
 Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
@@ -106,6 +107,8 @@ net = LC_SNN(n_iter=5000)
 
 You can set `n_iter` up to 60000, but 5000 will do just fine and save a lot of time.
 
+l_c = True will make the competition weights trainable.
+
 Then to train the network (and be able so see the progress) run
 
 ```python
@@ -115,6 +118,8 @@ net.calibrate(n_iter=5000)
 
 net.calculate_accuracy(n_iter=5000)
 ```
+
+To calibrate and calculate accuracy with a linear classifier add use .calibrate_lc() and .calculate_accuracy_lc()
 
 The network is ready. To save the network:
 
@@ -136,6 +141,14 @@ fig_conf.show()
 fig_votes_distr = net.votes_distribution()
 fig_votes_distr.show()
 ```
+
+It is also possible to run the network over custom input images:
+
+```python
+net.feed_image('image.png')
+```
+
+
 
 ## Deleting a network
 
