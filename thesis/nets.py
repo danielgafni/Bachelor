@@ -25,7 +25,7 @@ from bindsnet.learning import PostPre
 from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor, NetworkMonitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
-from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection
+from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection, SparseConnection
 from bindsnet.utils import reshape_locally_connected_weights
 
 
@@ -855,10 +855,14 @@ class LC_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
+        size = self.n_filters * conv_size ** 2
+        sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
+                                            (size, size))
+
         if not self.c_l:
-            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
+            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w)
         else:
-            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, -self.nu / 10.],
                                             wmin=self.c_w * 1.2,
@@ -968,11 +972,14 @@ class C_SNN(AbstractSNN):
                     for i in range(conv_size):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
+        size = self.n_filters * conv_size ** 2
+        sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
+                                            (size, size))
 
         if not self.c_l:
-            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
+            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w)
         else:
-            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, -self.nu / 10.],
                                             wmin=self.c_w * 1.2,
