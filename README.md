@@ -34,7 +34,7 @@ Here are the results of gridsearch performed over norm and competitive weight pa
 
 ![gridsearch results](overview/gridsearch_LC_SNN.png)
 
-and [interactive 3D plot](overview/gridsearch_LC_SNN.html)
+and [interactive 3D plot](overview/gridsearch_LC_SNN.html) (download the file and open in your browser)
 
 # Work to do in the future
 
