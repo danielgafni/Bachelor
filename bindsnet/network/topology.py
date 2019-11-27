@@ -783,7 +783,7 @@ class SparseConnection(AbstractConnection):
             w = torch.sparse.FloatTensor(i.nonzero().t(), v)
         elif w is not None and self.sparsity is None:
             assert w.is_sparse, "Weight matrix is not sparse (see torch.sparse module)"
-            # if self.wmin != -np.inf or self.wmax != np.inf:
+            # if self.wmin != -np.inf or self.wmax != np.inf:  # EDITED
             #     w = torch.clamp(w, self.wmin, self.wmax)
 
         self.w = Parameter(w, False)
