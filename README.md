@@ -30,7 +30,11 @@ In the paper I'm reproducing only the top3 classes are used in the voting mechan
 
 ![accuracy_topn](overview/acc_topn.png)
 
-I'm currently in the process of finding the best parameters for the network, so my accuracy is slightly below best accuracy from the paper (92% for 100 filters).
+Here are the results of gridsearch performed over norm and competitive weight parameters:
+
+![gridsearch results](overview/gridsearch_LC_SNN.png)
+
+and [interactive 3D plot](overview/gridsearch_LC_SNN.html)
 
 # Work to do in the future
 
