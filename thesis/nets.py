@@ -1,34 +1,36 @@
 import datetime
+import hashlib
 import json
 import os
+import shutil
+import sqlite3
 from time import time as t
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import plotly.graph_objs as go
-from sklearn.metrics import confusion_matrix
 import torch
 from IPython import display
+from PIL import Image
 from plotly.subplots import make_subplots
+from sklearn.linear_model import SGDClassifier
+from sklearn.metrics import confusion_matrix
+from statsmodels.stats.proportion import proportion_confint
 from torchvision import transforms
 from tqdm import tqdm
-import sqlite3
+
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
 from bindsnet.learning import PostPre
 from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor, NetworkMonitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
-from bindsnet.network.topology import Connection, LocalConnection, Conv2dConnection
+from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection
 from bindsnet.utils import reshape_locally_connected_weights
-import shutil
-import hashlib
-from statsmodels.stats.proportion import proportion_confint
-from PIL import Image
-from sklearn.linear_model import SGDClassifier
 
 
 class AbstractSNN:
-    def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
+    def __init__(self, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
                  c_l=False, nu=None,
                  type_='Abstract SNN'):
@@ -39,7 +41,7 @@ class AbstractSNN:
         self.type = type_
         self.norm = norm
         self.c_w = c_w
-        self.n_iter = n_iter
+        self.n_iter = 0
         self.calibrated = False
         self.accuracy = None
         self.conf_matrix = None
@@ -52,7 +54,12 @@ class AbstractSNN:
         self.dt = dt
         self.c_l = c_l
 
-        self.parameters = {
+        self.create_network()
+
+        print(f'Created {self.type} network {self.name()} with parameters\n{self.parameters()}\n')
+
+    def parameters(self):
+        parameters = {
             'type': self.type,
             'norm': self.norm,
             'n_iter': self.n_iter,
@@ -67,12 +74,13 @@ class AbstractSNN:
             'c_l': self.c_l,
             'nu': self.nu
             }
+        return parameters
 
-        self.create_network()
-        self.name = hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
+    def name(self):
+        return hashlib.sha224(str(self.parameters()).encode('utf8')).hexdigest()
 
     def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
-        train_dataset = MNIST(
+        encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -84,6 +92,9 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        train_dataset = encoded_dataset
+        train_dataset.data = encoded_dataset.data[:50000, :, :]
+
         if n_iter is None:
             n_iter = self.n_iter
         self.network.train(True)
@@ -107,6 +118,8 @@ class AbstractSNN:
             time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self.n_iter += 1
+            self.parameters()['n_iter'] += 1
 
             self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
@@ -143,7 +156,7 @@ class AbstractSNN:
         return res.argsort(descending=True)
 
     def calibrate(self, n_iter=None):
-        train_dataset = MNIST(
+        encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -155,6 +168,9 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        calibratation_dataset = encoded_dataset
+        calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
+
         self.network.train(False)
         print('Calibrating network...')
         if n_iter is None:
@@ -162,12 +178,12 @@ class AbstractSNN:
         labels = []
         outputs = []
 
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, shuffle=True)
+        calibration_dataloader = torch.utils.data.DataLoader(
+            calibratation_dataset, batch_size=1, shuffle=True)
 
         print('Collecting activity data...')
 
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -191,7 +207,7 @@ class AbstractSNN:
     def calibrate_lc(self, n_iter=None):
         self.network.train(False)
         print('Calibrating network...')
-        train_dataset = MNIST(
+        encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -203,17 +219,20 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        calibratation_dataset = encoded_dataset
+        calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
+
         if n_iter is None:
             n_iter = self.n_iter
         labels = []
         outputs = []
 
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, shuffle=True)
+        calibration_dataloader = torch.utils.data.DataLoader(
+            calibratation_dataset, batch_size=1, shuffle=True)
 
         print('Collecting activity data...')
 
-        for i, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -255,7 +274,6 @@ class AbstractSNN:
         y = []
         print('Collecting activity data...')
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
-
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -320,7 +338,6 @@ class AbstractSNN:
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
-
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -360,7 +377,7 @@ class AbstractSNN:
                 error = (proportion_confint(true, total, alpha=0.05)[1] -
                          proportion_confint(true, total, alpha=0.05)[0]) / 2
 
-                accs = accs.append(pd.DataFrame([[i, true/total, error]], columns=colnames), ignore_index=True)
+                accs = accs.append(pd.DataFrame([[i, true / total, error]], columns=colnames), ignore_index=True)
 
         if self.conf_matrix.shape[1] == 11:
             for i in range(self.conf_matrix.shape[1]):
@@ -370,10 +387,9 @@ class AbstractSNN:
                 error = (proportion_confint(true, total, alpha=0.05)[1] -
                          proportion_confint(true, total, alpha=0.05)[0]) / 2
 
-                accs = accs.append(pd.DataFrame([[i-1, true/total, error]], columns=colnames), ignore_index=True)
+                accs = accs.append(pd.DataFrame([[i - 1, true / total, error]], columns=colnames), ignore_index=True)
 
             accs = accs[accs['label'] != -1]
-
 
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
                                                     error_y=dict(array=accs['error'], visible=True),
@@ -438,10 +454,10 @@ class AbstractSNN:
                 for top_n in range(1, 11):
                     prediction = self.class_from_spikes(top_n=top_n)
                     if prediction == label:
-                        scores[label, top_n-1, i] = 1
+                        scores[label, top_n - 1, i] = 1
 
         errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
-                  proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0])/2
+                  proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
@@ -683,7 +699,7 @@ class AbstractSNN:
         self.network.reset_()
         self.network.train(False)
         img = Image.open(fp=path).convert('1')
-        transform=transforms.Compose([
+        transform = transforms.Compose([
             transforms.Resize(size=(self.crop, self.crop)),
             transforms.ToTensor(),
             transforms.Lambda(lambda x: x * self.intensity)
@@ -709,7 +725,7 @@ class AbstractSNN:
         return prediction[0:k]
 
     def save(self):
-        path = f'networks//{self.name}'
+        path = f'networks//{self.name()}'
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + '//network')
@@ -718,8 +734,10 @@ class AbstractSNN:
             torch.save(self.accuracy, path + '//accuracy')
             torch.save(self.conf_matrix, path + '//confusion_matrix')
 
+
+
         with open(path + '//parameters.json', 'w') as file:
-            json.dump(self.parameters, file)
+            json.dump(self.parameters(), file)
 
         if not os.path.exists(r'networks/networks.db'):
             conn = sqlite3.connect(r'networks/networks.db')
@@ -735,13 +753,13 @@ class AbstractSNN:
 
         conn = sqlite3.connect(r'networks/networks.db')
         crs = conn.cursor()
-        crs.execute('SELECT id FROM networks WHERE id = ?', (self.name, ))
+        crs.execute('SELECT id FROM networks WHERE id = ?', (self.name(),))
         result = crs.fetchone()
         if result:
             print('Rewriting existing network...')
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name(), self.accuracy, self.n_iter, self.type))
         else:
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name(), self.accuracy, self.n_iter, self.type))
 
         conn.commit()
         conn.close()
@@ -750,37 +768,37 @@ class AbstractSNN:
         if not sure:
             print('Are you sure you want to delete the network? [Y/N]')
             if input() == 'Y':
-                shutil.rmtree(f'networks//{self.name}')
+                shutil.rmtree(f'networks//{self.name()}')
                 conn = sqlite3.connect(r'networks/networks.db')
                 crs = conn.cursor()
-                crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name, ))
+                crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name(),))
                 conn.commit()
                 conn.close()
                 print('Network deleted!')
             else:
                 print('Deletion canceled...')
         else:
-            shutil.rmtree(f'networks//{self.name}')
+            shutil.rmtree(f'networks//{self.name()}')
             conn = sqlite3.connect(r'networks/networks.db')
             crs = conn.cursor()
-            crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name, ))
+            crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name(),))
             conn.commit()
             conn.close()
             print('Network deleted!')
 
     def __str__(self):
-        return f'Network with parameters:\n {self.parameters}'
+        return f'Network with parameters:\n {self.parameters()}'
 
 
 ########################################################################################################################
 
 
 class LC_SNN(AbstractSNN):
-    def __init__(self, n_iter=1000, norm=0.48, c_w=-100., time_max=250, crop=20,
+    def __init__(self, norm=0.48, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None):
 
-        super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu,
                          type_='LC_SNN')
@@ -842,8 +860,8 @@ class LC_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-self.nu, self.nu],
-                                            wmin=self.c_w*1.2,
+                                            nu=[-self.nu, -self.nu / 10.],
+                                            wmin=self.c_w * 1.2,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -891,11 +909,11 @@ class LC_SNN(AbstractSNN):
 
 
 class C_SNN(AbstractSNN):
-    def __init__(self, norm=50, c_w=-100., n_iter=1000, time_max=250, crop=20,
+    def __init__(self, norm=50, c_w=-100., time_max=250, crop=20,
                  kernel_size=8, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None):
 
-        super().__init__(n_iter=n_iter, norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu,
                          type_='C_SNN')
@@ -956,8 +974,8 @@ class C_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-self.nu, self.nu],
-                                            wmin=self.c_w*1.2,
+                                            nu=[-self.nu, -self.nu / 10.],
+                                            wmin=self.c_w * 1.2,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -1015,7 +1033,6 @@ def plot_image(image):
                           )
 
     return fig_img
-
 
 # TODO: calculate accuracy of different networks with a linear classifier
 # TODO: gridsearch C_SNN (25 filters)
