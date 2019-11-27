@@ -10,6 +10,7 @@ from ..network.topology import (
     Connection,
     Conv2dConnection,
     LocalConnection,
+    SparseConnection
 )
 from ..utils import im2col_indices
 
@@ -157,6 +158,8 @@ class PostPre(LearningRule):
             self.update = self._connection_update
         elif isinstance(connection, Conv2dConnection):
             self.update = self._conv2d_connection_update
+        elif isinstance(connection, SparseConnection):
+            self.update = self._sparse_connection_update
         else:
             raise NotImplementedError(
                 "This learning rule is not supported for this Connection type."
@@ -186,6 +189,32 @@ class PostPre(LearningRule):
             self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
 
         super().update()
+
+    def _sparse_connection_update(self, **kwargs) -> None:  # EDITED: added this
+        # language=rst
+        """
+        Post-pre learning rule for ``Connection`` subclass of ``AbstractConnection`` class.
+        """
+        batch_size = self.source.batch_size
+        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
+        source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
+        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
+        target_x = self.target.x.view(batch_size, -1).unsqueeze(1)
+
+        # Pre-synaptic update.
+        if self.nu[0]:
+            update = self.reduction(torch.bmm(source_s, target_x), dim=0)
+            # print(self.connection.w.shape)
+            # print(update.shape)
+            self.connection.w -= self.nu[0] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
+
+        # Post-synaptic update.
+        if self.nu[1]:
+            update = self.reduction(torch.bmm(source_x, target_s), dim=0)
+            self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
+
+        super().update()
+
 
     def _conv2d_connection_update(self, **kwargs) -> None:
         # language=rst

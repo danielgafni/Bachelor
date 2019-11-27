@@ -4,6 +4,7 @@ from typing import Union, Tuple, Optional, Sequence
 import numpy as np
 import torch
 from torch.nn import Module, Parameter
+from scipy.sparse import csr_matrix
 import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
 
@@ -235,6 +236,7 @@ class Connection(AbstractConnection):
         Contains resetting logic for the connection.
         """
         super().reset_()
+
 
 
 class Conv2dConnection(AbstractConnection):
@@ -781,8 +783,8 @@ class SparseConnection(AbstractConnection):
             w = torch.sparse.FloatTensor(i.nonzero().t(), v)
         elif w is not None and self.sparsity is None:
             assert w.is_sparse, "Weight matrix is not sparse (see torch.sparse module)"
-            if self.wmin != -np.inf or self.wmax != np.inf:
-                w = torch.clamp(w, self.wmin, self.wmax)
+            # if self.wmin != -np.inf or self.wmax != np.inf:
+            #     w = torch.clamp(w, self.wmin, self.wmax)
 
         self.w = Parameter(w, False)
 
@@ -794,7 +796,7 @@ class SparseConnection(AbstractConnection):
         :param s: Incoming spikes.
         :return: Incoming spikes multiplied by synaptic weights (with or without decaying spike activation).
         """
-        return torch.mm(self.w, s.unsqueeze(-1).float()).squeeze(-1)
+        return torch.mm(self.w, s.float().view(self.w.shape[0]).unsqueeze(-1)).squeeze(-1)  # EDITED
 
     def update(self, **kwargs) -> None:
         # language=rst
