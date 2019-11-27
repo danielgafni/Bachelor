@@ -907,7 +907,7 @@ class LC_SNN(AbstractSNN):
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
-        weights_YY = self.network.connections[('Y', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_YY))),
+        weights_YY = self.network.connections[('Y', 'Y')].w.to_dense().reshape(int(np.sqrt(np.prod(shape_YY))),
                                                                     int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 
@@ -1021,7 +1021,7 @@ class C_SNN(AbstractSNN):
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
-        weights_YY = self.network.connections[('Y', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_YY))),
+        weights_YY = self.network.connections[('Y', 'Y')].w.to_dense().reshape(int(np.sqrt(np.prod(shape_YY))),
                                                                     int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 
