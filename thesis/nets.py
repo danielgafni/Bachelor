@@ -794,7 +794,7 @@ class AbstractSNN:
 
 
 class LC_SNN(AbstractSNN):
-    def __init__(self, norm=0.48, c_w=-100., time_max=250, crop=20,
+    def __init__(self, norm=0.26, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None):
 

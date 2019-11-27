@@ -110,10 +110,11 @@ def load_network(name):
     conf_matrix = None
 
     if type == 'LC_SNN':
-        net = LC_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, crop=crop,
+        net = LC_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                      c_l=c_l, nu=nu)
         net.name = name
+        net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
             net.calibrated = True
@@ -138,11 +139,11 @@ def load_network(name):
         net.network.train(False)
 
     if type == 'C_SNN':
-        net = C_SNN(norm=norm, c_w=c_w, n_iter=n_iter, time_max=time_max, crop=crop,
+        net = C_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
 
         net.name = name
-
+        net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
             net.calibrated = True
