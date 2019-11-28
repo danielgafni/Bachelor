@@ -855,14 +855,14 @@ class LC_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
 
-        size = self.n_filters * conv_size ** 2
-        sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
-                                            (size, size))
+        # size = self.n_filters * conv_size ** 2
+        # sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
+        #                                     (size, size))
 
         if not self.c_l:
-            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w)
+            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=w)
         else:
-            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w,
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, -self.nu / 10.],
                                             wmin=self.c_w * 1.2,
@@ -907,7 +907,7 @@ class LC_SNN(AbstractSNN):
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
-        weights_YY = self.network.connections[('Y', 'Y')].w.to_dense().reshape(int(np.sqrt(np.prod(shape_YY))),
+        weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
                                                                     int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 
@@ -1021,7 +1021,7 @@ class C_SNN(AbstractSNN):
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
-        weights_YY = self.network.connections[('Y', 'Y')].w.to_dense().reshape(int(np.sqrt(np.prod(shape_YY))),
+        weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
                                                                     int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 

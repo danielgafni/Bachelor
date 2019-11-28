@@ -4,7 +4,6 @@ from typing import Union, Tuple, Optional, Sequence
 import numpy as np
 import torch
 from torch.nn import Module, Parameter
-from scipy.sparse import csr_matrix
 import torch.nn.functional as F
 from torch.nn.modules.utils import _pair
 
@@ -766,26 +765,6 @@ class SparseConnection(AbstractConnection):
             and self.sparsity is not None
         ), 'Only one of "weights" or "sparsity" must be specified'
 
-        if w is None and self.sparsity is not None:
-            i = torch.bernoulli(
-                1 - self.sparsity * torch.ones(*source.shape, *target.shape)
-            )
-            if self.wmin == -np.inf or self.wmax == np.inf:
-                v = torch.clamp(
-                    torch.rand(*source.shape, *target.shape)[i.byte()],
-                    self.wmin,
-                    self.wmax,
-                )
-            else:
-                v = self.wmin + torch.rand(*source.shape, *target.shape)[i.byte()] * (
-                    self.wmax - self.wmin
-                )
-            w = torch.sparse.FloatTensor(i.nonzero().t(), v)
-        elif w is not None and self.sparsity is None:
-            assert w.is_sparse, "Weight matrix is not sparse (see torch.sparse module)"
-            # if self.wmin != -np.inf or self.wmax != np.inf:  # EDITED
-            #     w = torch.clamp(w, self.wmin, self.wmax)
-
         self.w = Parameter(w, False)
 
     def compute(self, s: torch.Tensor) -> torch.Tensor:
@@ -796,14 +775,16 @@ class SparseConnection(AbstractConnection):
         :param s: Incoming spikes.
         :return: Incoming spikes multiplied by synaptic weights (with or without decaying spike activation).
         """
-        return torch.mm(self.w, s.float().view(self.w.shape[0]).unsqueeze(-1)).squeeze(-1)  # EDITED
+        size = s.float().view(s.size(0), -1).size()[1]
+        post = s.float().view(s.size(0), -1) @ self.w.view(size, size)
+        return post.view(s.size(0), *self.target.shape)  # TODO: Use scipy sparse
 
     def update(self, **kwargs) -> None:
         # language=rst
         """
         Compute connection's update rule.
         """
-        pass
+        super().update(**kwargs)
 
     def normalize(self) -> None:
         # language=rst

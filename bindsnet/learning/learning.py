@@ -2,7 +2,10 @@ from abc import ABC
 from typing import Union, Optional, Sequence
 
 import torch
+from torch.nn import Parameter
 import numpy as np
+
+from scipy.sparse import bsr_matrix
 
 from ..network.nodes import SRM0Nodes
 from ..network.topology import (
@@ -196,25 +199,44 @@ class PostPre(LearningRule):
         Post-pre learning rule for ``Connection`` subclass of ``AbstractConnection`` class.
         """
         batch_size = self.source.batch_size
-        source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
         source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
         target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
-        target_x = self.target.x.view(batch_size, -1).unsqueeze(1)
+
+        size = self.source.s.float().view(self.source.s.size(0), -1).size()[1]
+        weights = self.connection.w.view(size, size)
+
 
         # Pre-synaptic update.
         if self.nu[0]:
-            update = self.reduction(torch.bmm(source_s, target_x), dim=0)
-            # print(self.connection.w.shape)
-            # print(update.shape)
-            self.connection.w -= self.nu[0] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
+            source_s = self.source.s.view(batch_size, -1).float()
+            sparse_source_s = bsr_matrix(source_s)
+            target_x = self.target.x.view(batch_size, -1)
+            sparse_target_x = bsr_matrix(target_x)
+            update = (sparse_source_s.T @ sparse_target_x)
+            sparse_weights = bsr_matrix(weights)
+            sparse_weights -= self.nu[0] * update
+            w = torch.FloatTensor(sparse_weights.toarray())
+            self.connection.w = Parameter(w, False)
+            # update2 = self.reduction(torch.bmm(target_x.unsqueeze(2), source_s.unsqueeze(1)), dim=0)
+
+            #print((update == update2.numpy()).sum())
 
         # Post-synaptic update.
         if self.nu[1]:
-            update = self.reduction(torch.bmm(source_x, target_s), dim=0)
-            self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
+            target_s = self.target.s.view(batch_size, -1).float()
+            sparse_target_s = bsr_matrix(target_s)
+            source_x = self.source.x.view(batch_size, -1)
+            sparse_source_x = bsr_matrix(source_x)
+            update = (sparse_source_x.T @ sparse_target_s)
+            sparse_weights = bsr_matrix(weights)
+            sparse_weights += self.nu[1] * update
+            w = torch.FloatTensor(sparse_weights.toarray())
+            self.connection.w = Parameter(w, False)
+
+            #update = self.reduction(torch.bmm(source_x, target_s), dim=0)
+            #self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
 
         super().update()
-
 
     def _conv2d_connection_update(self, **kwargs) -> None:
         # language=rst
