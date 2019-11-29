@@ -34,18 +34,18 @@ def view_database():
     return database
 
 
-def plot_database(n_filters=None, network_type=None):
+def plot_database(n_filters=None, network_type='LC_SNN'):
     if n_filters is None:
         data = view_database()
     else:
         data = view_database()[view_database()['n_filters'] == n_filters]
 
-    if network_type is None:
-        pass
-    else:
-        data = data[data['type'] == network_type]
+    data = data[data['type'] == network_type]
+
+    data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
 
     fig = go.Figure(go.Scatter3d(x=data['c_w'], y=data['norm'], z=data['accuracy'],
+                                 error_z=dict(array=data['error'], visible=True, thickness=10, width=5, color='purple'),
                                  mode='markers', marker=dict(
             size=5,
             cmax=data['n_iter'].max(),

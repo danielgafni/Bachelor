@@ -342,9 +342,8 @@ class AbstractSNN:
                 scores.append(0)
 
         scores = np.array(scores)
-        conf_interval = proportion_confint(scores.sum(), len(scores), 0.05)
-        error = (conf_interval[1] - conf_interval[0]) / 2
-        print(f'Accuracy: {scores.mean()} with 95% confidence interval {round(error, 2)}')
+        error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
+        print(f'Accuracy: {scores.mean()} with std {round(error, 2)}')
 
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
