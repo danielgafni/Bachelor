@@ -106,21 +106,19 @@ Prediction: 5
 Run with desired parameters:
 
 ```python
-net = LC_SNN(n_iter=5000)
+net = LC_SNN()
 ```
 
-You can set `n_iter` up to 60000, but 5000 will do just fine and save a lot of time.
-
-l_c = True will make the competition weights trainable.
+c_l = True will make the competition weights trainable.
 
 Then to train the network (and be able so see the progress) run
 
 ```python
-net.train(plot=True, debug=True)
+net.train(n_iter=5000, plot=True, vis_interval=30)  # max is 50000, 5000 is fine 
 
-net.calibrate(n_iter=5000)
+net.calibrate(n_iter=5000)  # max is 50000, 5000 is fine, again
 
-net.calculate_accuracy(n_iter=5000)
+net.calculate_accuracy(n_iter=1000)  # max is 10000
 ```
 
 To calibrate and calculate accuracy with a linear classifier add use .calibrate_lc() and .calculate_accuracy_lc()
