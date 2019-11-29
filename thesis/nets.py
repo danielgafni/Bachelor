@@ -96,7 +96,7 @@ class AbstractSNN:
         train_dataset.data = encoded_dataset.data[:50000, :, :]
 
         if n_iter is None:
-            n_iter = self.n_iter
+            n_iter = 5000
         self.network.train(True)
         print('Training network...')
         train_dataloader = torch.utils.data.DataLoader(
@@ -155,7 +155,10 @@ class AbstractSNN:
             return torch.zeros(10).fill_(-1).type(torch.LongTensor)
         return res.argsort(descending=True)
 
-    def calibrate(self, n_iter=None):
+    def collect_activity(self, n_iter=None):
+        self.network.train(False)
+        if n_iter is None:
+            n_iter = 5000
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -168,20 +171,17 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+
         calibratation_dataset = encoded_dataset
         calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
-
-        self.network.train(False)
-        print('Calibrating network...')
-        if n_iter is None:
-            n_iter = self.n_iter
-        labels = []
-        outputs = []
 
         calibration_dataloader = torch.utils.data.DataLoader(
             calibratation_dataset, batch_size=1, shuffle=True)
 
         print('Collecting activity data...')
+
+        labels = []
+        outputs = []
 
         for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -194,7 +194,22 @@ class AbstractSNN:
             labels.append(batch['label'].item())
             self.network.reset_()
 
-        print('Calculating votes...')
+        data = {'outputs': outputs, 'labels': labels}
+        torch.save(data, f'networks//{self.name}//activity_data')
+
+    def calibrate(self, n_iter=None):
+        if n_iter is None:
+            n_iter = 5000
+
+        if not os.path.exists(f'networks//{self.name}//activity_data'):
+            self.collect_activity(n_iter=n_iter)
+
+        data = torch.load(f'networks//{self.name}//activity_data')
+        outputs = data['outputs']
+        labels = data['labels']
+
+        print('Calibrating network...')
+
         votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             for i, spike_sum in enumerate(layer):
@@ -205,43 +220,15 @@ class AbstractSNN:
         self.calibrated = True
 
     def calibrate_lc(self, n_iter=None):
-        self.network.train(False)
-        print('Calibrating network...')
-        encoded_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            ".//MNIST",
-            download=False,
-            train=True,
-            transform=transforms.Compose([
-                transforms.CenterCrop(self.crop),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: x * self.intensity)
-                ])
-            )
-        calibratation_dataset = encoded_dataset
-        calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
-
         if n_iter is None:
-            n_iter = self.n_iter
-        labels = []
-        outputs = []
+            n_iter = 5000
 
-        calibration_dataloader = torch.utils.data.DataLoader(
-            calibratation_dataset, batch_size=1, shuffle=True)
+        if not os.path.exists(f'networks//{self.name}//activity_data'):
+            self.collect_activity(n_iter=n_iter)
 
-        print('Collecting activity data...')
-
-        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                }
-            outputs.append(self._spikes['Y'].sum(0).numpy())
-            labels.append(batch['label'].item())
-            self.network.reset_()
+        data = torch.load(f'networks//{self.name}//activity_data')
+        outputs = data['outputs']
+        labels = data['labels']
 
         print('Calibrating classifier...')
 
@@ -1039,6 +1026,5 @@ def plot_image(image):
 
     return fig_img
 
-# TODO: calculate accuracy of different networks with a linear classifier
 # TODO: gridsearch C_SNN (25 filters)
 # TODO: fix 0s of c_w
