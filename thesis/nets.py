@@ -142,7 +142,7 @@ class AbstractSNN:
 
     def class_from_spikes(self, top_n=None):
         if top_n is None:
-            top_n = 10
+            top_n = 5
         sum_output = self._spikes['Y'].sum(0)
 
         args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
@@ -327,8 +327,6 @@ class AbstractSNN:
                 ])
             )
         self.network.reset_()
-        if top_n is None:
-            top_n = 10
         if not self.calibrated:
             print('The network is not calibrated!')
             return None
@@ -860,7 +858,7 @@ class LC_SNN(AbstractSNN):
         #                                     (size, size))
 
         if not self.c_l:
-            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=w)
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
@@ -977,9 +975,9 @@ class C_SNN(AbstractSNN):
                                             (size, size))
 
         if not self.c_l:
-            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w)
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
-            self.connection_YY = SparseConnection(self.output_layer, self.output_layer, w=sparse_w,
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=[-self.nu, -self.nu / 10.],
                                             wmin=self.c_w * 1.2,
