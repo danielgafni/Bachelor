@@ -116,7 +116,7 @@ Then to train the network (and be able so see the progress) run
 ```python
 net.train(n_iter=5000, plot=True, vis_interval=30)  # max is 50000, 5000 is fine 
 
-net.calibrate(n_iter=5000)  # max is 50000, 5000 is fine, again
+net.calibrate(n_iter=5000)  # max is 10000, 5000 is fine, again
 
 net.calculate_accuracy(n_iter=1000)  # max is 10000
 ```
