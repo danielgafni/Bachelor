@@ -141,8 +141,10 @@ class AbstractSNN:
         self.network.train(False)
 
     def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
         if top_n is None:
-            top_n = 5
+            top_n = 10
         sum_output = self._spikes['Y'].sum(0)
 
         args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]

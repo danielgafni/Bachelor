@@ -26,7 +26,7 @@ I discovered, that statistically calculated votes (what I call the "calibration"
 
 where by "vote" I call the level of certainty that a specific spiking neuron gives for a specific class. So on the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
 
-In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which improves the accuracy by ~1%. Here is a typical accuracy against top_n plot:
+In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time. Here is a typical accuracy against top_n plot:
 
 ![accuracy_topn](overview/acc_topn.png)
 
