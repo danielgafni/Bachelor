@@ -35,12 +35,14 @@ def view_database():
 
 
 def plot_database(n_filters=None, network_type='LC_SNN'):
+    data = view_database()
+    data = data[data['type'] == network_type]
     if n_filters is None:
-        data = view_database()
+        color = data['n_filters']
     else:
         data = view_database()[view_database()['n_filters'] == n_filters]
+        color = data['n_iter']
 
-    data = data[data['type'] == network_type]
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
 
@@ -48,9 +50,9 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
                                  error_z=dict(array=data['error'], visible=True, thickness=10, width=5, color='purple'),
                                  mode='markers', marker=dict(
             size=5,
-            cmax=data['n_iter'].max(),
+            cmax=color.max(),
             cmin=0,
-            color=data['n_iter'],
+            color=color,
             colorbar=dict(title='n_iter'),
             colorscale='Viridis'
             )),
