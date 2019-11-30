@@ -195,16 +195,16 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
-        torch.save(data, f'networks//{self.name}//activity_data')
+        torch.save(data, f'networks//{self.name()}//activity_data')
 
     def calibrate(self, n_iter=None):
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name}//activity_data'):
+        if not os.path.exists(f'networks//{self.name()}//activity_data'):
             self.collect_activity(n_iter=n_iter)
 
-        data = torch.load(f'networks//{self.name}//activity_data')
+        data = torch.load(f'networks//{self.name()}//activity_data')
         outputs = data['outputs']
         labels = data['labels']
 
@@ -358,8 +358,7 @@ class AbstractSNN:
                 true = self.conf_matrix[i, i]
                 total = self.conf_matrix[i, :].sum()
 
-                error = (proportion_confint(true, total, alpha=0.05)[1] -
-                         proportion_confint(true, total, alpha=0.05)[0]) / 2
+                error = np.sqrt(true / total * (1 - true / total) / total)
 
                 accs = accs.append(pd.DataFrame([[i, true / total, error]], columns=colnames), ignore_index=True)
 
@@ -368,16 +367,16 @@ class AbstractSNN:
                 true = self.conf_matrix[i, i]
                 total = self.conf_matrix[i, :].sum()
 
-                error = (proportion_confint(true, total, alpha=0.05)[1] -
-                         proportion_confint(true, total, alpha=0.05)[0]) / 2
+                error = np.sqrt(true / total * (1 - true / total) / total)
 
                 accs = accs.append(pd.DataFrame([[i - 1, true / total, error]], columns=colnames), ignore_index=True)
 
             accs = accs[accs['label'] != -1]
 
         accs_distibution_fig = go.Figure(go.Scatter(y=accs['accuracy'].values,
-                                                    error_y=dict(array=accs['error'], visible=True),
-                                                    mode='markers', marker_size=10))
+                                                    error_y=dict(array=accs['error'], visible=True,
+                                                                 color='purple', width=5),
+                                                    mode='markers', marker_size=5))
         accs_distibution_fig.update_layout(width=800, height=400,
                                            title=go.layout.Title(
                                                text="Accuracy Distribution",
@@ -401,47 +400,57 @@ class AbstractSNN:
 
         return accs, accs_distibution_fig
 
-    def accuracy_on_top_n(self, n_iter=5000):
-        train_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            ".//MNIST",
-            download=False,
-            train=True,
-            transform=transforms.Compose([
-                transforms.CenterCrop(self.crop),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: x * self.intensity)
-                ])
-            )
+    def accuracy_on_top_n(self, n_iter=1000):
+        self.network.reset_()
+        if not self.calibrated:
+            print('The network is not calibrated!')
+            return None
         self.network.train(False)
+
         scores = torch.zeros(10, 10, n_iter)
         for label in range(10):
+            label_dataset = MNIST(
+                PoissonEncoder(time=self.time_max, dt=self.dt),
+                None,
+                ".//MNIST",
+                download=False,
+                train=False,
+                transform=transforms.Compose([
+                    transforms.CenterCrop(self.crop),
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: x * self.intensity)
+                    ])
+                )
+            label_indices = (label_dataset.targets == label).nonzero().flatten()
+            label_dataset.data = torch.index_select(label_dataset.data, 0, label_indices)
+            label_dataset.targets = label_dataset.targets[label_dataset.targets == label]
+
+            test_dataloader = torch.utils.data.DataLoader(
+                label_dataset, batch_size=1, shuffle=True)
+
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
             for i in tqdm(range(n_iter), ncols=100):
-                test_dataloader = torch.utils.data.DataLoader(
-                    train_dataset, batch_size=1, shuffle=True)
-
                 batch = next(iter(test_dataloader))
-                while batch['label'] != label:
-                    batch = next(iter(test_dataloader))
-                else:
-                    inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-                    self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-                    self._spikes = {
-                        "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                        "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                        }
-                    self.network.reset_()
+
+                inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+                self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+                self._spikes = {
+                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                    }
+                self.network.reset_()
 
                 for top_n in range(1, 11):
-                    prediction = self.class_from_spikes(top_n=top_n)
+                    prediction = self.class_from_spikes(top_n=top_n)[0]
                     if prediction == label:
                         scores[label, top_n - 1, i] = 1
 
-        errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
-                  proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
+        # errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
+        #           proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
+
+        errors = ((scores.sum(axis=-1) / scores.shape[-1] * (1 - scores.sum(axis=-1)
+                                                           / scores.shape[-1]) / scores.shape[-1]) ** 0.5).numpy()
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
@@ -461,9 +470,9 @@ class AbstractSNN:
 
         for label in range(10):
             fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
-                            error_y=dict(array=errors[label, :], visible=True))
+                            error_y=dict(array=errors[label, :], visible=True, width=5))
         fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
-                        error_y=dict(array=errors.mean(axis=0), visible=True))
+                        error_y=dict(array=errors.mean(axis=0), visible=True, width=5))
 
         return scores, errors, fig
 
@@ -604,7 +613,7 @@ class AbstractSNN:
         return fig_spikes
 
     def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
-        train_dataset = MNIST(
+        dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -618,12 +627,15 @@ class AbstractSNN:
             )
         self.network.reset_()
         self.network.train(False)
-        train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, shuffle=True)
+        label_mask = dataset.targets == label
+        dataset.data = dataset.data[label_mask]
+        dataset.targets = dataset.targets[label_mask]
+        dataloader = torch.utils.data.DataLoader(
+            dataset, batch_size=1, shuffle=True)
 
-        batch = next(iter(train_dataloader))
+        batch = next(iter(dataloader))
         while batch['label'] != label:
-            batch = next(iter(train_dataloader))
+            batch = next(iter(dataloader))
         else:
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)

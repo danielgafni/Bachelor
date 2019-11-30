@@ -113,7 +113,6 @@ def load_network(name):
         net = LC_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                      c_l=c_l, nu=nu)
-        net.name = name
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
@@ -142,7 +141,6 @@ def load_network(name):
         net = C_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
 
-        net.name = name
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
