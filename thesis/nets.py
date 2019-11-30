@@ -56,8 +56,9 @@ class AbstractSNN:
 
         self.create_network()
 
-        print(f'Created {self.type} network {self.name()} with parameters\n{self.parameters()}\n')
-
+        print(f'Created {self.type} network {self.name} with parameters\n{self.parameters}\n')
+    
+    @property
     def parameters(self):
         parameters = {
             'type': self.type,
@@ -75,9 +76,10 @@ class AbstractSNN:
             'nu': self.nu
             }
         return parameters
-
+    
+    @property
     def name(self):
-        return hashlib.sha224(str(self.parameters()).encode('utf8')).hexdigest()
+        return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
     def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
         encoded_dataset = MNIST(
@@ -119,7 +121,7 @@ class AbstractSNN:
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self.n_iter += 1
-            self.parameters()['n_iter'] += 1
+            self.parameters['n_iter'] += 1
 
             self._spikes = {
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
@@ -197,16 +199,16 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
-        torch.save(data, f'networks//{self.name()}//activity_data')
+        torch.save(data, f'networks//{self.name}//activity_data')
 
     def calibrate(self, n_iter=None):
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name()}//activity_data'):
+        if not os.path.exists(f'networks//{self.name}//activity_data'):
             self.collect_activity(n_iter=n_iter)
 
-        data = torch.load(f'networks//{self.name()}//activity_data')
+        data = torch.load(f'networks//{self.name}//activity_data')
         outputs = data['outputs']
         labels = data['labels']
 
@@ -723,7 +725,7 @@ class AbstractSNN:
         return prediction[0:k]
 
     def save(self):
-        path = f'networks//{self.name()}'
+        path = f'networks//{self.name}'
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + '//network')
@@ -735,7 +737,7 @@ class AbstractSNN:
 
 
         with open(path + '//parameters.json', 'w') as file:
-            json.dump(self.parameters(), file)
+            json.dump(self.parameters, file)
 
         if not os.path.exists(r'networks/networks.db'):
             conn = sqlite3.connect(r'networks/networks.db')
@@ -751,13 +753,13 @@ class AbstractSNN:
 
         conn = sqlite3.connect(r'networks/networks.db')
         crs = conn.cursor()
-        crs.execute('SELECT id FROM networks WHERE id = ?', (self.name(),))
+        crs.execute('SELECT id FROM networks WHERE id = ?', (self.name,))
         result = crs.fetchone()
         if result:
             print('Rewriting existing network...')
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name(), self.accuracy, self.n_iter, self.type))
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
         else:
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name(), self.accuracy, self.n_iter, self.type))
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (self.name, self.accuracy, self.n_iter, self.type))
 
         conn.commit()
         conn.close()
@@ -766,26 +768,26 @@ class AbstractSNN:
         if not sure:
             print('Are you sure you want to delete the network? [Y/N]')
             if input() == 'Y':
-                shutil.rmtree(f'networks//{self.name()}')
+                shutil.rmtree(f'networks//{self.name}')
                 conn = sqlite3.connect(r'networks/networks.db')
                 crs = conn.cursor()
-                crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name(),))
+                crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
                 conn.commit()
                 conn.close()
                 print('Network deleted!')
             else:
                 print('Deletion canceled...')
         else:
-            shutil.rmtree(f'networks//{self.name()}')
+            shutil.rmtree(f'networks//{self.name}')
             conn = sqlite3.connect(r'networks/networks.db')
             crs = conn.cursor()
-            crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name(),))
+            crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
             conn.commit()
             conn.close()
             print('Network deleted!')
 
     def __str__(self):
-        return f'Network with parameters:\n {self.parameters()}'
+        return f'Network with parameters:\n {self.parameters}'
 
 
 ########################################################################################################################
