@@ -199,6 +199,7 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
+        os.makedirs(f'networks//{self.name}')
         torch.save(data, f'networks//{self.name}//activity_data')
 
     def calibrate(self, n_iter=None):
