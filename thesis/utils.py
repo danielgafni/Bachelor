@@ -8,7 +8,6 @@ from bindsnet.network.monitors import Monitor
 from shutil import rmtree
 from sqlite3 import connect
 
-
 def view_network(name):
     if not os.path.exists(f'networks//{name}'):
         print('Network with such id does not exist')
@@ -21,7 +20,7 @@ def view_network(name):
 
 def view_database():
     database = pd.DataFrame(columns=[
-        'name', 'accuracy', 'n_iter', 'norm', 'n_filters', 'c_w', 'crop', 'kernel_size', 'stride', 'time_max'
+        'name', 'accuracy', 'n_iter', 'mean_weight', 'n_filters', 'c_w', 'crop', 'kernel_size', 'stride', 'time_max'
         ])
     for name in os.listdir('networks'):
         if '.' not in name:
@@ -39,21 +38,23 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
     data = data[data['type'] == network_type]
     if n_filters is None:
         color = data['n_filters']
+        colorname = 'n_filters'
     else:
         data = view_database()[view_database()['n_filters'] == n_filters]
         color = data['n_iter']
+        colorname = 'n_iter'
 
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
 
-    fig = go.Figure(go.Scatter3d(x=data['c_w'], y=data['norm'], z=data['accuracy'],
+    fig = go.Figure(go.Scatter3d(x=data['c_w'], y=data['mean_weight'], z=data['accuracy'],
                                  error_z=dict(array=data['error'], visible=True, thickness=10, width=5, color='purple'),
                                  mode='markers', marker=dict(
             size=5,
             cmax=color.max(),
             cmin=0,
             color=color,
-            colorbar=dict(title='n_iter'),
+            colorbar=dict(title=colorname),
             colorscale='Viridis'
             )),
 
@@ -70,7 +71,7 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
                                             backgroundcolor='rgb(230,200,230)',
                                             gridcolor='white',
                                             showbackground=True,
-                                            title_text='norm'
+                                            title_text='mean_weight'
                                             ),
                                         zaxis=dict(
                                             backgroundcolor='rgb(230,230,200)',
@@ -88,7 +89,7 @@ def load_network(name):
     try:
         with open(path + '//parameters.json', 'r') as file:
             parameters = json.load(file)
-            norm = parameters['norm']
+            mean_weight = parameters['mean_weight']
             c_w = parameters['c_w']
             n_iter = parameters['n_iter']
             time_max = parameters['time_max']
@@ -112,7 +113,7 @@ def load_network(name):
     conf_matrix = None
 
     if type == 'LC_SNN':
-        net = LC_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                      c_l=c_l, nu=nu)
         net.n_iter = n_iter
@@ -140,7 +141,7 @@ def load_network(name):
         net.network.train(False)
 
     if type == 'C_SNN':
-        net = C_SNN(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
 
         net.n_iter = n_iter
@@ -197,3 +198,5 @@ def delete_network(name, sure=False):
         conn.commit()
         conn.close()
         print('Network deleted!')
+
+

@@ -10,14 +10,13 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objs as go
 import torch
-from IPython import display
+from IPython import display, get_ipython
 from PIL import Image
 from plotly.subplots import make_subplots
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import confusion_matrix
-from statsmodels.stats.proportion import proportion_confint
 from torchvision import transforms
-from tqdm import tqdm
+from tqdm import tqdm, tqdm_notebook
 
 from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
@@ -26,20 +25,35 @@ from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor, NetworkMonitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection, SparseConnection
-from bindsnet.utils import reshape_locally_connected_weights
+from bindsnet.utils import reshape_locally_connected_weights, reshape_conv2d_weights
+
+
+def in_ipynb():
+    try:
+        cfg = get_ipython().config
+        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+            return True
+        else:
+            return False
+    except NameError:
+        return False
+
+
+if in_ipynb():
+    tqdm = tqdm_notebook
 
 
 class AbstractSNN:
-    def __init__(self, norm=0.26, c_w=-100., time_max=250, crop=20,
+    def __init__(self, mean_weight=0.26, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
                  c_l=False, nu=None,
                  type_='Abstract SNN'):
         self.n_iter_counter = 0
-        if nu is None:
+        if nu is None and c_l:
             nu = 1
         self.nu = nu
         self.type = type_
-        self.norm = norm
+        self.mean_weight = mean_weight
         self.c_w = c_w
         self.n_iter = 0
         self.calibrated = False
@@ -62,12 +76,13 @@ class AbstractSNN:
     def parameters(self):
         parameters = {
             'type': self.type,
-            'norm': self.norm,
+            'mean_weight': self.mean_weight,
             'n_iter': self.n_iter,
             'c_w': self.c_w,
             'time_max': self.time_max,
             'crop': self.crop,
             'kernel_size': self.kernel_size,
+            'kernel_prod': self.kernel_prod,
             'stride': self.stride,
             'n_filters': self.n_filters,
             'intensity': self.intensity,
@@ -81,7 +96,7 @@ class AbstractSNN:
     def name(self):
         return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
-    def train(self, n_iter=None, plot=False, vis_interval=10, app=False):
+    def train(self, n_iter=None, plot=False, vis_interval=30, app=False):
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -113,7 +128,7 @@ class AbstractSNN:
             fig_spikes.show()
 
         t_start = t()
-        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader)), ncols=100):
+        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
             speed = (smth + 1) / (t_now - t_start)
@@ -795,11 +810,11 @@ class AbstractSNN:
 
 
 class LC_SNN(AbstractSNN):
-    def __init__(self, norm=0.26, c_w=-100., time_max=250, crop=20,
+    def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None):
 
-        super().__init__(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu,
                          type_='LC_SNN')
@@ -834,6 +849,10 @@ class LC_SNN(AbstractSNN):
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
+
+        self.kernel_prod = self.kernel_size ** 2
+
+        self.norm = self.mean_weight * self.kernel_prod * self.kernel_size ** 2
 
         self.connection_XY = LocalConnection(
             self.input_layer,
@@ -893,7 +912,6 @@ class LC_SNN(AbstractSNN):
         self.stride = self.stride
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
-        self.kernel_prod = int(np.prod(self.kernel_size))
 
         self.weights_XY = self.get_weights_XY()
 
@@ -909,16 +927,17 @@ class LC_SNN(AbstractSNN):
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
         weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
-                                                                    int(np.sqrt(np.prod(shape_YY))))
+                                                                 int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 
 
+
 class C_SNN(AbstractSNN):
-    def __init__(self, norm=50, c_w=-100., time_max=250, crop=20,
-                 kernel_size=8, n_filters=25, stride=4, intensity=127.5,
+    def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
+                 kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None):
 
-        super().__init__(norm=norm, c_w=c_w, time_max=time_max, crop=crop,
+        super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu,
                          type_='C_SNN')
@@ -942,7 +961,6 @@ class C_SNN(AbstractSNN):
         self.input_layer = Input(n=self.n_input, shape=(1, self.crop, self.crop), traces=True,
                                  refrac=refrac)
         self.n_output = self.n_filters * conv_size * conv_size
-        self.output_shape = int(np.sqrt(self.n_output))
         self.output_layer = AdaptiveLIFNodes(
             n=self.n_output,
             shape=(self.n_filters, conv_size, conv_size),
@@ -953,6 +971,8 @@ class C_SNN(AbstractSNN):
             theta_plus=0.05,
             tc_theta_decay=1e6)
 
+
+        self.norm = self.mean_weight * self.kernel_size ** 2
         self.connection_XY = Conv2dConnection(
             self.input_layer,
             self.output_layer,
@@ -1011,14 +1031,26 @@ class C_SNN(AbstractSNN):
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
         self.kernel_prod = int(np.prod(self.kernel_size))
+        self.output_shape = int(np.ceil(np.sqrt(self.network.connections[('X', 'Y')].w.size(0))))
+
 
         self.weights_XY = self.get_weights_XY()
 
     def get_weights_XY(self):
-        shape_XY = self.network.connections[('X', 'Y')].w.shape
-        weights_XY = self.network.connections[('X', 'Y')].w.reshape(int(np.sqrt(np.prod(shape_XY))),
-                                                                    int(np.sqrt(np.prod(shape_XY))))
-        return weights_XY
+        weights = self.network.connections[('X', 'Y')].w
+        height = int(weights.size(2))
+        width = int(weights.size(3))
+        reshaped = torch.zeros(0, width * self.output_shape)
+        m = 0
+        for i in range(self.output_shape):
+            row = torch.zeros(height, 0)
+            for j in range(self.output_shape):
+                if m < weights.size(0):
+                    row = torch.cat((row, weights[m, 0]), dim=1)
+                    m += 1
+            reshaped = torch.cat((reshaped, row))
+
+        return reshaped
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
@@ -1042,5 +1074,9 @@ def plot_image(image):
 
     return fig_img
 
+
+
+
 # TODO: gridsearch C_SNN (25 filters)
-# TODO: fix 0s of c_w
+# TODO: fix accuracy
+# TODO: calibration from article
