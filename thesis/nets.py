@@ -42,7 +42,7 @@ def in_ipynb():
 
 
 if in_ipynb():
-    tqdm = tqdm_notebook
+    # tqdm = tqdm_notebook
     ncols = None
 else:
     ncols = 100
@@ -457,6 +457,32 @@ class AbstractSNN:
                                            )
 
         return accs, accs_distibution_fig
+
+    def competition_distribution(self):
+        w = self.network.connections[('Y', 'Y')].w
+        w_comp = []
+        for fltr1 in range(w.size(0)):
+            for fltr2 in range(w.size(3)):
+                if fltr1 != fltr2:
+                    for i in range(w.size(1)):
+                        for j in range(w.size(2)):
+                            w_comp.append(w[fltr1, i, j, fltr2, i, j])
+        w_comp = torch.tensor(w_comp)
+        fig = go.Figure(go.Histogram(x=w_comp))
+        fig.update_layout(width=800, height=500,
+                          title=go.layout.Title(
+                              text="Competition weights histogram",
+                              xref="paper"),
+                          margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                          xaxis=go.layout.XAxis(
+                              title_text='Weight',
+                              ),
+                          yaxis=go.layout.YAxis(
+                              title_text='Quantity',
+                              zeroline=False,
+                              ))
+
+        return w_comp, fig
 
     def accuracy_on_top_n(self, n_iter=1000):
         self.network.reset_()
@@ -1114,5 +1140,5 @@ def plot_image(image):
 
 
 # TODO: gridsearch C_SNN (25 filters)
-# TODO: fix accuracy
 # TODO: calibration from article
+# TODO: gist of competition weights
