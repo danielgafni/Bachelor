@@ -30,7 +30,7 @@ In the paper I'm reproducing only the top3 classes are used in the voting mechan
 
 ![accuracy_topn](overview/acc_topn.png)
 
-Here are the results of gridsearch performed over norm and competitive weight parameters:
+Here are the results of gridsearch performed over mean weight per Y neuron and competitive weight parameters:
 
 ![gridsearch results](overview/gridsearch_LC_SNN.png)
 
@@ -62,7 +62,7 @@ from thesis.nets import LC_SNN
 from thesis.utils import view_database, load_network, delete_network
 ```
 
-To view current networks database use
+To view available networks use
 
 ```python
 view_database()
@@ -70,7 +70,7 @@ view_database()
 
 Output:
 
-| name                                                     | accuracy | n_iter | norm                | n_filters | c_w    | crop | kernel_size | stride | time_max | intensity |
+| name                                                     | accuracy | n_iter | mean_weight         | n_filters | c_w    | crop | kernel_size | stride | time_max | intensity |
 | -------------------------------------------------------- | -------- | ------ | ------------------- | --------- | ------ | ---- | ----------- | ------ | -------- | --------- |
 | 077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848 | 0.8616   | 5000   | 0.24                | 100       | -50.0  | 20   | 12          | 4      | 250      | 127.5     |
 | 10706382198294901892                                     | 0.7655   | 10000  | 0.49000000000000005 | 25        | -100.0 | 20   | 12          | 4      | 250      | 127.5     |

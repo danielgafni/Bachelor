@@ -1,4 +1,4 @@
-,id,accuracy,n_iter,norm,n_filters,c_w,crop,kernel_size,stride,time_max,intensity
+,id,accuracy,n_iter,mean_weight,n_filters,c_w,crop,kernel_size,stride,time_max,intensity
 1,077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848,0.8616,5000,0.24,100,-50.0,20,12,4,250,127.5
 2,10706382198294901892,0.7655,10000,0.49000000000000005,25,-100.0,20,12,4,250,127.5
 3,11078776799026513062,0.7694,10000,0.5,25,-100.0,20,12,4,250,127.5
