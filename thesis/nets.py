@@ -73,7 +73,7 @@ class AbstractSNN:
         self.create_network()
 
         print(f'Created {self.type} network {self.name} with parameters\n{self.parameters}\n')
-    
+
     @property
     def parameters(self):
         parameters = {
@@ -93,7 +93,7 @@ class AbstractSNN:
             'nu': self.nu
             }
         return parameters
-    
+
     @property
     def name(self):
         return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
@@ -219,11 +219,8 @@ class AbstractSNN:
         self.save()
         torch.save(data, f'networks//{self.name}//activity_data')
 
-    def calibrate(self, n_iter=None, top_n=10):
-        if n_iter is None:
-            n_iter = 5000
-
-        calibration_dataset = MNIST(
+    def calibrate(self, n_iter=None):
+        encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
@@ -235,16 +232,20 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        calibratation_dataset = encoded_dataset
+        calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
 
-        calibration_dataset.data = calibration_dataset.data[50000:, :, :]
-
-        calibration_dataloader = torch.utils.data.DataLoader(
-            calibration_dataset, batch_size=1, shuffle=True)
-
+        self.network.train(False)
+        print('Calibrating network...')
+        if n_iter is None:
+            n_iter = self.n_iter
         labels = []
         outputs = []
 
-        print('Collecting activity data')
+        calibration_dataloader = torch.utils.data.DataLoader(
+            calibratation_dataset, batch_size=1, shuffle=True)
+
+        print('Collecting activity data...')
 
         for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -253,11 +254,11 @@ class AbstractSNN:
                 "X": self.spikes["X"].get("s").view(self.time_max, -1),
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
-            label = batch['label'].item()
-            outputs.append(self._spikes['Y'].sum(0))
-            labels.append(label)
-        self.network.reset_()
-        print('Calibrating network...')
+            outputs.append(self._spikes['Y'].sum(0).numpy())
+            labels.append(batch['label'].item())
+            self.network.reset_()
+
+        print('Calculating votes...')
         votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             for i, spike_sum in enumerate(layer):
@@ -501,7 +502,7 @@ class AbstractSNN:
         #           proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
 
         errors = ((scores.sum(axis=-1) / scores.shape[-1] * (1 - scores.sum(axis=-1)
-                                                           / scores.shape[-1]) / scores.shape[-1]) ** 0.5).numpy()
+                                                             / scores.shape[-1]) / scores.shape[-1]) ** 0.5).numpy()
 
         fig = go.Figure().update_layout(
             title=go.layout.Title(
@@ -1086,7 +1087,7 @@ class C_SNN(AbstractSNN):
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
         weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
-                                                                    int(np.sqrt(np.prod(shape_YY))))
+                                                                 int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
 
 
