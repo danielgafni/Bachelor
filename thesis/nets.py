@@ -40,7 +40,9 @@ def in_ipynb():
 
 
 if in_ipynb():
+    print('notebook mode')
     tqdm = tqdm_notebook
+
 
 
 class AbstractSNN:
@@ -217,19 +219,45 @@ class AbstractSNN:
         self.save()
         torch.save(data, f'networks//{self.name}//activity_data')
 
-    def calibrate(self, n_iter=None):
+    def calibrate(self, n_iter=None, top_n=10):
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name}//activity_data'):
-            self.collect_activity(n_iter=n_iter)
+        calibration_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
 
-        data = torch.load(f'networks//{self.name}//activity_data')
-        outputs = data['outputs']
-        labels = data['labels']
+        calibration_dataset.data = calibration_dataset.data[50000:, :, :]
 
+        calibration_dataloader = torch.utils.data.DataLoader(
+            calibration_dataset, batch_size=1, shuffle=True)
+
+        labels = []
+        outputs = []
+
+        print('Collecting activity data')
+
+        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self._spikes = {
+                "X": self.spikes["X"].get("s").view(self.time_max, -1),
+                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                }
+            label = batch['label'].item()
+            outputs.append(self._spikes['Y'].sum(0))
+            labels.append(label)
+        self.network.reset_()
         print('Calibrating network...')
-
         votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
             for i, spike_sum in enumerate(layer):
@@ -350,9 +378,10 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label'].item()
-            prediction = self.class_from_spikes(top_n=top_n)
-            x.append(prediction[0].item())
+            prediction = self.class_from_spikes(top_n=top_n)[0].item()
+            x.append(prediction)
             y.append(label)
+        self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -368,6 +397,8 @@ class AbstractSNN:
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
         self.error = error
+
+        return x, y, scores
 
     def accuracy_distribution(self):
         self.network.train(False)
