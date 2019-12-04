@@ -39,6 +39,8 @@ def in_ipynb():
             return False
     except NameError:
         return False
+    except AttributeError:
+        return False
 
 
 if in_ipynb():
@@ -55,7 +57,7 @@ class AbstractSNN:
                  type_='Abstract SNN'):
         self.n_iter_counter = 0
         if nu is None and c_l:
-            nu = 1
+            nu = [-1, -0.1]
         self.nu = nu
         self.type = type_
         self.mean_weight = mean_weight
@@ -840,27 +842,27 @@ class AbstractSNN:
         conn.commit()
         conn.close()
 
-    def delete(self, sure=False):
-        if not sure:
-            print('Are you sure you want to delete the network? [Y/N]')
-            if input() == 'Y':
-                shutil.rmtree(f'networks//{self.name}')
-                conn = sqlite3.connect(r'networks/networks.db')
-                crs = conn.cursor()
-                crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
-                conn.commit()
-                conn.close()
-                print('Network deleted!')
-            else:
-                print('Deletion canceled...')
-        else:
-            shutil.rmtree(f'networks//{self.name}')
-            conn = sqlite3.connect(r'networks/networks.db')
-            crs = conn.cursor()
-            crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
-            conn.commit()
-            conn.close()
-            print('Network deleted!')
+    # def delete(self, sure=False):
+    #     if not sure:
+    #         print('Are you sure you want to delete the network? [Y/N]')
+    #         if input() == 'Y':
+    #             shutil.rmtree(f'networks//{self.name}')
+    #             conn = sqlite3.connect(r'networks/networks.db')
+    #             crs = conn.cursor()
+    #             crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
+    #             conn.commit()
+    #             conn.close()
+    #             print('Network deleted!')
+    #         else:
+    #             print('Deletion canceled...')
+    #     else:
+    #         shutil.rmtree(f'networks//{self.name}')
+    #         conn = sqlite3.connect(r'networks/networks.db')
+    #         crs = conn.cursor()
+    #         crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
+    #         conn.commit()
+    #         conn.close()
+    #         print('Network deleted!')
 
     def __str__(self):
         return f'Network with parameters:\n {self.parameters}'
@@ -944,7 +946,7 @@ class LC_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-self.nu, -self.nu / 10.],
+                                            nu=self.nu,
                                             wmin=self.c_w * 1.2,
                                             wmax=0)
 
@@ -1061,7 +1063,7 @@ class C_SNN(AbstractSNN):
         else:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
-                                            nu=[-self.nu, -self.nu / 10.],
+                                            nu=self.nu,
                                             wmin=self.c_w * 1.2,
                                             wmax=0)
 

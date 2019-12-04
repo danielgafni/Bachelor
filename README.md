@@ -154,15 +154,6 @@ net.feed_image('image.png')
 
 ## Deleting a network
 
-run
-
-```python
-net.delete()
-```
-
-or
-
 ```python
 delete_network(net.name)
 ```
-

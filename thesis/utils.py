@@ -103,8 +103,7 @@ def load_network(name):
             c_l = False
             if 'c_l' in parameters.keys():
                 c_l = parameters['c_l']
-            nu = 0
-            if nu in parameters.keys():
+            if 'nu' in parameters.keys():
                 nu = parameters['nu']
     except FileNotFoundError:
         raise FileNotFoundError
