@@ -31,7 +31,9 @@ from bindsnet.utils import reshape_locally_connected_weights, reshape_conv2d_wei
 def in_ipynb():
     try:
         cfg = get_ipython().config
-        if cfg['IPKernelApp']['parent_appname'] == 'ipython-notebook':
+        parent_appname = str(cfg['IPKernelApp']['parent_appname'])
+        notebook_name = 'traitlets.config.loader.LazyConfigValue'
+        if notebook_name in parent_appname:
             return True
         else:
             return False
@@ -40,9 +42,10 @@ def in_ipynb():
 
 
 if in_ipynb():
-    print('notebook mode')
     tqdm = tqdm_notebook
-
+    ncols = None
+else:
+    ncols = 100
 
 
 class AbstractSNN:
@@ -204,7 +207,7 @@ class AbstractSNN:
         labels = []
         outputs = []
 
-        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -234,11 +237,15 @@ class AbstractSNN:
             )
         calibratation_dataset = encoded_dataset
         calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
+        calibratation_dataset.targets = encoded_dataset.targets[50000:]
+
 
         self.network.train(False)
+        self.network.reset_()
+
         print('Calibrating network...')
         if n_iter is None:
-            n_iter = self.n_iter
+            n_iter = 5000
         labels = []
         outputs = []
 
@@ -247,7 +254,7 @@ class AbstractSNN:
 
         print('Collecting activity data...')
 
-        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -260,7 +267,7 @@ class AbstractSNN:
 
         print('Calculating votes...')
         votes = torch.zeros(10, self.n_output)
-        for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=100):
+        for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
             for i, spike_sum in enumerate(layer):
                 votes[label, i] += spike_sum
         for i in range(10):
@@ -309,7 +316,7 @@ class AbstractSNN:
         x = []
         y = []
         print('Collecting activity data...')
-        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -320,8 +327,8 @@ class AbstractSNN:
             x.append(self._spikes['Y'].sum(0).numpy())
             y.append(label)
 
-        score = self.classifier.score(x, y)
-        y_predict = self.classifier.predict(x)
+            score = self.classifier.score(x, y)
+            y_predict = self.classifier.predict(x)
 
         self.conf_matrix = confusion_matrix(y, y_predict)
         self.accuracy = score
@@ -363,6 +370,8 @@ class AbstractSNN:
                 ])
             )
         self.network.reset_()
+        if top_n is None:
+            top_n = 10
         if not self.calibrated:
             print('The network is not calibrated!')
             return None
@@ -371,7 +380,7 @@ class AbstractSNN:
             test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
-        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
+        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -379,10 +388,9 @@ class AbstractSNN:
                 "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
                 }
             label = batch['label'].item()
-            prediction = self.class_from_spikes(top_n=top_n)[0].item()
-            x.append(prediction)
+            prediction = self.class_from_spikes(top_n=top_n)
+            x.append(prediction[0].item())
             y.append(label)
-        self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -398,8 +406,6 @@ class AbstractSNN:
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
         self.error = error
-
-        return x, y, scores
 
     def accuracy_distribution(self):
         self.network.train(False)
@@ -482,7 +488,7 @@ class AbstractSNN:
 
             display.clear_output(wait=True)
             print(f'Calculating accuracy for label {label}...')
-            for i in tqdm(range(n_iter), ncols=100):
+            for i in tqdm(range(n_iter), ncols=ncols):
                 batch = next(iter(test_dataloader))
 
                 inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -686,22 +692,20 @@ class AbstractSNN:
             dataset, batch_size=1, shuffle=True)
 
         batch = next(iter(dataloader))
-        while batch['label'] != label:
-            batch = next(iter(dataloader))
-        else:
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
-                }
 
-            prediction = self.class_from_spikes(top_n=top_n)
-            if to_print:
-                print(f'Prediction: {prediction[0:k]}')
-            if plot:
-                self.plot_spikes().show()
-                plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
+        inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+        self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+        self._spikes = {
+            "X": self.spikes["X"].get("s").view(self.time_max, -1),
+            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            }
+
+        prediction = self.class_from_spikes(top_n=top_n)
+        if to_print:
+            print(f'Prediction: {prediction[0:k]}')
+        if plot:
+            self.plot_spikes().show()
+            plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
         return prediction[0:k]
 
@@ -791,11 +795,11 @@ class AbstractSNN:
             conn = sqlite3.connect(r'networks/networks.db')
             crs = conn.cursor()
             crs.execute('''CREATE TABLE networks(
-             id BLOB,
-             accuracy REAL,
-             n_iter INT,
-             type BLOB
-             )''')
+                 id BLOB,
+                 accuracy REAL,
+                 n_iter INT,
+                 type BLOB
+                 )''')
             conn.commit()
             conn.close()
 
