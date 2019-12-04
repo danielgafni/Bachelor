@@ -8,6 +8,7 @@ from bindsnet.network.monitors import Monitor
 from shutil import rmtree
 from sqlite3 import connect
 
+
 def view_network(name):
     if not os.path.exists(f'networks//{name}'):
         print('Network with such id does not exist')
@@ -200,3 +201,14 @@ def delete_network(name, sure=False):
         print('Network deleted!')
 
 
+def sync_database():
+    conn = connect(r'networks/networks.db')
+    crs = conn.cursor()
+    for name in os.listdir('networks'):
+        if '.' not in name:
+            crs.execute('SELECT id FROM networks WHERE id = ?', (name,))
+            result = crs.fetchone()
+
+        if not result:
+            net = load_network(name)
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (net.name, net.accuracy, net.n_iter, net.type))

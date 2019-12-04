@@ -25,7 +25,7 @@ from bindsnet.network import Network
 from bindsnet.network.monitors import Monitor, NetworkMonitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection, SparseConnection
-from bindsnet.utils import reshape_locally_connected_weights, reshape_conv2d_weights
+from bindsnet.utils import reshape_locally_connected_weights
 
 
 def in_ipynb():
@@ -812,8 +812,6 @@ class AbstractSNN:
             torch.save(self.accuracy, path + '//accuracy')
             torch.save(self.conf_matrix, path + '//confusion_matrix')
 
-
-
         with open(path + '//parameters.json', 'w') as file:
             json.dump(self.parameters, file)
 
@@ -991,7 +989,6 @@ class LC_SNN(AbstractSNN):
         weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
                                                                  int(np.sqrt(np.prod(shape_YY))))
         return weights_YY
-
 
 
 class C_SNN(AbstractSNN):
