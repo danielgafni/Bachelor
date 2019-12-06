@@ -20,7 +20,7 @@ And here is the confusion matrix:
 
 ![Confusion matrix](overview/confusion_matrix.png)
 
-I discovered, that statistically calculated votes (what I call the "calibration" of the network) give us the following votes distribution: 
+Statistically calculated (based on spiking activity of neurons) give us the following "votes" distribution: 
 
 ![Votes distribution](overview/votes_distribution.png)
 
@@ -28,18 +28,18 @@ where by "vote" I call the level of certainty that a specific spiking neuron giv
 
 In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time. Here is a typical accuracy against top_n plot:
 
-![accuracy_topn](overview/acc_topn.png)
+![accuracy-top_n](overview/accuracy-top_n.png)
 
-Here are the results of gridsearch performed over mean weight per Y neuron and competitive weight parameters:
+Here are the results of a gridsearch performed over mean weight per Y neuron and competitive weight parameters:
 
-![gridsearch results](overview/gridsearch_LC_SNN.png)
+![gridsearch results](overview/gridsearch-LC_SNN.png)
 
-and [interactive 3D plot](overview/gridsearch_LC_SNN.html) (download the file and open in your browser)
+and [interactive 3D plot](overview/gridsearch-LC_SNN.html) (download the file and open in your browser)
 
-# Work to do in the future
+# Work to do
 
-* Compare to a network with a convolution layer
-* Compare to a network with trainable competition weights.
+* Compare to a network with a convolution layer. Right now I'm doing a gridsearch for them.
+* Compare to a network with trainable competition weights. Right now I'm searching for good training parameters.
 
 # Usage
 
@@ -58,7 +58,7 @@ Run the following code in Jupyter Notebook. The notebook must be located at the 
 ## Basic imports
 
 ```python
-from thesis.nets import LC_SNN
+from thesis.nets import LC_SNN, C_SNN
 from thesis.utils import view_database, load_network, delete_network
 ```
 
@@ -106,7 +106,7 @@ Prediction: 5
 Run with desired parameters:
 
 ```python
-net = LC_SNN()
+net = LC_SNN()  # C_SNN() to create a convolution network
 ```
 
 c_l = True will make the competition weights trainable.

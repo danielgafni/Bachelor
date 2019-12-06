@@ -116,7 +116,7 @@ def load_network(name):
     if type == 'LC_SNN':
         net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                     c_l=c_l, nu=nu)
+                     c_l=c_l, nu=nu, immutable_name=True, foldername=name)
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
@@ -143,7 +143,8 @@ def load_network(name):
 
     if type == 'C_SNN':
         net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
-                    kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
+                    kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
+                    immutable_name=True, foldername=name)
 
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
@@ -209,6 +210,6 @@ def sync_database():
             crs.execute('SELECT id FROM networks WHERE id = ?', (name,))
             result = crs.fetchone()
 
-        if not result:
-            net = load_network(name)
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (net.name, net.accuracy, net.n_iter, net.type))
+            if not result:
+                net = load_network(name)
+                net.save()
