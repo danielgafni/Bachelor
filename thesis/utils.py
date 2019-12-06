@@ -211,5 +211,21 @@ def sync_database():
             result = crs.fetchone()
 
             if not result:
-                net = load_network(name)
-                net.save()
+                with open(f'networks//{name}//parameters.json', 'r') as file:
+                    parameters = json.load(file)
+                accuracy = torch.load(f'networks//{name}//accuracy')
+                n_iter = parameters['n_iter']
+                network_type = parameters['type']
+                conn = connect(r'networks/networks.db')
+                crs = conn.cursor()
+                crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (name, accuracy, n_iter, network_type))
+                conn.commit()
+                conn.close()
+
+    conn = connect(r'networks/networks.db')
+    crs = conn.cursor()
+    crs.execute('SELECT id FROM networks')
+    result = crs.fetchall()
+    for name in result:
+        if not os.path.exists(f'networks//{name}'):
+            crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))

@@ -170,24 +170,8 @@ class AbstractSNN:
         self.network.reset_()
         self.network.train(False)
 
-    def class_from_spikes(self, top_n=None):
-        if top_n == 0:
-            raise ValueError('top_n can\'t be zero')
-        if top_n is None:
-            top_n = 10
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
-        res = top_n_votes.type(torch.FloatTensor) * sum_outputs.flatten().type(torch.FloatTensor)
-        res = res.view(10, self.n_filters, self.conv_size, self.conv_size)
-        res = res.max(1).values.sum((1, 2)).argsort(0, descending=True)
-
-        if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res
+    def class_from_spikes(self):
+        pass
 
     def collect_activity(self, n_iter=None):
         self.network.train(False)
@@ -1054,6 +1038,25 @@ class LC_SNN(AbstractSNN):
         self.conv_prod = int(np.prod(conv_size))
 
         self.weights_XY = self.get_weights_XY()
+
+    def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
+        if top_n is None:
+            top_n = 10
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
+        sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
+        res = top_n_votes.type(torch.FloatTensor) * sum_outputs.flatten().type(torch.FloatTensor)
+        res = res.view(10, self.n_filters, self.conv_size, self.conv_size)
+        res = res.max(1).values.sum((1, 2)).argsort(0, descending=True)
+
+        if res.sum(0).item() == 0:
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res
 
     def get_weights_XY(self):
         weights_XY = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
