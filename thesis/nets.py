@@ -1175,8 +1175,24 @@ class C_SNN(AbstractSNN):
         self.kernel_prod = int(np.prod(self.kernel_size))
         self.output_shape = int(np.ceil(np.sqrt(self.network.connections[('X', 'Y')].w.size(0))))
 
-
         self.weights_XY = self.get_weights_XY()
+
+    def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
+        if top_n is None:
+            top_n = 10
+        sum_output = self._spikes['Y'].sum(0)
+
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
+        res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
+        if res.sum(0).item() == 0:
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res.argsort(descending=True)
 
     def get_weights_XY(self):
         weights = self.network.connections[('X', 'Y')].w
