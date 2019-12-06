@@ -976,7 +976,7 @@ class LC_SNN(AbstractSNN):
 
         self.kernel_prod = self.kernel_size ** 2
 
-        self.norm = self.mean_weight * self.kernel_prod * self.kernel_size ** 2
+        self.norm = self.mean_weight * self.kernel_prod
 
         self.connection_XY = LocalConnection(
             self.input_layer,
@@ -1233,8 +1233,4 @@ def plot_image(image):
     return fig_img
 
 
-
-
-# TODO: gridsearch C_SNN (25 filters)
-# TODO: calibration from article
-# TODO: gist of competition weights
+# TODO: research in competition training
