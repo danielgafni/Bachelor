@@ -27,6 +27,7 @@ from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import Connection, Conv2dConnection, LocalConnection, SparseConnection
 from bindsnet.utils import reshape_locally_connected_weights
 
+tqdm_train = tqdm
 
 def in_ipynb():
     try:
@@ -44,7 +45,7 @@ def in_ipynb():
 
 
 if in_ipynb():
-    # tqdm = tqdm_notebook
+    tqdm = tqdm_notebook
     ncols = None
 else:
     ncols = 100
@@ -54,7 +55,7 @@ class AbstractSNN:
     def __init__(self, mean_weight=0.26, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
                  c_l=False, nu=None,
-                 type_='Abstract SNN'):
+                 type_='Abstract SNN', immutable_name=False, foldername=None):
         self.n_iter_counter = 0
         if nu is None and c_l:
             nu = [-1, -0.1]
@@ -74,6 +75,8 @@ class AbstractSNN:
         self.intensity = intensity
         self.dt = dt
         self.c_l = c_l
+        self.immutable_name = immutable_name
+        self.foldername = foldername
 
         self.create_network()
 
@@ -101,13 +104,16 @@ class AbstractSNN:
 
     @property
     def name(self):
-        return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
+        if self.immutable_name:
+            return self.foldername
+        else:
+            return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
     def train(self, n_iter=None, plot=False, vis_interval=30, app=False):
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=True,
             transform=transforms.Compose([
@@ -135,19 +141,19 @@ class AbstractSNN:
             fig_spikes.show()
 
         t_start = t()
-        for smth, batch in tqdm(list(zip(range(n_iter), train_dataloader))):
+        for smth, batch in tqdm_train(list(zip(range(n_iter), train_dataloader))):
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
             speed = (smth + 1) / (t_now - t_start)
             time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self.n_iter += 1
             self.parameters['n_iter'] += 1
 
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
 
             if plot:
@@ -164,22 +170,8 @@ class AbstractSNN:
         self.network.reset_()
         self.network.train(False)
 
-    def class_from_spikes(self, top_n=None):
-        if top_n == 0:
-            raise ValueError('top_n can\'t be zero')
-        if top_n is None:
-            top_n = 10
-        sum_output = self._spikes['Y'].sum(0)
-
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
-        if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res.argsort(descending=True)
+    def class_from_spikes(self):
+        pass
 
     def collect_activity(self, n_iter=None):
         self.network.train(False)
@@ -188,7 +180,7 @@ class AbstractSNN:
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=True,
             transform=transforms.Compose([
@@ -210,11 +202,11 @@ class AbstractSNN:
         outputs = []
 
         for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             outputs.append(self._spikes['Y'].sum(0).numpy())
             labels.append(batch['label'].item())
@@ -228,7 +220,7 @@ class AbstractSNN:
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=True,
             transform=transforms.Compose([
@@ -257,11 +249,11 @@ class AbstractSNN:
         print('Collecting activity data...')
 
         for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             outputs.append(self._spikes['Y'].sum(0).numpy())
             labels.append(batch['label'].item())
@@ -297,7 +289,7 @@ class AbstractSNN:
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=False,
             transform=transforms.Compose([
@@ -319,11 +311,11 @@ class AbstractSNN:
         y = []
         print('Collecting activity data...')
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             label = batch['label'].item()
             x.append(self._spikes['Y'].sum(0).numpy())
@@ -340,20 +332,19 @@ class AbstractSNN:
                                                      mode='markers', marker_size=15))
         votes_distibution_fig.update_layout(width=800, height=400,
                                             title=go.layout.Title(
-                                                text="Votes Distribution",
-                                                xref="paper"),
+                                                text='Votes Distribution',
+                                                xref='paper'),
                                             margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                             xaxis=go.layout.XAxis(
                                                 title_text='Class',
                                                 tickmode='array',
                                                 tickvals=list(range(10)),
                                                 ticktext=list(range(1, 11)),
-                                                # zeroline=False
+                                                zeroline=False
                                                 ),
                                             yaxis=go.layout.YAxis(
                                                 title_text='Mean Vote',
-                                                # tick0=1,
-
+                                                zeroline=False
                                                 )
                                             )
         return votes_distibution_fig
@@ -362,7 +353,7 @@ class AbstractSNN:
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=False,
             transform=transforms.Compose([
@@ -383,11 +374,11 @@ class AbstractSNN:
         x = []
         y = []
         for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             label = batch['label'].item()
             prediction = self.class_from_spikes(top_n=top_n)
@@ -439,8 +430,8 @@ class AbstractSNN:
                                                     mode='markers', marker_size=5))
         accs_distibution_fig.update_layout(width=800, height=400,
                                            title=go.layout.Title(
-                                               text="Accuracy Distribution",
-                                               xref="paper"),
+                                               text='Accuracy Distribution',
+                                               xref='paper'),
                                            margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                            xaxis=go.layout.XAxis(
                                                title_text='Class',
@@ -473,8 +464,8 @@ class AbstractSNN:
         fig = go.Figure(go.Histogram(x=w_comp))
         fig.update_layout(width=800, height=500,
                           title=go.layout.Title(
-                              text="Competition weights histogram",
-                              xref="paper"),
+                              text='Competition weights histogram',
+                              xref='paper'),
                           margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                           xaxis=go.layout.XAxis(
                               title_text='Weight',
@@ -486,19 +477,88 @@ class AbstractSNN:
 
         return w_comp, fig
 
-    def accuracy_on_top_n(self, n_iter=1000):
+    def accuracy_on_top_n(self, n_iter=1000, labels=False):
         self.network.reset_()
         if not self.calibrated:
             print('The network is not calibrated!')
             return None
         self.network.train(False)
 
-        scores = torch.zeros(10, 10, n_iter)
-        for label in range(10):
-            label_dataset = MNIST(
+        if labels:
+            scores = torch.zeros(10, 10, n_iter)
+            for label in range(10):
+                label_dataset = MNIST(
+                    PoissonEncoder(time=self.time_max, dt=self.dt),
+                    None,
+                    './/MNIST',
+                    download=False,
+                    train=False,
+                    transform=transforms.Compose([
+                        transforms.CenterCrop(self.crop),
+                        transforms.ToTensor(),
+                        transforms.Lambda(lambda x: x * self.intensity)
+                        ])
+                    )
+                label_indices = (label_dataset.targets == label).nonzero().flatten()
+                label_dataset.data = torch.index_select(label_dataset.data, 0, label_indices)
+                label_dataset.targets = label_dataset.targets[label_dataset.targets == label]
+
+                test_dataloader = torch.utils.data.DataLoader(
+                    label_dataset, batch_size=1, shuffle=True)
+
+                display.clear_output(wait=True)
+                print(f'Calculating accuracy for label {label}...')
+                for i in tqdm(range(n_iter), ncols=ncols):
+                    batch = next(iter(test_dataloader))
+
+                    inpts = {'X': batch['encoded_image'].transpose(0, 1)}
+                    self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+                    self._spikes = {
+                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                        'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
+                        }
+                    self.network.reset_()
+
+                    for top_n in range(1, 11):
+                        prediction = self.class_from_spikes(top_n=top_n)[0]
+                        if prediction == label:
+                            scores[label, top_n - 1, i] = 1
+
+            # errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
+            #           proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
+
+            errors = ((scores.sum(axis=-1) / scores.shape[-1] * (1 - scores.sum(axis=-1)
+                                                                 / scores.shape[-1]) / scores.shape[-1]) ** 0.5).numpy()
+
+            fig = go.Figure().update_layout(
+                title=go.layout.Title(
+                    text='Accuracy dependence on top_n'
+                    ),
+                xaxis=go.layout.XAxis(
+                    title_text='top_n',
+                    tickmode='array',
+                    tickvals=list(range(10)),
+                    ticktext=list(range(10)),
+                    ),
+                yaxis=go.layout.YAxis(
+                    title_text='Accuracy',
+                    range=[0, 1]
+                    )
+                )
+
+            for label in range(10):
+                fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
+                                error_y=dict(array=errors[label, :], visible=True, width=5))
+            fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
+                            error_y=dict(array=errors.mean(axis=0), visible=True, width=5))
+
+            return scores, errors, fig
+
+        else:
+            test_dataset = MNIST(
                 PoissonEncoder(time=self.time_max, dt=self.dt),
                 None,
-                ".//MNIST",
+                './/MNIST',
                 download=False,
                 train=False,
                 transform=transforms.Compose([
@@ -507,64 +567,49 @@ class AbstractSNN:
                     transforms.Lambda(lambda x: x * self.intensity)
                     ])
                 )
-            label_indices = (label_dataset.targets == label).nonzero().flatten()
-            label_dataset.data = torch.index_select(label_dataset.data, 0, label_indices)
-            label_dataset.targets = label_dataset.targets[label_dataset.targets == label]
+
 
             test_dataloader = torch.utils.data.DataLoader(
-                label_dataset, batch_size=1, shuffle=True)
-
-            display.clear_output(wait=True)
-            print(f'Calculating accuracy for label {label}...')
-            for i in tqdm(range(n_iter), ncols=ncols):
-                batch = next(iter(test_dataloader))
-
-                inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+                test_dataset, batch_size=1, shuffle=True)
+            scores = torch.zeros(n_iter, 10)
+            for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
+                inpts = {'X': batch['encoded_image'].transpose(0, 1)}
                 self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
                 self._spikes = {
-                    "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                    "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                    'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                    'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                     }
-                self.network.reset_()
-
+                label = batch['label'].item()
                 for top_n in range(1, 11):
-                    prediction = self.class_from_spikes(top_n=top_n)[0]
+                    prediction = self.class_from_spikes(top_n=top_n)[0].item()
                     if prediction == label:
-                        scores[label, top_n - 1, i] = 1
+                        scores[i, top_n-1] = 1
 
-        # errors = (proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[1] -
-        #           proportion_confint(scores.sum(axis=-1), scores.shape[-1], 0.05)[0]) / 2
-
-        errors = ((scores.sum(axis=-1) / scores.shape[-1] * (1 - scores.sum(axis=-1)
-                                                             / scores.shape[-1]) / scores.shape[-1]) ** 0.5).numpy()
-
-        fig = go.Figure().update_layout(
-            title=go.layout.Title(
-                text='Accuracy dependence on top_n'
-                ),
-            xaxis=go.layout.XAxis(
-                title_text='top_n',
-                tickmode='array',
-                tickvals=list(range(10)),
-                ticktext=list(range(10)),
-                ),
-            yaxis=go.layout.YAxis(
-                title_text='Accuracy',
-                range=[0, 1]
+            res = scores.mean(dim=0)
+            errors = ((1 - res) * res / n_iter) ** 0.5
+            fig = go.Figure(go.Scatter(x=list(range(1, 11)), y=res.numpy(),
+                                       error_y=dict(array=errors, visible=True, width=5)))
+            fig.update_layout(
+                title=go.layout.Title(
+                    text='Accuracy dependence on top_n'
+                    ),
+                xaxis=go.layout.XAxis(
+                    title_text='top_n',
+                    tickmode='array',
+                    tickvals=list(range(1, 11)),
+                    ticktext=list(range(1, 11)),
+                    ),
+                yaxis=go.layout.YAxis(
+                    title_text='Accuracy',
+                    range=[0, 1]
+                    )
                 )
-            )
 
-        for label in range(10):
-            fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1)[label, :].numpy(), name=f'label {label}',
-                            error_y=dict(array=errors[label, :], visible=True, width=5))
-        fig.add_scatter(x=list(range(1, 11)), y=scores.mean(axis=-1).mean(axis=0).numpy(), name=f'Total',
-                        error_y=dict(array=errors.mean(axis=0), visible=True, width=5))
-
-        return scores, errors, fig
+            return scores, errors, fig
 
     def confusion(self):
         row_sums = self.conf_matrix.sum(axis=1)
-        average_confusion_matrix = np.nan_to_num(self.conf_matrix / row_sums)[1:, 1:]
+        average_confusion_matrix = np.nan_to_num(self.conf_matrix / row_sums)
         fig_confusion = go.Figure(data=go.Heatmap(z=average_confusion_matrix, colorscale='YlOrBr',
                                                   zmin=0,
                                                   zmax=1
@@ -572,8 +617,8 @@ class AbstractSNN:
                                   )
         fig_confusion.update_layout(width=800, height=800,
                                     title=go.layout.Title(
-                                        text="Confusion Matrix",
-                                        xref="paper"),
+                                        text='Confusion Matrix',
+                                        xref='paper'),
                                     margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                     xaxis=go.layout.XAxis(
                                         title_text='Output',
@@ -603,8 +648,8 @@ class AbstractSNN:
         fig_weights_XY = go.Figure(data=go.Heatmap(z=self.weights_XY.numpy(), colorscale='YlOrBr'))
         fig_weights_XY.update_layout(width=width, height=800,
                                      title=go.layout.Title(
-                                         text="Weights XY",
-                                         xref="paper"),
+                                         text='Weights XY',
+                                         xref='paper'),
                                      margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                      xaxis=go.layout.XAxis(
                                          title_text='Neuron Index X',
@@ -633,8 +678,8 @@ class AbstractSNN:
         fig_weights_YY = go.Figure(data=go.Heatmap(z=self.weights_YY.numpy(), colorscale='YlOrBr'))
         fig_weights_YY.update_layout(width=width, height=800,
                                      title=go.layout.Title(
-                                         text="Weights YY",
-                                         xref="paper"),
+                                         text='Weights YY',
+                                         xref='paper'),
                                      margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                      xaxis=go.layout.XAxis(
                                          title_text='Neuron Index X',
@@ -665,8 +710,8 @@ class AbstractSNN:
         fig_spikes = go.Figure(data=go.Heatmap(z=spikes.numpy().astype(int), colorscale='YlOrBr'))
         fig_spikes.update_layout(width=width, height=height,
                                  title=go.layout.Title(
-                                     text="Y spikes",
-                                     xref="paper",
+                                     text='Y spikes',
+                                     xref='paper',
                                      ),
                                  xaxis=go.layout.XAxis(
                                      title_text='Time'
@@ -691,8 +736,8 @@ class AbstractSNN:
         fig_spikes.add_trace(trace_Y, row=2, col=1)
         fig_spikes.update_layout(width=800, height=800,
                                  title=go.layout.Title(
-                                     text="Network Spikes",
-                                     xref="paper",
+                                     text='Network Spikes',
+                                     xref='paper',
                                      )
                                  )
 
@@ -702,7 +747,7 @@ class AbstractSNN:
         dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=True,
             transform=transforms.Compose([
@@ -721,11 +766,11 @@ class AbstractSNN:
 
         batch = next(iter(dataloader))
 
-        inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+        inpts = {'X': batch['encoded_image'].transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
         self._spikes = {
-            "X": self.spikes["X"].get("s").view(self.time_max, -1),
-            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
         prediction = self.class_from_spikes(top_n=top_n)
@@ -741,7 +786,7 @@ class AbstractSNN:
         train_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
-            ".//MNIST",
+            './/MNIST',
             download=False,
             train=True,
             transform=transforms.Compose([
@@ -759,11 +804,11 @@ class AbstractSNN:
         while batch['label'] != label:
             batch = next(iter(train_dataloader))
         else:
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                "X": self.spikes["X"].get("s").view(self.time_max, -1),
-                "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
 
         prediction = self.classifier.predict([self._spikes['Y'].sum(0).numpy()])
@@ -774,6 +819,23 @@ class AbstractSNN:
             plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
         return prediction[0]
+
+    def top_voters(self):
+        # sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
+        # winner_values = sum_outputs.max(0).values
+        # indices_flatten = (sum_outputs == winner_values).flatten().nonzero().squeeze(1)
+        # voters = torch.zeros(0, self.kernel_size * self.conv_size)
+        # m = 0
+        # for i in range(self.conv_size):
+        #     row = torch.zeros(self.kernel_size, 0)
+        #     for j in range(self.conv_size):
+        #         if m < indices_flatten.shape[0]:
+        #             row = torch.cat((row, self.network.connections[('X', 'Y')].w[:, indices_flatten[m]]), dim=1)
+        #             m += 1
+        #     voters = torch.cat((voters, row))
+
+        # return voters
+        pass
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
         self.network.reset_()
@@ -791,8 +853,8 @@ class AbstractSNN:
         inpts = {'X': encoded_image.transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
         self._spikes = {
-            "X": self.spikes["X"].get("s").view(self.time_max, -1),
-            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
         prediction = self.class_from_spikes(top_n=top_n)
@@ -874,11 +936,11 @@ class AbstractSNN:
 class LC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False, nu=None):
+                 c_l=False, nu=None, immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu,
+                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
                          type_='LC_SNN')
 
     def create_network(self):
@@ -958,24 +1020,43 @@ class LC_SNN(AbstractSNN):
 
         self.spikes = {}
         for layer in set(self.network.layers):
-            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=["s"], time=self.time_max)
-            self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
+            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=['s'], time=self.time_max)
+            self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
 
         self._spikes = {
-            "X": self.spikes["X"].get("s").view(self.time_max, -1),
-            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
         self.voltages = {}
-        for layer in set(self.network.layers) - {"X"}:
-            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
-            self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+        for layer in set(self.network.layers) - {'X'}:
+            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=['v'], time=self.time_max)
+            self.network.add_monitor(self.voltages[layer], name='%s_voltages' % layer)
 
         self.stride = self.stride
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
 
         self.weights_XY = self.get_weights_XY()
+
+    def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
+        if top_n is None:
+            top_n = 10
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
+        sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
+        res = top_n_votes.type(torch.FloatTensor) * sum_outputs.flatten().type(torch.FloatTensor)
+        res = res.view(10, self.n_filters, self.conv_size, self.conv_size)
+        res = res.max(1).values.sum((1, 2)).argsort(0, descending=True)
+
+        if res.sum(0).item() == 0:
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res
 
     def get_weights_XY(self):
         weights_XY = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
@@ -996,11 +1077,11 @@ class LC_SNN(AbstractSNN):
 class C_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False, nu=None):
+                 c_l=False, nu=None, immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu,
+                         c_l=c_l, nu=nu,immutable_name=immutable_name, foldername=foldername,
                          type_='C_SNN')
 
     def create_network(self):
@@ -1075,18 +1156,18 @@ class C_SNN(AbstractSNN):
 
         self.spikes = {}
         for layer in set(self.network.layers):
-            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=["s"], time=self.time_max)
-            self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
+            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=['s'], time=self.time_max)
+            self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
 
         self._spikes = {
-            "X": self.spikes["X"].get("s").view(self.time_max, -1),
-            "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
         self.voltages = {}
-        for layer in set(self.network.layers) - {"X"}:
-            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=["v"], time=self.time_max)
-            self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+        for layer in set(self.network.layers) - {'X'}:
+            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=['v'], time=self.time_max)
+            self.network.add_monitor(self.voltages[layer], name='%s_voltages' % layer)
 
         self.stride = self.stride
         self.conv_size = conv_size
@@ -1094,8 +1175,24 @@ class C_SNN(AbstractSNN):
         self.kernel_prod = int(np.prod(self.kernel_size))
         self.output_shape = int(np.ceil(np.sqrt(self.network.connections[('X', 'Y')].w.size(0))))
 
-
         self.weights_XY = self.get_weights_XY()
+
+    def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
+        if top_n is None:
+            top_n = 10
+        sum_output = self._spikes['Y'].sum(0)
+
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
+        res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
+        if res.sum(0).item() == 0:
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        return res.argsort(descending=True)
 
     def get_weights_XY(self):
         weights = self.network.connections[('X', 'Y')].w
@@ -1127,8 +1224,8 @@ def plot_image(image):
     fig_img = go.Figure(data=go.Heatmap(z=image, colorscale='YlOrBr'))
     fig_img.update_layout(width=width, height=height,
                           title=go.layout.Title(
-                              text="Image",
-                              xref="paper",
+                              text='Image',
+                              xref='paper',
                               x=0
                               )
                           )

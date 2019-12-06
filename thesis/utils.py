@@ -41,7 +41,7 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
         color = data['n_filters']
         colorname = 'n_filters'
     else:
-        data = view_database()[view_database()['n_filters'] == n_filters]
+        data = data[data['n_filters'] == n_filters]
         color = data['n_iter']
         colorname = 'n_iter'
 
@@ -116,7 +116,7 @@ def load_network(name):
     if type == 'LC_SNN':
         net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                     c_l=c_l, nu=nu)
+                     c_l=c_l, nu=nu, immutable_name=True, foldername=name)
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
@@ -143,7 +143,8 @@ def load_network(name):
 
     if type == 'C_SNN':
         net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
-                    kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity)
+                    kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
+                    immutable_name=True, foldername=name)
 
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
@@ -209,6 +210,22 @@ def sync_database():
             crs.execute('SELECT id FROM networks WHERE id = ?', (name,))
             result = crs.fetchone()
 
-        if not result:
-            net = load_network(name)
-            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (net.name, net.accuracy, net.n_iter, net.type))
+            if not result:
+                with open(f'networks//{name}//parameters.json', 'r') as file:
+                    parameters = json.load(file)
+                accuracy = torch.load(f'networks//{name}//accuracy')
+                n_iter = parameters['n_iter']
+                network_type = parameters['type']
+                conn = connect(r'networks/networks.db')
+                crs = conn.cursor()
+                crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (name, accuracy, n_iter, network_type))
+                conn.commit()
+                conn.close()
+
+    conn = connect(r'networks/networks.db')
+    crs = conn.cursor()
+    crs.execute('SELECT id FROM networks')
+    result = crs.fetchall()
+    for name in result:
+        if not os.path.exists(f'networks//{name}'):
+            crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))
