@@ -41,7 +41,7 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
         color = data['n_filters']
         colorname = 'n_filters'
     else:
-        data = view_database()[view_database()['n_filters'] == n_filters]
+        data = data[data['n_filters'] == n_filters]
         color = data['n_iter']
         colorname = 'n_iter'
 
