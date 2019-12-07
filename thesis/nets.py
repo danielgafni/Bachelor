@@ -1,4 +1,5 @@
 import datetime
+import math
 import hashlib
 import json
 import os
@@ -976,7 +977,7 @@ class LC_SNN(AbstractSNN):
 
         self.kernel_prod = self.kernel_size ** 2
 
-        self.norm = self.mean_weight * self.kernel_prod * self.kernel_size ** 2
+        self.norm = self.mean_weight * self.kernel_prod
 
         self.connection_XY = LocalConnection(
             self.input_layer,
@@ -1044,19 +1045,79 @@ class LC_SNN(AbstractSNN):
             raise ValueError('top_n can\'t be zero')
         if top_n is None:
             top_n = 10
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
-        res = top_n_votes.type(torch.FloatTensor) * sum_outputs.flatten().type(torch.FloatTensor)
-        res = res.view(10, self.n_filters, self.conv_size, self.conv_size)
-        res = res.max(1).values.sum((1, 2)).argsort(0, descending=True)
+        w = self.network.connections[('X', 'Y')].w
+        k1, k2 = self.kernel_size, self.kernel_size
+        c1, c2 = self.conv_size, self.conv_size
+        i1, i2 = self.n_input, self.n_input
+        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+        fs = int(math.ceil(math.sqrt(self.n_filters)))
+        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
+        locations = self.network.connections[('X', 'Y')].locations
+        best_patches_max = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                            self.conv_size**2).max(0)
+        best_patches = best_patches_max.indices
+        self.best_voters = best_patches
+        best_patches_values = best_patches_max.values
+        self.best_spikes = best_patches_values
+        best_neurons = []
+        fig = make_subplots(
+            rows=self.conv_size, cols=self.conv_size)
+        votes = torch.zeros(10, self.conv_size**2)
+        sum_spikes = torch.zeros(self.conv_size**2)
+        for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
+            neuron_num = filter_number * self.conv_size**2 + (patch_number // c2sqrt) * c2sqrt + (patch_number % c2sqrt)
+            filter_ = w[
+                locations[:, patch_number], neuron_num
+            ].view(k1, k2)
+            vote = self.votes[
+                   :, neuron_num
+                   ]
+            votes[:, patch_number] = vote
+            sum_spikes[patch_number] = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                                        self.conv_size**2)[filter_number, patch_number]
+            best_neurons.append(filter_)
+        res = votes @ sum_spikes
+        return res.argsort(descending=True)
 
-        if res.sum(0).item() == 0:
-            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res
+    def plot_best_voters(self):
+        w = self.network.connections[('X', 'Y')].w
+        k1, k2 = self.kernel_size, self.kernel_size
+        c1, c2 = self.conv_size, self.conv_size
+        i1, i2 = self.n_input, self.n_input
+        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+        fs = int(math.ceil(math.sqrt(self.n_filters)))
+        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
+        locations = self.network.connections[('X', 'Y')].locations
+        best_patches = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                        self.conv_size**2).max(0).indices
+        best_neurons = []
+        fig = make_subplots(
+            rows=self.conv_size, cols=self.conv_size)
+        for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
+            filter_ = w[
+                locations[:, patch_number],
+                filter_number * self.conv_size**2 + (patch_number // c2sqrt) * c2sqrt + (patch_number % c2sqrt),
+            ].view(k1, k2)
+            best_neurons.append(filter_)
+            fig.add_trace(go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale='YlOrBr'),
+                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1)
+
+        fig.update_layout(height=600, width=600,
+                          title=go.layout.Title(
+                              text='Best Voters',
+                              xref='paper',
+                              x=0
+                              )
+                          )
+
+        return fig
+
+    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
+        super().feed_class(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
+        if plot:
+            fig = self.plot_best_voters()
+            fig.show()
+
 
     def get_weights_XY(self):
         weights_XY = reshape_locally_connected_weights(self.network.connections[('X', 'Y')].w,
@@ -1233,8 +1294,4 @@ def plot_image(image):
     return fig_img
 
 
-
-
-# TODO: gridsearch C_SNN (25 filters)
-# TODO: calibration from article
-# TODO: gist of competition weights
+# TODO: research in competition training

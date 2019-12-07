@@ -588,9 +588,6 @@ class LocalConnection(AbstractConnection):
 
         self.b = Parameter(kwargs.get("b", torch.zeros(target.n)), False)
 
-        if self.norm is not None:
-            self.norm *= kernel_prod
-
     def compute(self, s: torch.Tensor) -> torch.Tensor:
         # language=rst
         """

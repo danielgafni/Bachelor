@@ -30,15 +30,21 @@ In the paper I'm reproducing only the top3 classes are used in the voting mechan
 
 ![accuracy-top_n](overview/accuracy-top_n.png)
 
-Here are the results of a gridsearch performed over mean weight per Y neuron and competitive weight parameters:
+Here are the results of a gridsearch for Locally Connected networks with 100 filters performed over mean weight per Y neuron and competitive weight parameters:
 
 ![gridsearch results](overview/gridsearch-LC_SNN.png)
 
 and [interactive 3D plot](overview/gridsearch-LC_SNN.html) (download the file and open in your browser)
 
+And the results of a smaller gridsearch for Convolution Networks with 25 filters:
+
+![gridsearch results](overview/gridsearch-C_SNN.png)
+
+and [interactive 3D plot](overview/gridsearch-C_SNN.html) (download the file and open in your browser)
+
 # Work to do
 
-* Compare to a network with a convolution layer. Right now I'm doing a gridsearch for them.
+* Compare to a network with a Convolution Network with 100 filters - calculations in progress
 * Compare to a network with trainable competition weights. Right now I'm searching for good training parameters.
 
 # Usage
