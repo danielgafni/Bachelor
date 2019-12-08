@@ -135,11 +135,14 @@ class AbstractSNN:
         cnt = 0
         if plot:
             fig_weights_XY = self.plot_weights_XY()
-            fig_weights_YY = self.plot_weights_YY()
             fig_spikes = self.plot_spikes()
             fig_weights_XY.show()
-            fig_weights_YY.show()
             fig_spikes.show()
+            if self.c_l:
+                fig_weights_YY = self.plot_weights_YY()
+                fig_weights_YY.show()
+                _, fig_comp_hist = self.competition_distribution()
+                fig_comp_hist.show()
 
         t_start = t()
         for smth, batch in tqdm_train(list(zip(range(n_iter), train_dataloader))):
@@ -161,11 +164,14 @@ class AbstractSNN:
                 if (t_now - t_start) / vis_interval > cnt:
                     display.clear_output(wait=True)
                     fig_weights_XY = self.plot_weights_XY()
-                    fig_weights_YY = self.plot_weights_YY()
                     fig_spikes = self.plot_spikes()
                     fig_weights_XY.show()
-                    fig_weights_YY.show()
                     fig_spikes.show()
+                    if self.c_l:
+                        fig_weights_YY = self.plot_weights_YY()
+                        fig_weights_YY.show()
+                        _, fig_comp_hist = self.competition_distribution()
+                        fig_comp_hist.show()
                     cnt += 1
 
         self.network.reset_()
@@ -337,7 +343,7 @@ class AbstractSNN:
                                                 xref='paper'),
                                             margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                             xaxis=go.layout.XAxis(
-                                                title_text='Class',
+                                                title_text='Top class',
                                                 tickmode='array',
                                                 tickvals=list(range(10)),
                                                 ticktext=list(range(1, 11)),
@@ -395,7 +401,7 @@ class AbstractSNN:
 
         scores = np.array(scores)
         error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
-        print(f'Accuracy: {scores.mean()} with std {round(error, 2)}')
+        print(f'Accuracy: {scores.mean()} with std {round(error, 3)}')
 
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
@@ -1045,13 +1051,15 @@ class LC_SNN(AbstractSNN):
             raise ValueError('top_n can\'t be zero')
         if top_n is None:
             top_n = 10
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
         w = self.network.connections[('X', 'Y')].w
         k1, k2 = self.kernel_size, self.kernel_size
         c1, c2 = self.conv_size, self.conv_size
-        i1, i2 = self.n_input, self.n_input
         c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        fs = int(math.ceil(math.sqrt(self.n_filters)))
-        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
         locations = self.network.connections[('X', 'Y')].locations
         best_patches_max = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
                                                                             self.conv_size**2).max(0)
@@ -1060,8 +1068,6 @@ class LC_SNN(AbstractSNN):
         best_patches_values = best_patches_max.values
         self.best_spikes = best_patches_values
         best_neurons = []
-        fig = make_subplots(
-            rows=self.conv_size, cols=self.conv_size)
         votes = torch.zeros(10, self.conv_size**2)
         sum_spikes = torch.zeros(self.conv_size**2)
         for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
@@ -1069,7 +1075,7 @@ class LC_SNN(AbstractSNN):
             filter_ = w[
                 locations[:, patch_number], neuron_num
             ].view(k1, k2)
-            vote = self.votes[
+            vote = top_n_votes[
                    :, neuron_num
                    ]
             votes[:, patch_number] = vote
@@ -1077,7 +1083,9 @@ class LC_SNN(AbstractSNN):
                                                                                         self.conv_size**2)[filter_number, patch_number]
             best_neurons.append(filter_)
         res = votes @ sum_spikes
-        return res.argsort(descending=True)
+        res = res.argsort(descending=True)
+        self.label = res[0]
+        return res
 
     def plot_best_voters(self):
         w = self.network.connections[('X', 'Y')].w
@@ -1253,7 +1261,9 @@ class C_SNN(AbstractSNN):
         res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
         if res.sum(0).item() == 0:
             return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        return res.argsort(descending=True)
+        res = res.argsort(descending=True)
+        self.label = res[0]
+        return res
 
     def get_weights_XY(self):
         weights = self.network.connections[('X', 'Y')].w
