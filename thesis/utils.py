@@ -34,7 +34,7 @@ def view_database():
     return database
 
 
-def plot_database(n_filters=None, network_type='LC_SNN'):
+def plot_database(n_filters=None, network_type='LC_SNN', c_l=None):
     data = view_database()
     data = data[data['type'] == network_type]
     if n_filters is None:
@@ -44,6 +44,9 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
         data = data[data['n_filters'] == n_filters]
         color = data['n_iter']
         colorname = 'n_iter'
+        
+    if c_l is not None:
+        data = data[data['c_l' == c_l]]
 
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
