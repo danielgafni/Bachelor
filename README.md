@@ -48,7 +48,7 @@ And the results of gridsearch for 25 filters Convolution Networks:
 
 and [interactive 3D plot](overview/gridsearch-C_SNN.html)
 
-As the figures above show, Locally Connected networks show around 14% better accuracy than Convolution Networks with the same number of filters. 
+As the figures above show, Locally Connected networks can achieve around 14% better accuracy than Convolution Networks with the same number of filters. 
 
 # Work to do
 
