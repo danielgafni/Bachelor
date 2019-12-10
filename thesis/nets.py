@@ -354,6 +354,10 @@ class AbstractSNN:
                                                 zeroline=False
                                                 )
                                             )
+        votes_distibution_fig.update_layout(title_font_size=17,
+                                            xaxis_title_font_size=16, xaxis_tickfont_size=15,
+                                            yaxis_title_font_size=16, yaxis_tickfont_size=15
+                                            )
         return votes_distibution_fig
 
     def calculate_accuracy(self, n_iter=1000, top_n=None):

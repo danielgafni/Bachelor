@@ -36,15 +36,22 @@ Here are the results of a gridsearch for Locally Connected networks with 100 fil
 
 and [interactive 3D plot](overview/gridsearch-LC_SNN.html) (download the file and open in your browser)
 
-And the results of a smaller gridsearch for Convolution Networks with 25 filters:
+The results for 25 filters (Locally Connected network):
+
+![gridsearch results 25](overview/gridsearch-LC_SNN-25.png)
+
+and [interactive 3D plot](overview/gridsearch-LC_SNN-25.html) 
+
+And the results of gridsearch for 25 filters Convolution Networks:
 
 ![gridsearch results](overview/gridsearch-C_SNN.png)
 
-and [interactive 3D plot](overview/gridsearch-C_SNN.html) (download the file and open in your browser)
+and [interactive 3D plot](overview/gridsearch-C_SNN.html)
+
+As the figures above show, Locally Connected networks show around 14% better accuracy than Convolution Networks with the same number of filters. 
 
 # Work to do
 
-* Compare to a network with a Convolution Network with 100 filters - calculations in progress
 * Compare to a network with trainable competition weights. Right now I'm searching for good training parameters.
 
 # Usage
