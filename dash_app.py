@@ -18,6 +18,7 @@ from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 from flask_caching import Cache
 
+
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
@@ -32,6 +33,7 @@ time_from_start = 0
 speed = 0
 
 weights_XY = go.Figure(go.Heatmap()).update_layout(height=600, width=600)
+competition_hist = go.Figure(go.Histogram()).update_layout(height=600, width=600)
 
 
 class LC_SNN_app(LC_SNN):
@@ -84,6 +86,9 @@ class LC_SNN_app(LC_SNN):
                 if (t_now - t_start) / vis_interval > cnt:
                     global weights_XY
                     weights_XY = self.plot_weights_XY().update_layout(height=600, width=600)
+                    global competition_hist
+                    _, competition_hist = self.competition_distribution()
+                    competition_hist.update_layout(height=600, width=600)
             else:
                 current_iteration = 0
                 time_left = '?'
@@ -162,9 +167,9 @@ app.layout = html.Div(children=[
 
         html.Div(children=[
 
-            html.Div(id='box-norm', children=[
-                html.Label(id='label-norm', children='norm'),
-                dcc.Input(id='parameter-norm', type='number', value='0.45')
+            html.Div(id='box-mean_weight', children=[
+                html.Label(id='label-mean_weight', children='mean_weight'),
+                dcc.Input(id='parameter-mean_weight', type='number', value='0.45')
                 ], style={'rowCount': '2'}, className='four columns'),
 
             html.Div(id='box-c_w', children=[
@@ -175,6 +180,26 @@ app.layout = html.Div(children=[
             html.Div(id='box-n_filters', children=[
                 html.Label(id='label-n_filters', children='Number of filters'),
                 dcc.Input(id='parameter-n_filters', type='number', value='25')
+                ], style={'rowCount': '2'}, className='four columns'),
+
+            html.Div(id='box-c_l', children=[
+                html.Label(id='label-c_l', children='Train competition weights?'),
+                dcc.Dropdown(id='parameter-c_l',
+                             options=[
+                                 {'label': 'No', 'value': 'false'},
+                                 {'label': 'Yes', 'value': 'true'}
+                                 ],
+                             value='false', style={'width': '40%'}),
+                ], style={'rowCount': '2'}, className='four columns'),
+
+            html.Div(id='box-A-', children=[
+                html.Label(id='label-A-', children='A-'),
+                dcc.Input(id='parameter-A-', type='number', value='-0.01')
+                ], style={'rowCount': '2'}, className='four columns'),
+
+            html.Div(id='box-A+', children=[
+                html.Label(id='label-A+', children='A+'),
+                dcc.Input(id='parameter-A+', type='number', value='-0.001')
                 ], style={'rowCount': '2'}, className='four columns'),
 
             html.Div(id='box-create-network', children=[
@@ -208,8 +233,16 @@ app.layout = html.Div(children=[
         style={'display': 'inline-block', 'padding': '5 5 5 5', 'rowCount': 1}
         ),
 
-    html.Div(id='net-input', style={'display': 'none'}, children=r'{"source": "create", "norm": 0.26, "c_w": -100, '
-                                                                 r'"n_filters": 25}'),
+    html.Div(children=[
+        dcc.Graph(id='competition-hist', figure=go.Figure(go.Histogram()).update_layout(width=600, height=600))],
+
+        style={'display': 'inline-block', 'padding': '5 5 5 5', 'rowCount': 1}
+        ),
+
+    html.Div(id='net-input', style={'display': 'none'},
+             children=r'{"source": "create", "mean_weight": 0.26, "c_w": -100, '
+                      r'"n_filters": 25, "c_l": "false",'
+                      r'"nu": null}'),
 
     html.Div(id='stash', style={'display': 'none'}, children=''),
 
@@ -241,22 +274,44 @@ def update_xy(n_clicks, vis_interval):
 
 
 @app.callback(
+    Output('competition-hist', 'figure'),
+    [Input('create-network', 'n_clicks'),
+     Input('refresh-plots', 'n_intervals')]
+    )
+def update_competition_hist(n_clicks, vis_interval):
+    global competition_hist
+    return competition_hist
+
+
+@app.callback(
     Output('net-input', 'children'),
     [Input('load-network', 'n_clicks'),
      Input('create-network', 'n_clicks')],
     [State('network-source', 'value'),
      State('network-name', 'value'),
-     State('parameter-norm', 'value'),
+     State('parameter-mean_weight', 'value'),
      State('parameter-c_w', 'value'),
-     State('parameter-n_filters', 'value')]
+     State('parameter-n_filters', 'value'),
+     State('parameter-c_l', 'value'),
+     State('parameter-A-', 'value'),
+     State('parameter-A+', 'value')]
     )
-def update_net_input(n_clicks_load, n_clicks_create, network_source, name, norm, c_w, n_filters):
+def update_net_input(n_clicks_load, n_clicks_create, network_source, name, mean_weight, c_w, n_filters, c_l,
+                     A_neg, A_pos):
     if network_source == 'create':
+        if c_l == 'true':
+            c_l = True
+            nu = [float(A_neg), float(A_pos)]
+        else:
+            c_l = False
+            nu = None
         input_dict = {
             'source': 'create',
-            'norm': norm,
+            'mean_weight': mean_weight,
             'c_w': c_w,
-            'n_filters': n_filters
+            'n_filters': n_filters,
+            'c_l': c_l,
+            'nu': nu
             }
     if network_source == 'load':
         input_dict = {
@@ -271,15 +326,23 @@ def update_net_input(n_clicks_load, n_clicks_create, network_source, name, norm,
 def global_network(input_string):
     global net
     global weights_XY
+    global competition_hist
     input_dict = json.loads(input_string)
     source = input_dict['source']
     if source == 'create':
         print('Creating network...')
-        norm = float(input_dict['norm'])
+        mean_weight = float(input_dict['mean_weight'])
         c_w = float(input_dict['c_w'])
         n_filters = int(input_dict['n_filters'])
-        net = LC_SNN_app(norm=norm, c_w=c_w, n_filters=n_filters)
+        c_l = input_dict['c_l']
+        if input_dict['nu'] is not None:
+            nu = list(map(float, input_dict['nu']))
+        else:
+            nu = None
+        net = LC_SNN_app(mean_weight=mean_weight, c_w=c_w, n_filters=n_filters, c_l=c_l, nu=nu)
         weights_XY = net.plot_weights_XY().update_layout(height=600, width=600)
+        _, competition_hist = net.competition_distribution()
+        competition_hist.update_layout(height=600, width=600)
         return net
 
     if source == 'load':
@@ -300,7 +363,10 @@ def global_network(input_string):
 def update_network_string(n_clicks_load, n_clicks_create, input_string):
     net = global_network(input_string=input_string)
     global weights_XY
+    global competition_hist
     weights_XY = net.plot_weights_XY().update_layout(height=600, width=600)
+    _, competition_hist = net.competition_distribution()
+    competition_hist.update_layout(height=600, width=600)
     return [str(net)]
 
 
