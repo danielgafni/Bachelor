@@ -209,20 +209,14 @@ def sync_database():
     crs = conn.cursor()
     for name in os.listdir('networks'):
         if '.' not in name:
-            crs.execute('SELECT id FROM networks WHERE id = ?', (name,))
-            result = crs.fetchone()
-
-            if not result:
-                with open(f'networks//{name}//parameters.json', 'r') as file:
-                    parameters = json.load(file)
-                accuracy = torch.load(f'networks//{name}//accuracy')
-                n_iter = parameters['n_iter']
-                network_type = parameters['type']
-                conn = connect(r'networks/networks.db')
-                crs = conn.cursor()
-                crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (name, accuracy, n_iter, network_type))
-                conn.commit()
-                conn.close()
+            with open(f'networks//{name}//parameters.json', 'r') as file:
+                parameters = json.load(file)
+            accuracy = torch.load(f'networks//{name}//accuracy')
+            n_iter = parameters['n_iter']
+            network_type = parameters['type']
+            crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (name, accuracy, n_iter, network_type))
+            conn.commit()
+    conn.close()
 
     conn = connect(r'networks/networks.db')
     crs = conn.cursor()
