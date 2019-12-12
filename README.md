@@ -114,6 +114,8 @@ Prediction: 5
 
 ![Input image](overview/input_image.png)
 
+![Best voters](overview/best_voters.png)
+
 ## Training a new network
 
 Run with desired parameters:
