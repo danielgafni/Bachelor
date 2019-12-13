@@ -214,6 +214,10 @@ def sync_database():
             accuracy = torch.load(f'networks//{name}//accuracy')
             n_iter = parameters['n_iter']
             network_type = parameters['type']
+            crs.execute('SELECT id FROM networks')
+            names = [line[0] for line in crs.fetchall()]
+            if name in names:
+                crs.execute('DELETE FROM networks WHERE id = (?)', (name, ))
             crs.execute('INSERT INTO networks VALUES (?, ?, ?, ?)', (name, accuracy, n_iter, network_type))
             conn.commit()
     conn.close()
