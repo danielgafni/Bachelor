@@ -959,7 +959,6 @@ class LC_SNN(AbstractSNN):
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        per_class = int((self.n_filters * conv_size * conv_size) / 10)
         tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
@@ -1292,6 +1291,254 @@ class C_SNN(AbstractSNN):
         return weights_YY
 
 
+class FC_SNN(AbstractSNN):
+    def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
+                n_filters=25, intensity=127.5,
+                 c_l=False, nu=None, immutable_name=False, foldername=None):
+
+        super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
+                         n_filters=n_filters, intensity=intensity,
+                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
+                         type_='FC_SNN')
+
+    def create_network(self):
+        self.kernel_size = self.crop
+        conv_size = 1
+
+        # Hyperparameters
+        tc_trace = 20.  # grid search check
+        tc_decay = 20.
+        thresh = -52
+        refrac = 2
+        self.wmin = 0
+        self.wmax = 1
+
+        # Network
+        self.network = Network(learning=True)
+        self.GlobalMonitor = NetworkMonitor(self.network, state_vars=('v', 's', 'w'))
+        self.n_input = self.crop ** 2
+        self.input_layer = Input(n=self.n_input, shape=(1, self.crop, self.crop), traces=True,
+                                 refrac=refrac)
+        self.n_output = self.n_filters
+        self.output_shape = int(np.sqrt(self.n_output))
+        self.output_layer = AdaptiveLIFNodes(
+            n=self.n_output,
+            shape=(self.n_output,),
+            traces=True,
+            thres=thresh,
+            trace_tc=tc_trace,
+            tc_decay=tc_decay,
+            theta_plus=0.05,
+            tc_theta_decay=1e6)
+
+        self.kernel_prod = self.kernel_size ** 2
+
+        self.norm = self.mean_weight * self.kernel_prod
+
+        self.connection_XY = LocalConnection(
+            self.input_layer,
+            self.output_layer,
+            n_filters=self.n_filters,
+            kernel_size=self.kernel_size,
+            stride=self.stride,
+            update_rule=PostPre,
+            norm=self.norm,  # 1/(kernel_size ** 2),#0.4 * self.kernel_size ** 2,  # norm constant - check
+            nu=[1e-4, 1e-2],
+            wmin=self.wmin,
+            wmax=self.wmax)
+
+        # competitive connections
+        w = torch.zeros(self.n_filters, self.n_filters)
+        for fltr1 in range(self.n_filters):
+            for fltr2 in range(self.n_filters):
+                if fltr1 != fltr2:
+                    w[fltr1, fltr2] = self.c_w
+
+        # size = self.n_filters * conv_size ** 2
+        # sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
+        #                                     (size, size))
+
+        if not self.c_l:
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
+        else:
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+                                            update_rule=PostPre,
+                                            nu=self.nu,
+                                            wmin=self.c_w * 1.2,
+                                            wmax=0)
+
+        self.network.add_layer(self.input_layer, name='X')
+        self.network.add_layer(self.output_layer, name='Y')
+        self.network.add_connection(self.connection_XY, source='X', target='Y')
+        self.network.add_connection(self.connection_YY, source='Y', target='Y')
+        self.network.add_monitor(self.GlobalMonitor, name='Network')
+
+        self.spikes = {}
+        for layer in set(self.network.layers):
+            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=['s'], time=self.time_max)
+            self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
+
+        self._spikes = {
+            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
+            }
+
+        self.voltages = {}
+        for layer in set(self.network.layers) - {'X'}:
+            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=['v'], time=self.time_max)
+            self.network.add_monitor(self.voltages[layer], name='%s_voltages' % layer)
+
+        self.stride = self.stride
+        self.conv_size = 1
+        self.conv_prod = int(np.prod(conv_size))
+
+        self.weights_XY = self.get_weights_XY()
+
+    def class_from_spikes(self, top_n=None):
+        if top_n == 0:
+            raise ValueError('top_n can\'t be zero')
+        if top_n is None:
+            top_n = 10
+        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        top_n_votes = torch.zeros(self.votes.shape)
+        for i, top_i in enumerate(args):
+            for j, label in enumerate(top_i):
+                top_n_votes[label, j] = self.votes[label, j]
+        w = self.network.connections[('X', 'Y')].w
+        k1, k2 = self.kernel_size, self.kernel_size
+        c1, c2 = self.conv_size, self.conv_size
+        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+        locations = self.network.connections[('X', 'Y')].locations
+        best_patches_max = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                            self.conv_size**2).max(0)
+        best_patches = best_patches_max.indices
+        self.best_voters = best_patches
+        best_patches_values = best_patches_max.values
+        self.best_spikes = best_patches_values
+        best_neurons = []
+        votes = torch.zeros(10, self.conv_size**2)
+        sum_spikes = torch.zeros(self.conv_size**2)
+        for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
+            neuron_num = filter_number * self.conv_size**2 + (patch_number // c2sqrt) * c2sqrt + (patch_number % c2sqrt)
+            filter_ = w[
+                locations[:, patch_number], neuron_num
+            ].view(k1, k2)
+            vote = top_n_votes[
+                   :, neuron_num
+                   ]
+            votes[:, patch_number] = vote
+            sum_spikes[patch_number] = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                                        self.conv_size**2)[filter_number, patch_number]
+            best_neurons.append(filter_)
+        res = votes @ sum_spikes
+        res = res.argsort(descending=True)
+        self.label = res[0]
+        return res
+
+    def plot_best_voters(self):
+        w = self.network.connections[('X', 'Y')].w
+        k1, k2 = self.kernel_size, self.kernel_size
+        c1, c2 = self.conv_size, self.conv_size
+        i1, i2 = self.n_input, self.n_input
+        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+        fs = int(math.ceil(math.sqrt(self.n_filters)))
+        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
+        locations = self.network.connections[('X', 'Y')].locations
+        best_patches = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
+                                                                        self.conv_size**2).max(0).indices
+        best_neurons = []
+        fig = make_subplots(
+            rows=self.conv_size, cols=self.conv_size)
+        for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
+            filter_ = w[
+                locations[:, patch_number],
+                filter_number * self.conv_size**2 + (patch_number // c2sqrt) * c2sqrt + (patch_number % c2sqrt),
+            ].view(k1, k2)
+            best_neurons.append(filter_)
+            fig.add_trace(go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale='YlOrBr'),
+                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1)
+
+        fig.update_layout(height=600, width=600,
+                          title=go.layout.Title(
+                              text='Best Voters',
+                              xref='paper',
+                              x=0
+                              )
+                          )
+
+        return fig
+
+    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
+        super().feed_class(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
+        if plot:
+            fig = self.plot_best_voters()
+            fig.show()
+
+
+    def get_weights_XY(self):
+        weights = self.network.connections[('X', 'Y')].w.view(self.crop, self.crop, self.n_filters)
+        height = int(weights.size(0))
+        width = int(weights.size(1))
+        reshaped = torch.zeros(0, width * self.output_shape)
+        m = 0
+        for i in range(self.output_shape):
+            row = torch.zeros(height, 0)
+            for j in range(self.output_shape):
+                if m < weights.size(-1):
+                    row = torch.cat((row, weights[:, :, m]), dim=1)
+                    m += 1
+            reshaped = torch.cat((reshaped, row))
+
+        return reshaped
+
+    def get_weights_YY(self):
+        shape_YY = self.network.connections[('Y', 'Y')].w.shape
+        weights_YY = self.network.connections[('Y', 'Y')].w.view(int(np.sqrt(np.prod(shape_YY))),
+                                                                 int(np.sqrt(np.prod(shape_YY))))
+        return weights_YY
+
+    def competition_distribution(self):
+        w = self.network.connections[('Y', 'Y')].w
+        w_comp = []
+        for fltr1 in range(w.size(0)):
+            for fltr2 in range(w.size(1)):
+                if fltr1 != fltr2:
+                    w_comp.append(w[fltr1, fltr2])
+        w_comp = torch.tensor(w_comp)
+        fig = go.Figure(go.Histogram(x=w_comp))
+        fig.update_layout(width=800, height=500,
+                          title=go.layout.Title(
+                              text='Competition weights histogram',
+                              xref='paper'),
+                          margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+                          xaxis=go.layout.XAxis(
+                              title_text='Weight',
+                              ),
+                          yaxis=go.layout.YAxis(
+                              title_text='Quantity',
+                              zeroline=False,
+                              ))
+
+        return w_comp, fig
+
+    @property
+    def parameters(self):
+        parameters = {
+            'type': self.type,
+            'mean_weight': self.mean_weight,
+            'n_iter': self.n_iter,
+            'c_w': self.c_w,
+            'time_max': self.time_max,
+            'crop': self.crop,
+            'n_filters': self.n_filters,
+            'intensity': self.intensity,
+            'dt': self.dt,
+            'c_l': self.c_l,
+            'nu': self.nu
+            }
+        return parameters
+
+
 def plot_image(image):
     width = 400
     height = int(width * image.shape[0] / image.shape[1])
@@ -1308,4 +1555,9 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: research in competition training
+# TODO: baseline kernel_size=20
+# TODO: gridsearch C_SNN kernel_size=8
+# TODO: gridsearch LC_SNN kernel_size=8
+# TODO: gridsearch C_SNN kernel_size=6, stride=2
+# TODO: train first XY, then YY
+# TODO: different pre and post times
