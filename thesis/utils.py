@@ -34,17 +34,20 @@ def view_database():
     return database
 
 
-def plot_database(n_filters=None, network_type='LC_SNN'):
+def plot_database(n_filters=None, network_type='LC_SNN', kernel_size=12):
     data = view_database()
     data = data[data['type'] == network_type]
     data = data[data['c_l'] == False]
+    data = data[data['kernel_size'] == kernel_size]
     if n_filters is None:
         color = data['n_filters']
         colorname = 'n_filters'
+        figname = f'{network_type} networks with kernel size {kernel_size}'
     else:
         data = data[data['n_filters'] == n_filters]
         color = data['n_iter']
         colorname = 'n_iter'
+        figname = f'{network_type} networks with {n_filters} filters and kernel size {kernel_size}'
 
 
 
@@ -61,28 +64,32 @@ def plot_database(n_filters=None, network_type='LC_SNN'):
             colorscale='Viridis'
             )),
 
-                    ).update_layout(height=1000, width=1000,
-                                    margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
-                                    scene = dict(
-                                        xaxis=dict(
-                                            backgroundcolor='rgb(200,200, 230)',
-                                            gridcolor='white',
-                                            showbackground=True,
-                                            title_text='c_w'
-                                            ),
-                                        yaxis=dict(
-                                            backgroundcolor='rgb(230,200,230)',
-                                            gridcolor='white',
-                                            showbackground=True,
-                                            title_text='mean_weight'
-                                            ),
-                                        zaxis=dict(
-                                            backgroundcolor='rgb(230,230,200)',
-                                            gridcolor='white',
-                                            showbackground=True,
-                                            title_text='accuracy'
-                                            )
-                                        ))
+                    ).update_layout(
+        title=go.layout.Title(
+            text=figname,
+            xref='paper'),
+        height=1000, width=1000,
+        margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
+        scene=dict(
+            xaxis=dict(
+                backgroundcolor='rgb(200,200, 230)',
+                gridcolor='white',
+                showbackground=True,
+                title_text='c_w'
+                ),
+            yaxis=dict(
+                backgroundcolor='rgb(230,200,230)',
+                gridcolor='white',
+                showbackground=True,
+                title_text='mean_weight'
+                ),
+            zaxis=dict(
+                backgroundcolor='rgb(230,230,200)',
+                gridcolor='white',
+                showbackground=True,
+                title_text='accuracy'
+                )
+            ))
 
     return fig
 
