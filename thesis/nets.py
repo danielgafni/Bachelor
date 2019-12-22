@@ -1153,14 +1153,13 @@ class C_SNN(AbstractSNN):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu,immutable_name=immutable_name, foldername=foldername,
+                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
                          type_='C_SNN')
 
     def create_network(self):
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        per_class = int((self.n_filters * conv_size * conv_size) / 10)
         tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
@@ -1561,3 +1560,4 @@ def plot_image(image):
 # TODO: gridsearch C_SNN kernel_size=6, stride=2
 # TODO: train first XY, then YY
 # TODO: different pre and post times
+# TODO: accuracy calculation during calibration
