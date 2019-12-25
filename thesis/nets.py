@@ -1554,10 +1554,11 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: baseline kernel_size=20
-# TODO: gridsearch C_SNN kernel_size=8
-# TODO: gridsearch LC_SNN kernel_size=8
-# TODO: gridsearch C_SNN kernel_size=6, stride=2
-# TODO: train first XY, then YY
-# TODO: different pre and post times
-# TODO: accuracy calculation during calibration
+# TODO: gridsearch C_SNN kernel_size=8, n_filters=25       1
+# TODO: baseline kernel_size=20                            3/2
+# TODO: gridsearch LC_SNN kernel_size=8, n_filters=100     2/3
+# TODO: different pre and post times                       4
+# TODO: train first XY, then YY                            5
+# TODO: accuracy/n_train curve                             6
+# TODO: gridsearch C_SNN kernel_size=6, stride=2           0
+# TODO: plot voltages
