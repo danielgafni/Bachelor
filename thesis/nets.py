@@ -140,7 +140,7 @@ class AbstractSNN:
         cnt = 0
         if plot:
             fig_weights_XY = self.plot_weights_XY()
-            fig_spikes = self.plot_spikes()
+            fig_spikes = self.plot_spikes_Y()
             fig_weights_XY.show()
             fig_spikes.show()
             if self.c_l:
@@ -169,7 +169,7 @@ class AbstractSNN:
                 if (t_now - t_start) / vis_interval > cnt:
                     display.clear_output(wait=True)
                     fig_weights_XY = self.plot_weights_XY()
-                    fig_spikes = self.plot_spikes()
+                    fig_spikes = self.plot_spikes_Y()
                     fig_weights_XY.show()
                     fig_spikes.show()
                     if self.c_l:
@@ -722,10 +722,10 @@ class AbstractSNN:
         return fig_weights_YY
 
     def plot_spikes_Y(self):
-        spikes = self._spikes['Y'].transpose(0, 1)
-        width = 800
-        height = int(width * spikes.shape[0] / spikes.shape[1])
-        fig_spikes = go.Figure(data=go.Heatmap(z=spikes.numpy().astype(int), colorscale='YlOrBr'))
+        width = 1000
+        height = 800
+        active_neuron_spikes = self._spikes['Y'][:, self._spikes['Y'].sum(0).nonzero().squeeze(1)].t()
+        fig_spikes = go.Figure(data=go.Heatmap(z=active_neuron_spikes.numpy().astype(int), colorscale='YlOrBr'))
         fig_spikes.update_layout(width=width, height=height,
                                  title=go.layout.Title(
                                      text='Y spikes',
@@ -735,7 +735,11 @@ class AbstractSNN:
                                      title_text='Time'
                                      ),
                                  yaxis=go.layout.YAxis(
-                                     title_text='Neuron Index'
+                                     title_text='Neuron Index',
+                                     tickmode='array',
+                                     tickvals=list(range(self._spikes['Y'].sum(0).nonzero().squeeze(1).shape[0])),
+                                     ticktext=self._spikes['Y'].sum(0).nonzero().squeeze(1).numpy(),
+                                     zeroline=False
                                      )
                                  )
         return fig_spikes
@@ -795,7 +799,7 @@ class AbstractSNN:
         if to_print:
             print(f'Prediction: {prediction[0:k]}')
         if plot:
-            self.plot_spikes().show()
+            self.plot_spikes_Y().show()
             plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
         return prediction[0:k]
@@ -833,7 +837,7 @@ class AbstractSNN:
         if to_print:
             print(f'Prediction: {prediction[0]}')
         if plot:
-            self.plot_spikes().show()
+            self.plot_spikes_Y().show()
             plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
 
         return prediction[0]
@@ -879,7 +883,7 @@ class AbstractSNN:
         if to_print:
             print(f'Prediction: {prediction[0:k]}')
         if plot:
-            self.plot_spikes().show()
+            self.plot_spikes_Y().show()
             plot_image(np.flipud(image.squeeze().numpy())).show()
 
         return prediction[0:k]
