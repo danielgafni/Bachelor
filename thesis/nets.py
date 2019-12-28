@@ -1502,7 +1502,7 @@ class FC_SNN(AbstractSNN):
                     m += 1
             reshaped = torch.cat((reshaped, row))
 
-        return reshaped
+        return reshaped.flip(0)
 
     def get_weights_YY(self):
         shape_YY = self.network.connections[('Y', 'Y')].w.shape
