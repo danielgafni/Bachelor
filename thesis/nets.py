@@ -959,7 +959,8 @@ class LC_SNN(AbstractSNN):
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        tc_trace = 20.  # grid search check
+        tc_trace_pre = 8.
+        tc_trace_post = 20.
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -979,7 +980,8 @@ class LC_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            trace_tc=tc_trace,
+            trace_tc_pre=tc_trace_pre,
+            trace_tc_post=tc_trace_post,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
@@ -1554,11 +1556,9 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: gridsearch C_SNN kernel_size=8, n_filters=25       1
-# TODO: baseline kernel_size=20                            3/2
-# TODO: gridsearch LC_SNN kernel_size=8, n_filters=100     2/3
-# TODO: different pre and post times                       4
-# TODO: train first XY, then YY                            5
-# TODO: accuracy/n_train curve                             6
-# TODO: gridsearch C_SNN kernel_size=6, stride=2           0
+# TODO: baseline kernel_size=20                            1
+# TODO: gridsearch LC_SNN kernel_size=8, n_filters=100     2
+# TODO: different pre and post times                       3
+# TODO: train first XY, then YY                            4
+# TODO: accuracy/n_train curve                             5
 # TODO: plot voltages

@@ -34,20 +34,21 @@ def view_database():
     return database
 
 
-def plot_database(n_filters=None, network_type='LC_SNN', kernel_size=12):
+def plot_database(n_filters=None, network_type='LC_SNN', kernel_size=12, stride=4, c_l=False):
     data = view_database()
     data = data[data['type'] == network_type]
-    data = data[data['c_l'] == False]
+    data = data[data['c_l'] == c_l]
     data = data[data['kernel_size'] == kernel_size]
+    data = data[data['stride'] == stride]
     if n_filters is None:
         color = data['n_filters']
         colorname = 'n_filters'
-        figname = f'{network_type} networks with kernel size {kernel_size}'
+        figname = f'{network_type} networks with kernel size {kernel_size}, stride {stride} and n_filters {n_filters}'
     else:
         data = data[data['n_filters'] == n_filters]
         color = data['n_iter']
         colorname = 'n_iter'
-        figname = f'{network_type} networks with {n_filters} filters and kernel size {kernel_size}'
+        figname = f'{network_type} networks with {n_filters} filters and kernel size {kernel_size} and stride {stride}'
 
 
 
