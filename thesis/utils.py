@@ -1,4 +1,4 @@
-from .nets import LC_SNN, C_SNN
+from .nets import LC_SNN, C_SNN, FC_SNN
 import os
 import torch
 import json
@@ -105,11 +105,13 @@ def load_network(name):
             n_iter = parameters['n_iter']
             time_max = parameters['time_max']
             crop = parameters['crop']
-            kernel_size = parameters['kernel_size']
+            if 'kernel_size' in parameters.keys():
+                kernel_size = parameters['kernel_size']
             n_filters = parameters['n_filters']
-            stride = parameters['stride']
+            if 'stride' in parameters.keys():
+                stride = parameters['stride']
             intensity = parameters['intensity']
-            type = parameters['type']
+            network_type = parameters['type']
             c_l = False
             if 'c_l' in parameters.keys():
                 c_l = parameters['c_l']
@@ -123,7 +125,7 @@ def load_network(name):
     votes = None
     conf_matrix = None
 
-    if type == 'LC_SNN':
+    if network_type == 'LC_SNN':
         net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                      c_l=c_l, nu=nu, immutable_name=True, foldername=name)
@@ -151,7 +153,7 @@ def load_network(name):
 
         net.network.train(False)
 
-    if type == 'C_SNN':
+    elif network_type == 'C_SNN':
         net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                     immutable_name=True, foldername=name)
@@ -185,6 +187,45 @@ def load_network(name):
             }
 
         net.network.train(False)
+
+    elif network_type == 'FC_SNN':
+        net = FC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
+                     n_filters=n_filters, intensity=intensity,
+                     immutable_name=True, foldername=name)
+
+        net.n_iter = n_iter
+        if os.path.exists(path + '//votes'):
+            votes = torch.load(path + '//votes')
+            net.calibrated = True
+
+        if os.path.exists(path + '//accuracy'):
+            accuracy = torch.load(path + '//accuracy')
+
+        if os.path.exists(path + '//confusion_matrix'):
+            conf_matrix = torch.load(path + '//confusion_matrix')
+
+        network = torch.load(path + '//network')
+
+        net.network = network
+        net.votes = votes
+        net.accuracy = accuracy
+        net.conf_matrix = conf_matrix
+
+        net.spikes = {}
+        for layer in set(net.network.layers):
+            net.spikes[layer] = Monitor(net.network.layers[layer], state_vars=["s"], time=net.time_max)
+            net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
+
+        net._spikes = {
+            "X": net.spikes["X"].get("s").view(net.time_max, -1),
+            "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
+            }
+
+        net.network.train(False)
+
+    else:
+        print('This network type is not implemented for loading yet')
+        raise NotImplementedError
 
     return net
 

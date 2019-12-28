@@ -335,7 +335,9 @@ class AbstractSNN:
         self.accuracy = score
 
     def votes_distribution(self):
-        votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(axis=1).numpy(),
+        votes_distibution_fig = go.Figure(go.Scatter(y=self.votes.sort(0, descending=True)[0].mean(1).numpy(),
+                                                     error_y=dict(array=self.votes.sort(0, descending=True)[0].std(1),
+                                                                  width=5, color='purple', visible=True),
                                                      mode='markers', marker_size=15))
         votes_distibution_fig.update_layout(width=800, height=400,
                                             title=go.layout.Title(
