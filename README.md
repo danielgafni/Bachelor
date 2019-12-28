@@ -62,9 +62,13 @@ To reproduce my results download this repository and install all required packag
 pip install -r requirements.txt
 ```
 
-Install [bindsnet](https://github.com/Hananel-Hazan/bindsnet) and replace its directory with the one I provide. It contains important bugfixes.
+Install PyTorch with Anaconda with the command from the [official website](https://pytorch.org/).
 
 All my code is located in the **thesis** directory.
+
+The **bindsnet** directory contains modified and corrected [bindsnet](https://github.com/Hananel-Hazan/bindsnet) package.
+
+Pre-trained networks are located in the **networks** directory. Choose branch **no-networks** if you don't want them (~800 MB folder).
 
 Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
