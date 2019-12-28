@@ -116,7 +116,7 @@ Prediction: 5
 
 ![Spikes](overview/spikes.png)
 
-![Input image](overview/input_image.png)
+![Input image 5](overview/input_image_5.png)
 
 ![Best voters](overview/best_voters.png)
 
