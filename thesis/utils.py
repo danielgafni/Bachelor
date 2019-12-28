@@ -118,6 +118,9 @@ def load_network(name):
             nu = None
             if 'nu' in parameters.keys():
                 nu = parameters['nu']
+            t_pre = parameters['t_pre']
+            t_post = parameters['t_post']
+
     except FileNotFoundError:
         raise FileNotFoundError
 
@@ -128,7 +131,8 @@ def load_network(name):
     if network_type == 'LC_SNN':
         net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                     c_l=c_l, nu=nu, immutable_name=True, foldername=name)
+                     c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
+                     immutable_name=True, foldername=name)
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
@@ -278,3 +282,10 @@ def sync_database():
     for name in result:
         if not os.path.exists(f'networks//{name}'):
             crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))
+
+
+def sync_parameters():
+    for name in os.listdir('networks'):
+        if '.' not in name:
+            net = load_network(name)
+            net.save()

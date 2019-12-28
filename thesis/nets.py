@@ -55,12 +55,10 @@ else:
 class AbstractSNN:
     def __init__(self, mean_weight=0.26, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
-                 c_l=False, nu=None,
+                 c_l=False, nu=None, t_pre=8., t_post=20.,
                  type_='Abstract SNN', immutable_name=False, foldername=None):
         self.n_iter_counter = 0
-        if nu is None and c_l:
-            nu = [-1, -0.1]
-        self.nu = nu
+
         self.type = type_
         self.mean_weight = mean_weight
         self.c_w = c_w
@@ -76,6 +74,11 @@ class AbstractSNN:
         self.intensity = intensity
         self.dt = dt
         self.c_l = c_l
+        if nu is None and c_l:
+            nu = [-1, -0.1]
+        self.nu = nu
+        self.t_pre = t_pre
+        self.t_post = t_post
         self.immutable_name = immutable_name
         self.foldername = foldername
 
@@ -99,7 +102,9 @@ class AbstractSNN:
             'intensity': self.intensity,
             'dt': self.dt,
             'c_l': self.c_l,
-            'nu': self.nu
+            'nu': self.nu,
+            't_pre': self.t_pre,
+            't_post': self.t_post
             }
         return parameters
 
@@ -949,20 +954,19 @@ class AbstractSNN:
 class LC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
+                 t_pre=8., t_post=20.,
                  c_l=False, nu=None, immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
+                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
+                         immutable_name=immutable_name, foldername=foldername,
                          type_='LC_SNN')
 
     def create_network(self):
-
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        tc_trace_pre = 8.
-        tc_trace_post = 20.
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -982,8 +986,8 @@ class LC_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            trace_tc_pre=tc_trace_pre,
-            trace_tc_post=tc_trace_post,
+            trace_tc_pre=self.t_pre,
+            trace_tc_post=self.t_post,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
@@ -1153,18 +1157,19 @@ class LC_SNN(AbstractSNN):
 class C_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False, nu=None, immutable_name=False, foldername=None):
+                 c_l=False, nu=None, t_pre=9., t_post=20.,
+                 immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
+                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
+                         immutable_name=immutable_name, foldername=foldername,
                          type_='C_SNN')
 
     def create_network(self):
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
-        tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -1183,7 +1188,8 @@ class C_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            trace_tc=tc_trace,
+            trace_tc_pre=self.t_pre,
+            tc_trace_post=self.t_post,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
@@ -1296,11 +1302,11 @@ class C_SNN(AbstractSNN):
 
 class FC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
-                n_filters=25, intensity=127.5,
+                n_filters=25, intensity=127.5, t_pre=8., t_post=20.,
                  c_l=False, nu=None, immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
-                         n_filters=n_filters, intensity=intensity,
+                         n_filters=n_filters, intensity=intensity, t_pre=t_pre, t_post=t_post,
                          c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
                          type_='FC_SNN')
 
@@ -1309,7 +1315,6 @@ class FC_SNN(AbstractSNN):
         conv_size = 1
 
         # Hyperparameters
-        tc_trace = 20.  # grid search check
         tc_decay = 20.
         thresh = -52
         refrac = 2
@@ -1329,7 +1334,8 @@ class FC_SNN(AbstractSNN):
             shape=(self.n_output,),
             traces=True,
             thres=thresh,
-            trace_tc=tc_trace,
+            tc_trace_pre=self.t_pre,
+            tc_trace_post=self.t_post,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6)
@@ -1537,7 +1543,9 @@ class FC_SNN(AbstractSNN):
             'intensity': self.intensity,
             'dt': self.dt,
             'c_l': self.c_l,
-            'nu': self.nu
+            'nu': self.nu,
+            't_pre': self.t_pre,
+            't_post': self.t_post
             }
         return parameters
 
