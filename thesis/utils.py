@@ -38,8 +38,11 @@ def plot_database(n_filters=None, network_type='LC_SNN', kernel_size=12, stride=
     data = view_database()
     data = data[data['type'] == network_type]
     data = data[data['c_l'] == c_l]
-    data = data[data['kernel_size'] == kernel_size]
-    data = data[data['stride'] == stride]
+    if network_type != 'FC_SNN':
+        data = data[data['kernel_size'] == kernel_size]
+        data = data[data['stride'] == stride]
+        figname = f'{network_type} networks with {n_filters} n_filters'
+
     if n_filters is None:
         color = data['n_filters']
         colorname = 'n_filters'
