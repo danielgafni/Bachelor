@@ -57,13 +57,13 @@ class AbstractSNN:
     def __init__(self, mean_weight=0.26, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
                  c_l=False, nu=None, t_pre=8., t_post=20.,
-                 type_='Abstract SNN', immutable_name=False, foldername=None):
+                 type_='Abstract SNN', immutable_name=False, foldername=None,
+                 n_iter=0):
         self.n_iter_counter = 0
 
         self.type = type_
         self.mean_weight = mean_weight
         self.c_w = c_w
-        self.n_iter = 0
         self.calibrated = False
         self.accuracy = None
         self.conf_matrix = None
@@ -236,18 +236,18 @@ class AbstractSNN:
         data = {'outputs': outputs, 'labels': labels}
         if not os.path.exists(f'networks//{self.name}'):
             os.makedirs(f'networks//{self.name}')
-        torch.save(data, f'networks//{self.name}//activity_data-{n_iter}')
+        torch.save(data, f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
 
     def calibrate(self, n_iter=None):
         print('Calibrating network...')
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name}//activity_data-{n_iter}'):
+        if not os.path.exists(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}'):
             self.collect_activity(n_iter=n_iter)
 
         print('Calculating votes...')
-        data = torch.load(f'networks//{self.name}//activity_data-{n_iter}')
+        data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
         outputs = data['outputs']
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
@@ -263,10 +263,10 @@ class AbstractSNN:
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name}//activity_data-{n_iter}'):
+        if not os.path.exists(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}'):
             self.collect_activity(n_iter=n_iter)
 
-        data = torch.load(f'networks//{self.name}//activity_data-{n_iter}')
+        data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
         outputs = data['outputs']
         labels = data['labels']
 
@@ -913,14 +913,14 @@ class LC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  t_pre=8., t_post=20.,
-                 c_l=False, nu=None, immutable_name=False, foldername=None):
+                 c_l=False, nu=None, immutable_name=False, foldername=None,
+                 n_iter=0):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
-                         immutable_name=immutable_name, foldername=foldername,
+                         immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
                          type_='LC_SNN')
-
 
     def create_network(self):
         # Hyperparameters
@@ -1116,13 +1116,13 @@ class LC_SNN(AbstractSNN):
 class C_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 c_l=False, nu=None, t_pre=9., t_post=20.,
+                 c_l=False, nu=None, t_pre=9., t_post=20., n_iter=0,
                  immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                          c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
-                         immutable_name=immutable_name, foldername=foldername,
+                         immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
                          type_='C_SNN')
 
     def create_network(self):
@@ -1261,12 +1261,12 @@ class C_SNN(AbstractSNN):
 
 class FC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
-                n_filters=25, intensity=127.5, t_pre=8., t_post=20.,
+                n_filters=25, intensity=127.5, t_pre=8., t_post=20., n_iter=0,
                  c_l=False, nu=None, immutable_name=False, foldername=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          n_filters=n_filters, intensity=intensity, t_pre=t_pre, t_post=t_post,
-                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername,
+                         c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
                          type_='FC_SNN')
 
     def create_network(self):

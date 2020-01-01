@@ -132,8 +132,7 @@ def load_network(name):
         net = LC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
                      c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
-                     immutable_name=True, foldername=name)
-        net.n_iter = n_iter
+                     immutable_name=True, foldername=name, n_iter=n_iter)
         if os.path.exists(path + '//votes'):
             votes = torch.load(path + '//votes')
             net.calibrated = True
@@ -162,7 +161,7 @@ def load_network(name):
     elif network_type == 'C_SNN':
         net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                     kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                    immutable_name=True, foldername=name)
+                    immutable_name=True, foldername=name, n_iter=n_iter)
 
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
@@ -197,7 +196,7 @@ def load_network(name):
     elif network_type == 'FC_SNN':
         net = FC_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                      n_filters=n_filters, intensity=intensity,
-                     immutable_name=True, foldername=name)
+                     immutable_name=True, foldername=name, n_iter=n_iter)
 
         net.n_iter = n_iter
         if os.path.exists(path + '//votes'):
