@@ -142,7 +142,9 @@ def load_network(name):
         if os.path.exists(path + '//confusion_matrix'):
             conf_matrix = torch.load(path + '//confusion_matrix')
         network = torch.load(path + '//network')
-        net.network = network
+        net.network.connections[('X', 'Y')].w = network.connections[('X', 'Y')].w
+        net.network.connections[('Y', 'Y')].w = network.connections[('Y', 'Y')].w
+
         net.votes = votes
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix
@@ -174,8 +176,8 @@ def load_network(name):
             conf_matrix = torch.load(path + '//confusion_matrix')
 
         network = torch.load(path + '//network')
-
-        net.network = network
+        net.network.connections[('X', 'Y')].w = network.connections[('X', 'Y')].w
+        net.network.connections[('Y', 'Y')].w = network.connections[('Y', 'Y')].w
         net.votes = votes
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix
@@ -209,8 +211,8 @@ def load_network(name):
             conf_matrix = torch.load(path + '//confusion_matrix')
 
         network = torch.load(path + '//network')
-
-        net.network = network
+        net.network.connections[('X', 'Y')].w = network.connections[('X', 'Y')].w
+        net.network.connections[('Y', 'Y')].w = network.connections[('Y', 'Y')].w
         net.votes = votes
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix

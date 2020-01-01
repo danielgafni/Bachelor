@@ -30,6 +30,7 @@ from bindsnet.utils import reshape_locally_connected_weights
 
 tqdm_train = tqdm
 
+
 def in_ipynb():
     try:
         cfg = get_ipython().config
@@ -116,6 +117,8 @@ class AbstractSNN:
             return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
     def train(self, n_iter=None, plot=False, vis_interval=30, app=False):
+        if n_iter is None:
+            n_iter = 5000
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -130,9 +133,9 @@ class AbstractSNN:
             )
         train_dataset = encoded_dataset
         train_dataset.data = encoded_dataset.data[:50000, :, :]
+        random_choice = torch.randint(0, train_dataset.data.size(0), (n_iter,))
+        train_dataset.data = train_dataset.data[random_choice]
 
-        if n_iter is None:
-            n_iter = 5000
         self.network.train(True)
         print('Training network...')
         train_dataloader = torch.utils.data.DataLoader(
@@ -150,11 +153,11 @@ class AbstractSNN:
                 fig_comp_hist.show()
 
         t_start = t()
-        for smth, batch in tqdm_train(list(zip(range(n_iter), train_dataloader))):
+        for speed_counter, batch in tqdm_train(enumerate(train_dataloader)):
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
-            speed = (smth + 1) / (t_now - t_start)
-            time_left = str(datetime.timedelta(seconds=int((n_iter - smth) / speed)))
+            speed = (speed_counter + 1) / (t_now - t_start)
+            time_left = str(datetime.timedelta(seconds=int((n_iter - speed_counter) / speed)))
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self.n_iter += 1
@@ -179,7 +182,8 @@ class AbstractSNN:
                         fig_comp_hist.show()
                     cnt += 1
 
-        self.network.reset_()
+            self.network.reset_()
+
         self.network.train(False)
 
     def class_from_spikes(self):
@@ -204,6 +208,10 @@ class AbstractSNN:
 
         calibratation_dataset = encoded_dataset
         calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
+        calibratation_dataset.targets = encoded_dataset.targets[50000:]
+        random_choice = torch.randint(0, calibratation_dataset.data.size(0), (n_iter,))
+        calibratation_dataset.data = calibratation_dataset.data[random_choice]
+        calibratation_dataset.targets = calibratation_dataset.targets[random_choice]
 
         calibration_dataloader = torch.utils.data.DataLoader(
             calibratation_dataset, batch_size=1, shuffle=True)
@@ -213,7 +221,7 @@ class AbstractSNN:
         labels = []
         outputs = []
 
-        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
+        for batch in tqdm(calibration_dataloader, ncols=ncols):
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -222,56 +230,26 @@ class AbstractSNN:
                 }
             outputs.append(self._spikes['Y'].sum(0).numpy())
             labels.append(batch['label'].item())
+
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
-        self.save()
-        torch.save(data, f'networks//{self.name}//activity_data')
+        if not os.path.exists(f'networks//{self.name}'):
+            os.makedirs(f'networks//{self.name}')
+        torch.save(data, f'networks//{self.name}//activity_data-{n_iter}')
 
     def calibrate(self, n_iter=None):
-        encoded_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            './/MNIST',
-            download=False,
-            train=True,
-            transform=transforms.Compose([
-                transforms.CenterCrop(self.crop),
-                transforms.ToTensor(),
-                transforms.Lambda(lambda x: x * self.intensity)
-                ])
-            )
-        calibratation_dataset = encoded_dataset
-        calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
-        calibratation_dataset.targets = encoded_dataset.targets[50000:]
-
-
-        self.network.train(False)
-        self.network.reset_()
-
         print('Calibrating network...')
         if n_iter is None:
             n_iter = 5000
-        labels = []
-        outputs = []
 
-        calibration_dataloader = torch.utils.data.DataLoader(
-            calibratation_dataset, batch_size=1, shuffle=True)
-
-        print('Collecting activity data...')
-
-        for i, batch in tqdm(list(zip(range(n_iter), calibration_dataloader)), ncols=ncols):
-            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
-                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
-                }
-            outputs.append(self._spikes['Y'].sum(0).numpy())
-            labels.append(batch['label'].item())
-            self.network.reset_()
+        if not os.path.exists(f'networks//{self.name}//activity_data-{n_iter}'):
+            self.collect_activity(n_iter=n_iter)
 
         print('Calculating votes...')
+        data = torch.load(f'networks//{self.name}//activity_data-{n_iter}')
+        outputs = data['outputs']
+        labels = data['labels']
         votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
             for i, spike_sum in enumerate(layer):
@@ -285,10 +263,10 @@ class AbstractSNN:
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(f'networks//{self.name}//activity_data'):
+        if not os.path.exists(f'networks//{self.name}//activity_data-{n_iter}'):
             self.collect_activity(n_iter=n_iter)
 
-        data = torch.load(f'networks//{self.name}//activity_data')
+        data = torch.load(f'networks//{self.name}//activity_data-{n_iter}')
         outputs = data['outputs']
         labels = data['labels']
 
@@ -310,6 +288,9 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
+        test_dataset.data = test_dataset.data[random_choice]
+        test_dataset.targets = test_dataset.targets[random_choice]
         print('Calculating accuracy...')
         self.network.reset_()
 
@@ -322,7 +303,7 @@ class AbstractSNN:
         x = []
         y = []
         print('Collecting activity data...')
-        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
+        for batch in tqdm(test_dataloader, ncols=ncols):
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -367,7 +348,9 @@ class AbstractSNN:
                                             )
         return votes_distibution_fig
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None, method=None):
+        if method is None:
+            method == 'patch_voting'
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -380,6 +363,9 @@ class AbstractSNN:
                 transforms.Lambda(lambda x: x * self.intensity)
                 ])
             )
+        random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
+        test_dataset.data = test_dataset.data[random_choice]
+        test_dataset.targets = test_dataset.targets[random_choice]
         self.network.reset_()
         if top_n is None:
             top_n = 10
@@ -391,7 +377,7 @@ class AbstractSNN:
             test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
-        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
+        for batch in tqdm(test_dataloader, ncols=ncols):
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
@@ -520,6 +506,9 @@ class AbstractSNN:
                 label_indices = (label_dataset.targets == label).nonzero().flatten()
                 label_dataset.data = torch.index_select(label_dataset.data, 0, label_indices)
                 label_dataset.targets = label_dataset.targets[label_dataset.targets == label]
+                random_choice = torch.randint(0, label_dataset.data.size(0), (n_iter,))
+                label_dataset.data = label_dataset.data[random_choice]
+                label_dataset.targets = label_dataset.targets[random_choice]
 
                 test_dataloader = torch.utils.data.DataLoader(
                     label_dataset, batch_size=1, shuffle=True)
@@ -585,12 +574,13 @@ class AbstractSNN:
                     transforms.Lambda(lambda x: x * self.intensity)
                     ])
                 )
-
-
+            random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
+            test_dataset.data = test_dataset.data[random_choice]
+            test_dataset.targets = test_dataset.targets[random_choice]
             test_dataloader = torch.utils.data.DataLoader(
                 test_dataset, batch_size=1, shuffle=True)
             scores = torch.zeros(n_iter, 10)
-            for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=ncols):
+            for batch in tqdm(test_dataloader, ncols=ncols):
                 inpts = {'X': batch['encoded_image'].transpose(0, 1)}
                 self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
                 self._spikes = {
@@ -843,20 +833,6 @@ class AbstractSNN:
         return prediction[0]
 
     def top_voters(self):
-        # sum_outputs = self.spikes['Y'].get('s').squeeze(1).sum(0)
-        # winner_values = sum_outputs.max(0).values
-        # indices_flatten = (sum_outputs == winner_values).flatten().nonzero().squeeze(1)
-        # voters = torch.zeros(0, self.kernel_size * self.conv_size)
-        # m = 0
-        # for i in range(self.conv_size):
-        #     row = torch.zeros(self.kernel_size, 0)
-        #     for j in range(self.conv_size):
-        #         if m < indices_flatten.shape[0]:
-        #             row = torch.cat((row, self.network.connections[('X', 'Y')].w[:, indices_flatten[m]]), dim=1)
-        #             m += 1
-        #     voters = torch.cat((voters, row))
-
-        # return voters
         pass
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
@@ -926,28 +902,6 @@ class AbstractSNN:
         conn.commit()
         conn.close()
 
-    # def delete(self, sure=False):
-    #     if not sure:
-    #         print('Are you sure you want to delete the network? [Y/N]')
-    #         if input() == 'Y':
-    #             shutil.rmtree(f'networks//{self.name}')
-    #             conn = sqlite3.connect(r'networks/networks.db')
-    #             crs = conn.cursor()
-    #             crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
-    #             conn.commit()
-    #             conn.close()
-    #             print('Network deleted!')
-    #         else:
-    #             print('Deletion canceled...')
-    #     else:
-    #         shutil.rmtree(f'networks//{self.name}')
-    #         conn = sqlite3.connect(r'networks/networks.db')
-    #         crs = conn.cursor()
-    #         crs.execute(f'DELETE FROM networks WHERE id = ?', (self.name,))
-    #         conn.commit()
-    #         conn.close()
-    #         print('Network deleted!')
-
     def __str__(self):
         return f'Network with parameters:\n {self.parameters}'
 
@@ -966,6 +920,7 @@ class LC_SNN(AbstractSNN):
                          c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
                          immutable_name=immutable_name, foldername=foldername,
                          type_='LC_SNN')
+
 
     def create_network(self):
         # Hyperparameters
@@ -1570,8 +1525,6 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: baseline kernel_size=20                            1
-# TODO: gridsearch LC_SNN kernel_size=8, n_filters=100     2
-# TODO: train first XY, then YY                            3
-# TODO: accuracy/n_train curve                             4
-# TODO: plot voltages                                      5
+# TODO: train first XY, then YY                            1
+# TODO: accuracy/n_train curve                             2
+# TODO: plot voltages                                      3
