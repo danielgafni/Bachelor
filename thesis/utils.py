@@ -34,26 +34,23 @@ def view_database():
     return database
 
 
-def plot_database(n_filters=None, network_type='LC_SNN', kernel_size=12, stride=4, c_l=False):
+def plot_database(n_filters=100, network_type='LC_SNN', kernel_size=12, stride=4, c_l=False):
     data = view_database()
     data = data[data['type'] == network_type]
     data = data[data['c_l'] == c_l]
-    if network_type != 'FC_SNN':
+    data = data[data['n_filters'] == n_filters]
+    color = data['n_iter']
+    colorname = 'n_iter'
+
+    if network_type == 'LC_SNN' or network_type == 'C_SNN':
         data = data[data['kernel_size'] == kernel_size]
         data = data[data['stride'] == stride]
-        figname = f'{network_type} networks with {n_filters} n_filters'
 
-    if n_filters is None:
-        color = data['n_filters']
-        colorname = 'n_filters'
-        figname = f'{network_type} networks with kernel size {kernel_size}, stride {stride} and n_filters {n_filters}'
-    else:
-        data = data[data['n_filters'] == n_filters]
-        color = data['n_iter']
-        colorname = 'n_iter'
-        figname = f'{network_type} networks with {n_filters} filters and kernel size {kernel_size} and stride {stride}'
+        figname = f'{network_type} networks with kernel size {kernel_size}, stride {stride} and {n_filters} filters'
 
+    elif network_type == 'FC_SNN':
 
+        figname = f'{network_type} networks with {n_filters} filters'
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
 

@@ -60,7 +60,7 @@ class AbstractSNN:
                  type_='Abstract SNN', immutable_name=False, foldername=None,
                  n_iter=0):
         self.n_iter_counter = 0
-
+        self.n_iter = n_iter
         self.type = type_
         self.mean_weight = mean_weight
         self.c_w = c_w
