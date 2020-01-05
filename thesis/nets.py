@@ -248,7 +248,7 @@ class AbstractSNN:
 
         print('Calculating votes...')
         data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
-        outputs = data['outputs']
+        outputs = torch.tensor(data['outputs'])
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
         for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
