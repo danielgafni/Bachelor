@@ -248,12 +248,12 @@ class AbstractSNN:
 
         print('Calculating votes...')
         data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
-        outputs = torch.tensor(data['outputs'])
+        outputs = data['outputs']
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
-        for (label, layer) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
-            for i, spikes in enumerate(layer):
-                votes[label, i] += spikes.sum(0).numpy()
+        for (label, output) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
+            for i, spikes in enumerate(output.sum(0)):
+                votes[label, i] += spikes
         for i in range(10):
             votes[i, :] = votes[i, :] / len((np.array(labels) == i).nonzero()[0])
         self.votes = votes
@@ -267,7 +267,7 @@ class AbstractSNN:
             self.collect_activity(n_iter=n_iter)
 
         data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
-        outputs = data['outputs'].sum(0).numpy()
+        outputs = [output.sum(0).numpy() for output in data['outputs']]
         labels = data['labels']
 
         print('Calibrating classifier...')
