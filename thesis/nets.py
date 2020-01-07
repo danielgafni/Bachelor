@@ -228,7 +228,7 @@ class AbstractSNN:
                 'X': self.spikes['X'].get('s').view(self.time_max, -1),
                 'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
-            outputs.append(self._spikes['Y'])
+            outputs.append(self._spikes['Y'].sum(0))
             labels.append(batch['label'].item())
 
             self.network.reset_()
@@ -252,8 +252,8 @@ class AbstractSNN:
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
         for (label, output) in tqdm(zip(labels, outputs), total=len(labels), ncols=ncols):
-            for i, spikes in enumerate(output.sum(0)):
-                votes[label, i] += spikes
+            for i, spikes_sum in enumerate(output):
+                votes[label, i] += spikes_sum
         for i in range(10):
             votes[i, :] = votes[i, :] / len((np.array(labels) == i).nonzero()[0])
         self.votes = votes
