@@ -237,6 +237,7 @@ class AbstractSNN:
         if not os.path.exists(f'networks//{self.name}'):
             os.makedirs(f'networks//{self.name}')
         torch.save(data, f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
+        self.save()
 
     def calibrate(self, n_iter=None):
         print('Calibrating network...')
