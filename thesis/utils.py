@@ -157,6 +157,8 @@ def load_network(name):
             }
 
         net.network.train(False)
+        for c in net.network.connections:
+            net.network.connections[c].learning = False
 
     elif network_type == 'C_SNN':
         net = C_SNN(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
@@ -261,6 +263,7 @@ def delete_network(name, sure=False):
 def sync_database():
     conn = connect(r'networks/networks.db')
     crs = conn.cursor()
+    crs.execute('DELETE FROM networks')
     for name in os.listdir('networks'):
         if '.' not in name:
             with open(f'networks//{name}//parameters.json', 'r') as file:
@@ -276,13 +279,13 @@ def sync_database():
             conn.commit()
     conn.close()
 
-    conn = connect(r'networks/networks.db')
-    crs = conn.cursor()
-    crs.execute('SELECT id FROM networks')
-    result = crs.fetchall()
-    for name in result:
-        if not os.path.exists(f'networks//{name}'):
-            crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))
+    # conn = connect(r'networks/networks.db')
+    # crs = conn.cursor()
+    # crs.execute('SELECT id FROM networks')
+    # result = crs.fetchall()
+    # for name in result:
+    #     if not os.path.exists(f'networks//{name}'):
+    #         crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))
 
 
 def sync_parameters():

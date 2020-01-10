@@ -82,8 +82,11 @@ class AbstractSNN:
         self.t_post = t_post
         self.immutable_name = immutable_name
         self.foldername = foldername
-
+        self.mask_YY = None
+        self.error = None
         self.create_network()
+        for c in self.network.connections:
+            self.network.connections[c].learning = True
 
         print(f'Created {self.type} network {self.name} with parameters\n{self.parameters}\n')
 
@@ -116,7 +119,13 @@ class AbstractSNN:
         else:
             return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
-    def train(self, n_iter=None, plot=False, vis_interval=30, app=False):
+    def learning(self, learning_XY, learning_YY=None):
+        if learning_YY is None:
+            learning_YY = learning_YY
+        self.network.connections[('X', 'Y')].learning = learning_XY
+        self.network.connections[('Y', 'Y')].learning = learning_YY
+
+    def train(self, n_iter=None, plot=False, vis_interval=30):
         if n_iter is None:
             n_iter = 5000
         encoded_dataset = MNIST(
@@ -146,43 +155,80 @@ class AbstractSNN:
             fig_spikes = self.plot_spikes_Y()
             fig_weights_XY.show()
             fig_spikes.show()
-            if self.c_l:
-                fig_weights_YY = self.plot_weights_YY()
-                fig_weights_YY.show()
-                _, fig_comp_hist = self.competition_distribution()
-                fig_comp_hist.show()
-
+        self.network.connections[('Y', 'Y')].learning = False
+        self.network.connections[('X', 'Y')].learning = True
+        print('Training XY connection...')
         t_start = t()
-        for speed_counter, batch in tqdm_train(enumerate(train_dataloader)):
+        for speed_counter, batch in tqdm_train(enumerate(train_dataloader), total=n_iter, ncols=ncols):
             t_now = t()
             time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
             speed = (speed_counter + 1) / (t_now - t_start)
             time_left = str(datetime.timedelta(seconds=int((n_iter - speed_counter) / speed)))
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            self.n_iter += 1
-            self.parameters['n_iter'] += 1
-
-            self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
-                'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
-                }
 
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
+                    self._spikes = {
+                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                        'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
+                        }
                     display.clear_output(wait=True)
                     fig_weights_XY = self.plot_weights_XY()
                     fig_spikes = self.plot_spikes_Y()
                     fig_weights_XY.show()
                     fig_spikes.show()
-                    if self.c_l:
-                        fig_weights_YY = self.plot_weights_YY()
-                        fig_weights_YY.show()
-                        _, fig_comp_hist = self.competition_distribution()
-                        fig_comp_hist.show()
                     cnt += 1
 
             self.network.reset_()
+        self.network.connections[('X', 'Y')].learning = False
+        if self.c_l:
+            self.network.connections[('Y', 'Y')].w.fill_(0)
+            display.clear_output(wait=True)
+            self.network.connections[('Y', 'Y')].learning = True
+            print('Training YY connection...')
+            if plot:
+                fig_weights_XY = self.plot_weights_XY()
+                fig_spikes = self.plot_spikes_Y()
+                fig_weights_XY.show()
+                fig_spikes.show()
+            t_start = t()
+            cnt = 0
+            for speed_counter, batch in tqdm_train(enumerate(train_dataloader), total=n_iter, ncols=ncols):
+                t_now = t()
+                time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
+                speed = (speed_counter + 1) / (t_now - t_start)
+                time_left = str(datetime.timedelta(seconds=int((n_iter - speed_counter) / speed)))
+                inpts = {'X': batch['encoded_image'].transpose(0, 1)}
+                self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+                if self.mask_YY is not None:
+                    self.network.connections[('Y', 'Y')].w *= self.mask_YY
+                self.n_iter += 1
+                self.parameters['n_iter'] += 1
+
+                if plot:
+                    if (t_now - t_start) / vis_interval > cnt:
+                        self._spikes = {
+                            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                            'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
+                            }
+                        display.clear_output(wait=True)
+                        fig_weights_XY = self.plot_weights_XY()
+                        fig_spikes = self.plot_spikes_Y()
+                        fig_weights_XY.show()
+                        fig_spikes.show()
+                        if self.c_l:
+                            fig_weights_YY = self.plot_weights_YY()
+                            fig_weights_YY.show()
+                            _, fig_comp_hist = self.competition_distribution()
+                            fig_comp_hist.show()
+                        cnt += 1
+
+                self.network.reset_()
+            self.network.connections[('Y', 'Y')].learning = False
+            # shape = int(np.sqrt(np.prod(self.network.connections[('Y', 'Y')].w.shape)))
+            # for i in range(shape):
+            #     self.network.connections[('Y', 'Y')].w.view(shape, shape)[i, i] = 0
 
         self.network.train(False)
 
@@ -276,7 +322,7 @@ class AbstractSNN:
         self.classifier = SGDClassifier(n_jobs=-1)
         self.classifier.fit(outputs, labels)
 
-    def calculate_accuracy_lc(self, n_iter=None):
+    def calculate_accuracy_lc(self, n_iter=10000):
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -389,6 +435,7 @@ class AbstractSNN:
             prediction = self.class_from_spikes(top_n=top_n)
             x.append(prediction[0].item())
             y.append(label)
+            self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -970,12 +1017,15 @@ class LC_SNN(AbstractSNN):
 
         # competitive connections
         w = torch.zeros(self.n_filters, conv_size, conv_size, self.n_filters, conv_size, conv_size)
+        mask = torch.ones(w.shape)
         for fltr1 in range(self.n_filters):
             for fltr2 in range(self.n_filters):
                 if fltr1 != fltr2:
                     for i in range(conv_size):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
+        mask[w == 0] = 0
+        self.mask_YY = mask
 
         # size = self.n_filters * conv_size ** 2
         # sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
@@ -987,7 +1037,7 @@ class LC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=self.nu,
-                                            wmin=self.c_w * 1.2,
+                                            wmin=self.c_w * 10,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
