@@ -121,6 +121,11 @@ class AbstractSNN:
         else:
             return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
+    @property
+    def network_state(self):
+        state = (self.name + str(self.get_weights_XY()) + str(self.get_weights_YY())).encode('utf8')
+        return hashlib.sha224(state).hexdigest()
+
     def learning(self, learning_XY, learning_YY=None):
         if learning_YY is None:
             learning_YY = learning_YY
@@ -254,6 +259,7 @@ class AbstractSNN:
                 ])
             )
 
+
         calibratation_dataset = encoded_dataset
         calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
         calibratation_dataset.targets = encoded_dataset.targets[50000:]
@@ -282,21 +288,38 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
-        if not os.path.exists(f'networks//{self.name}'):
-            os.makedirs(f'networks//{self.name}')
-        torch.save(data, f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
-        self.save()
+        if not os.path.exists(f'networks//{self.name}//activity'):
+            os.makedirs(f'networks//{self.name}//activity')
+        # for file in os.listdir(f'networks//{self.name}//activity'):
+        #     if self.network_state not in file:
+        #         os.remove(f'networks//{self.name}//activity//{file}')
+        torch.save(data, f'networks//{self.name}//activity//{self.network_state}-{n_iter}')
 
     def calibrate(self, n_iter=None):
         print('Calibrating network...')
         if n_iter is None:
             n_iter = 5000
+        found_activity = False
+        for name in os.listdir(f'networks//{self.name}//activity/'):
+            if self.network_state in name:
+                n_iter_saved = int(name.split('-')[-1])
+                if n_iter <= n_iter_saved:
+                    data = torch.load(f'networks//{self.name}//activity//{name}')
+                    data_outputs = data['outputs']
+                    data_labels = data['labels']
+                    data_outputs = data_outputs[:n_iter]
+                    data_labels = data_labels[:n_iter]
+                    data = {'outputs': data_outputs, 'labels': data_labels}
+                    found_activity = True
+                    print('Found previously recorded activity')
+                    break
 
-        if not os.path.exists(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}'):
+        if not found_activity:
             self.collect_activity(n_iter=n_iter)
+            data = torch.load(f'networks//{self.name}//activity//{self.network_state}-{n_iter}')
 
         print('Calculating votes...')
-        data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
+
         outputs = data['outputs']
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
@@ -1578,6 +1601,6 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: train first XY, then YY                            1
-# TODO: accuracy/n_train curve                             2
-# TODO: plot voltages                                      3
+# TODO: plot voltages                                      1
+# TODO: clamp weights                                      2
+# TODO: check best 25 filters and 100 filters              3
