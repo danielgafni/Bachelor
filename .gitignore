@@ -207,3 +207,4 @@ dmypy.json
 #
 
 networks/*/activity_data*
+networks/*/activity
