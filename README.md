@@ -2,11 +2,16 @@
 
 ### Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields
 
-# Overview of the current state of my work
+# Overview
 
 I work with unsupervised learning on MNIST of Spiking Neural Networks.
 
 I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
+
+I have two goals:
+
+* Comparison of Locally Connected networks to Convolution and Fully Connected networks (with similar  number of parameters)
+* Finding an efficient way of training inhibitor (competitive) connections and finding out if they positively affect the accuracy.
 
 Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Best results are presented with std ~ 0.1-1%. Some of the lower accuracies might be for networks with sub-optimal parameters, because I didn't have enough time for all the computations.
 
