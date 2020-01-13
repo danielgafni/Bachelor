@@ -51,11 +51,9 @@ def plot_database(n_filters=100, network_type='LC_SNN', kernel_size=12, stride=4
     if network_type == 'LC_SNN' or network_type == 'C_SNN':
         data = data[data['kernel_size'] == kernel_size]
         data = data[data['stride'] == stride]
-
         figname = f'{network_type} networks with kernel size {kernel_size}, stride {stride} and {n_filters} filters'
 
     elif network_type == 'FC_SNN':
-
         figname = f'{network_type} networks with {n_filters} filters'
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values

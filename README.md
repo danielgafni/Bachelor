@@ -47,13 +47,13 @@ And here is the confusion matrix:
 
 ![Confusion matrix](overview/confusion_matrix.png)
 
-Statistically calculated (based on spiking activity of neurons) give us the following "votes" distribution: 
+Statistically calculated votes based on mean spiking activity of neurons for each label gives us the following  distribution: 
 
 ![Votes distribution](overview/votes_distribution.png)
 
-where by "vote" I call the level of certainty that a specific spiking neuron gives for a specific class. So on the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
+On the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
 
-In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time. Here is a typical accuracy against top_n plot:
+In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time.
 
 ![accuracy-top_n](overview/accuracy-top_n.png)
 
@@ -205,3 +205,9 @@ net.feed_image('image.png')
 ```python
 delete_network(net.name)
 ```
+
+
+
+## Dash Application
+
+I've also made a simple Plotly Dash application which can be used to observe the training process of a network. I'm not updating it very often, so it might be broken at the moment, if so I'll fix it after all the important work is done.
