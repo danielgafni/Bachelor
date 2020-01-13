@@ -8,7 +8,7 @@ I work with unsupervised learning on MNIST of Spiking Neural Networks.
 
 I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
 
-Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Here are the results of this comparison:
+Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Best results are presented with std ~ 0.1-1%. Some of the lower accuracies might be for networks with sub-optimal parameters, because I didn't have enough time for all the computations.
 
 | type    | n\_filters | kernel\_size | accuracy |
 | ------- | ---------- | ------------ | -------- |
