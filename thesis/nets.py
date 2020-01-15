@@ -366,21 +366,21 @@ class AbstractSNN:
         if n_iter is None:
             n_iter = 5000
         found_activity = False
-        if os.path.exists(f'networks//{self.name}//activity/'):
-            for name in os.listdir(f'networks//{self.name}//activity/'):
-                if self.network_state in name:
-                    n_iter_saved = int(name.split('-')[-1])
-                    if n_iter <= n_iter_saved:
-                        data = torch.load(f'networks//{self.name}//activity//{name}')
-                        data_outputs = data['outputs']
-                        data_labels = data['labels']
-                        data_outputs = data_outputs[:n_iter]
-                        data_labels = data_labels[:n_iter]
-                        data = {'outputs': data_outputs, 'labels': data_labels}
-                        found_activity = True
-                        print('Found previously recorded activity')
-                        break
+        if not os.path.exists(f'networks//{self.name}//activity/'):
+            self.collect_activity(n_iter)
 
+        for name in os.listdir(f'networks//{self.name}//activity/'):
+            if self.network_state in name:
+                n_iter_saved = int(name.split('-')[-1])
+                if n_iter <= n_iter_saved:
+                    data = torch.load(f'networks//{self.name}//activity//{name}')
+                    data_outputs = data['outputs']
+                    data_labels = data['labels']
+                    data_outputs = data_outputs[:n_iter]
+                    data_labels = data_labels[:n_iter]
+                    data = {'outputs': data_outputs, 'labels': data_labels}
+                    found_activity = True
+                    break
 
         if not found_activity:
             self.collect_activity(n_iter=n_iter)
@@ -1687,5 +1687,6 @@ def plot_image(image):
 
 
 # TODO: plot voltages                                      1
-# TODO: clamp weights                                      2
-# TODO: check best 25 filters and 100 filters              3
+# TODO: check best 25 filters and 100 filters              2
+# TODO: clamp weights                                      3
+# TODO: C_SNN kernel_size=8 finish gridsearch              4
