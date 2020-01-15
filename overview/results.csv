@@ -1,0 +1,9 @@
+type;n_filters;kernel_size;accuracy
+LC_SNN;100;12;0.896
+LC_SNN;100;8;0.814
+LC_SNN;25;12;0.797
+LC_SNN;25;8;0.75
+C_SNN;100;8;0.79
+C_SNN;25;12;0.668
+C_SNN;25;8;0.665
+FC_SNN;100;;0.734

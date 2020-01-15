@@ -14,9 +14,12 @@ def view_network(name):
         print('Network with such id does not exist')
         return None
     else:
-        with open(f'networks//{name}//parameters.json', 'r') as file:
-            parameters = json.load(file)
-        return parameters
+        try:
+            with open(f'networks//{name}//parameters.json', 'r') as file:
+                parameters = json.load(file)
+            return parameters
+        except FileNotFoundError:
+            return None
 
 
 def view_database():
@@ -28,7 +31,10 @@ def view_database():
             parameters = view_network(name)
             if os.path.exists(f'networks//{name}//accuracy'):
                 parameters['accuracy'] = torch.load(f'networks//{name}//accuracy')
-            parameters['name'] = name
+            try:
+                parameters['name'] = name
+            except TypeError:
+                pass
             database = database.append(parameters, ignore_index=True)
 
     return database
@@ -45,16 +51,14 @@ def plot_database(n_filters=100, network_type='LC_SNN', kernel_size=12, stride=4
     if network_type == 'LC_SNN' or network_type == 'C_SNN':
         data = data[data['kernel_size'] == kernel_size]
         data = data[data['stride'] == stride]
-
         figname = f'{network_type} networks with kernel size {kernel_size}, stride {stride} and {n_filters} filters'
 
     elif network_type == 'FC_SNN':
-
         figname = f'{network_type} networks with {n_filters} filters'
 
     data['error'] = ((data['accuracy'] * (1 - data['accuracy']) / data['n_iter']) ** 0.5).values
 
-    fig = go.Figure(go.Scatter3d(x=data['c_w'], y=data['mean_weight'], z=data['accuracy'],
+    fig = go.Figure(go.Scatter3d(x=data['c_w'], y=data['mean_weight'], z=data['accuracy'], hovertext=data['name'],
                                  error_z=dict(array=data['error'], visible=True, thickness=10, width=5, color='purple'),
                                  mode='markers', marker=dict(
             size=5,

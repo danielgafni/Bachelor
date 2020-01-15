@@ -5,6 +5,7 @@ import json
 import os
 import shutil
 import sqlite3
+from random import random
 from time import time as t
 
 import numpy as np
@@ -58,12 +59,16 @@ class AbstractSNN:
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5, dt=1,
                  c_l=False, nu=None, t_pre=8., t_post=20.,
                  type_='Abstract SNN', immutable_name=False, foldername=None,
+                 c_w_min=None,
                  n_iter=0):
         self.n_iter_counter = 0
         self.n_iter = n_iter
         self.type = type_
         self.mean_weight = mean_weight
         self.c_w = c_w
+        self.c_w_min = c_w_min
+        if c_w_min is None:
+            self.c_w_min = self.c_w * 10
         self.calibrated = False
         self.accuracy = None
         self.conf_matrix = None
@@ -121,6 +126,11 @@ class AbstractSNN:
         else:
             return hashlib.sha224(str(self.parameters).encode('utf8')).hexdigest()
 
+    @property
+    def network_state(self):
+        state = (self.name + str(self.get_weights_XY()) + str(self.get_weights_YY())).encode('utf8')
+        return hashlib.sha224(state).hexdigest()
+
     def learning(self, learning_XY, learning_YY=None):
         if learning_YY is None:
             learning_YY = learning_YY
@@ -128,6 +138,67 @@ class AbstractSNN:
         self.network.connections[('Y', 'Y')].learning = learning_YY
 
     def train(self, n_iter=None, plot=False, vis_interval=30):
+        if n_iter is None:
+            n_iter = 5000
+        encoded_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            './/MNIST',
+            download=False,
+            train=True,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
+            )
+        train_dataset = encoded_dataset
+        train_dataset.data = encoded_dataset.data[:50000, :, :]
+        random_choice = torch.randint(0, train_dataset.data.size(0), (n_iter,))
+        train_dataset.data = train_dataset.data[random_choice]
+
+        self.network.train(True)
+        print('Training network...')
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset, batch_size=1, shuffle=True)
+        cnt = 0
+        if plot:
+            fig_weights_XY = self.plot_weights_XY()
+            fig_spikes = self.plot_spikes_Y()
+            fig_weights_XY.show()
+            fig_spikes.show()
+            _, fig_competition_distribtion = self.competition_distribution()
+            fig_competition_distribtion.show()
+
+        t_start = t()
+        for speed_counter, batch in tqdm_train(enumerate(train_dataloader), total=n_iter, ncols=ncols):
+            t_now = t()
+            time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
+            speed = (speed_counter + 1) / (t_now - t_start)
+            time_left = str(datetime.timedelta(seconds=int((n_iter - speed_counter) / speed)))
+            inpts = {'X': batch['encoded_image'].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+            if plot:
+                if (t_now - t_start) / vis_interval > cnt:
+                    self._spikes = {
+                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+                        'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
+                        }
+                    display.clear_output(wait=True)
+                    fig_weights_XY = self.plot_weights_XY()
+                    fig_spikes = self.plot_spikes_Y()
+                    _, fig_competition_distribtion = self.competition_distribution()
+                    fig_weights_XY.show()
+                    fig_spikes.show()
+                    fig_competition_distribtion.show()
+                    cnt += 1
+
+            self.network.reset_()
+
+        self.network.train(False)
+
+    def train_two_steps(self, n_iter=None, plot=False, vis_interval=30):
         if n_iter is None:
             n_iter = 5000
         encoded_dataset = MNIST(
@@ -254,6 +325,7 @@ class AbstractSNN:
                 ])
             )
 
+
         calibratation_dataset = encoded_dataset
         calibratation_dataset.data = encoded_dataset.data[50000:, :, :]
         calibratation_dataset.targets = encoded_dataset.targets[50000:]
@@ -282,21 +354,40 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {'outputs': outputs, 'labels': labels}
-        if not os.path.exists(f'networks//{self.name}'):
-            os.makedirs(f'networks//{self.name}')
-        torch.save(data, f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
-        self.save()
+        if not os.path.exists(f'networks//{self.name}//activity'):
+            os.makedirs(f'networks//{self.name}//activity')
+        # for file in os.listdir(f'networks//{self.name}//activity'):
+        #     if self.network_state not in file:
+        #         os.remove(f'networks//{self.name}//activity//{file}')
+        torch.save(data, f'networks//{self.name}//activity//{self.network_state}-{n_iter}')
 
     def calibrate(self, n_iter=None):
         print('Calibrating network...')
         if n_iter is None:
             n_iter = 5000
+        found_activity = False
+        if os.path.exists(f'networks//{self.name}//activity/'):
+            for name in os.listdir(f'networks//{self.name}//activity/'):
+                if self.network_state in name:
+                    n_iter_saved = int(name.split('-')[-1])
+                    if n_iter <= n_iter_saved:
+                        data = torch.load(f'networks//{self.name}//activity//{name}')
+                        data_outputs = data['outputs']
+                        data_labels = data['labels']
+                        data_outputs = data_outputs[:n_iter]
+                        data_labels = data_labels[:n_iter]
+                        data = {'outputs': data_outputs, 'labels': data_labels}
+                        found_activity = True
+                        print('Found previously recorded activity')
+                        break
 
-        if not os.path.exists(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}'):
+
+        if not found_activity:
             self.collect_activity(n_iter=n_iter)
+            data = torch.load(f'networks//{self.name}//activity//{self.network_state}-{n_iter}')
 
         print('Calculating votes...')
-        data = torch.load(f'networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}')
+
         outputs = data['outputs']
         labels = data['labels']
         votes = torch.zeros(10, self.n_output)
@@ -962,13 +1053,13 @@ class AbstractSNN:
 class LC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
-                 t_pre=8., t_post=20.,
+                 t_pre=8., t_post=20., c_w_min=None,
                  c_l=False, nu=None, immutable_name=False, foldername=None,
                  n_iter=0):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
+                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post, c_w_min=c_w_min,
                          immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
                          type_='LC_SNN')
 
@@ -1036,11 +1127,26 @@ class LC_SNN(AbstractSNN):
         if not self.c_l:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
-            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
-                                            update_rule=PostPre,
-                                            nu=self.nu,
-                                            wmin=self.c_w * 10,
-                                            wmax=0)
+            if self.c_w == 1:
+                if self.c_w_min is None:
+                    self.c_w_min = -np.inf
+                for fltr1 in range(self.n_filters):
+                    for fltr2 in range(self.n_filters):
+                        if fltr1 != fltr2:
+                            for i in range(conv_size):
+                                for j in range(conv_size):
+                                    w[fltr1, i, j, fltr2, i, j] = random() * -100
+                self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+                                        update_rule=PostPre,
+                                        nu=self.nu,
+                                        wmin=self.c_w_min,
+                                        wmax=0)
+            else:
+                self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+                                                update_rule=PostPre,
+                                                nu=self.nu,
+                                                wmin=self.c_w_min,
+                                                wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
@@ -1170,11 +1276,11 @@ class C_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                  kernel_size=12, n_filters=25, stride=4, intensity=127.5,
                  c_l=False, nu=None, t_pre=9., t_post=20., n_iter=0,
-                 immutable_name=False, foldername=None):
+                 immutable_name=False, foldername=None, c_w_min=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          kernel_size=kernel_size, n_filters=n_filters, stride=stride, intensity=intensity,
-                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post,
+                         c_l=c_l, nu=nu, t_pre=t_pre, t_post=t_post, c_w_min=c_w_min,
                          immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
                          type_='C_SNN')
 
@@ -1238,7 +1344,7 @@ class C_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=self.nu,
-                                            wmin=self.c_w * 1.2,
+                                            wmin=self.c_w_min,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -1315,11 +1421,13 @@ class C_SNN(AbstractSNN):
 class FC_SNN(AbstractSNN):
     def __init__(self, mean_weight=0.4, c_w=-100., time_max=250, crop=20,
                 n_filters=25, intensity=127.5, t_pre=8., t_post=20., n_iter=0,
-                 c_l=False, nu=None, immutable_name=False, foldername=None):
+                 c_l=False, nu=None, immutable_name=False, foldername=None,
+                 c_w_min=None):
 
         super().__init__(mean_weight=mean_weight, c_w=c_w, time_max=time_max, crop=crop,
                          n_filters=n_filters, intensity=intensity, t_pre=t_pre, t_post=t_post,
                          c_l=c_l, nu=nu, immutable_name=immutable_name, foldername=foldername, n_iter=n_iter,
+                         c_w_min=c_w_min,
                          type_='FC_SNN')
 
     def create_network(self):
@@ -1385,7 +1493,7 @@ class FC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                             update_rule=PostPre,
                                             nu=self.nu,
-                                            wmin=self.c_w * 1.2,
+                                            wmin=self.c_w_min,
                                             wmax=0)
 
         self.network.add_layer(self.input_layer, name='X')
@@ -1578,6 +1686,6 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: train first XY, then YY                            1
-# TODO: accuracy/n_train curve                             2
-# TODO: plot voltages                                      3
+# TODO: plot voltages                                      1
+# TODO: clamp weights                                      2
+# TODO: check best 25 filters and 100 filters              3

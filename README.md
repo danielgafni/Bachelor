@@ -2,17 +2,49 @@
 
 ### Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields
 
-# Overview of the current state of my work
+# Overview
 
 I work with unsupervised learning on MNIST of Spiking Neural Networks.
 
 I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
 
-Currently I have trained 25- and 100-filter networks. The networks only have one hidden layer. Here is a figure with typical weights of this locally connected layer of 100 filters after 5000 iterations of training:
+I have two goals:
+
+* Comparison of Locally Connected networks to Convolution and Fully Connected networks (with similar  number of parameters)
+* Finding an efficient way of training inhibitor (competitive) connections and finding out if they positively affect the accuracy.
+
+Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Best results are presented with std ~ 0.1-1%. Some of the lower accuracies might be for networks with sub-optimal parameters, because I didn't have enough time for all the computations.
+
+| type    | n\_filters | kernel\_size | accuracy |
+| ------- | ---------- | ------------ | -------- |
+| LC\_SNN | 100        | 12           | 0\.896   |
+| LC\_SNN | 100        | 8            | 0\.814   |
+| LC\_SNN | 25         | 12           | 0\.797   |
+| LC\_SNN | 25         | 8            | 0\.75    |
+| C\_SNN  | 100        | 8            | 0\.79    |
+| C\_SNN  | 25         | 12           | 0\.668   |
+| C\_SNN  | 25         | 8            | 0\.665   |
+| FC\_SNN | 100        |              | 0.734    |
+
+I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon.
+
+I found an interesting way to get good accuracy after training YY. In my method I first lock the YY connection (to some value like -100) and only train XY. Then I clear YY weights, make them zeros, lock XY weights and train YY (the lowest are clamped to some value). The resulting weights look something like this:
+
+![competitive weights](overview/weights_YY_cl.png)
+
+Their distribution:
+
+![competition distribution](overview/competition_distribution.png)
+
+Locally Connected don't need a lot of training examples:
+
+![accuracy dependence on number of training iterations](overview/accuracy-n_iter.png)
+
+Here are 100-filter Locally Connected weights after 5000 iterations of training:
 
 ![Weights XY](overview/weights_XY.png)
 
-The overall accuracy of this network is 0.86. Here is the accuracy distribution between different labels:
+The overall accuracy of this network is 0.89. Here is the accuracy distribution between different labels:
 
 ![Accuracy distribution](overview/accuracy_distribution.png)
 
@@ -20,13 +52,13 @@ And here is the confusion matrix:
 
 ![Confusion matrix](overview/confusion_matrix.png)
 
-Statistically calculated (based on spiking activity of neurons) give us the following "votes" distribution: 
+Statistically calculated votes based on mean spiking activity of neurons for each label gives us the following  distribution: 
 
 ![Votes distribution](overview/votes_distribution.png)
 
-where by "vote" I call the level of certainty that a specific spiking neuron gives for a specific class. So on the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
+On the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
 
-In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time. Here is a typical accuracy against top_n plot:
+In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time.
 
 ![accuracy-top_n](overview/accuracy-top_n.png)
 
@@ -56,13 +88,15 @@ As the figures above show, Locally Connected networks can achieve around 14% bet
 
 # Usage
 
-To reproduce my results download this repository and install all required packages:
+To reproduce my results download this repository and install all required packages.
+
+Install PyTorch with Anaconda with the command from the [official website](https://pytorch.org/).
+
+Then run
 
 ```
 pip install -r requirements.txt
 ```
-
-Install PyTorch with Anaconda with the command from the [official website](https://pytorch.org/).
 
 All my code is located in the **thesis** directory.
 
@@ -176,3 +210,9 @@ net.feed_image('image.png')
 ```python
 delete_network(net.name)
 ```
+
+
+
+## Dash Application
+
+I've also made a simple Plotly Dash application which can be used to observe the training process of a network. I'm not updating it very often, so it might be broken at the moment, if so I'll fix it after all the important work is done.

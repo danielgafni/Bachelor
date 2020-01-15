@@ -1,6 +1,10 @@
 from thesis.nets import *
 from thesis.utils import *
 
+"""
+Run this script to make sure everything is ok.
+"""
+
 
 print('Testing LC_SNN...')
 
