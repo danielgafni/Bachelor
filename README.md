@@ -24,7 +24,7 @@ Currently I have trained 25- and 100-filter Locally Connected networks. The netw
 | C\_SNN  | 100        | 8            | 0\.79    |
 | C\_SNN  | 25         | 12           | 0\.668   |
 | C\_SNN  | 25         | 8            | 0\.665   |
-| FC\_SNN | 100        |              | 0.734    |
+| FC\_SNN | 100        | 20           | 0.734    |
 
 I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon.
 
@@ -52,7 +52,7 @@ And here is the confusion matrix:
 
 ![Confusion matrix](overview/confusion_matrix.png)
 
-Statistically calculated votes based on mean spiking activity of neurons for each label gives us the following  distribution: 
+Statistically calculated votes based on mean spiking activity of neurons for each label give us the following  distribution: 
 
 ![Votes distribution](overview/votes_distribution.png)
 
@@ -135,24 +135,30 @@ Output:
 Copy the name of a network you want to load.
 
 ```python
-net = load_network('077029b0df623416d0640d0d400fada60a5997c9f1864dfe0ffc0848')
+net = load_network('3a2846ea8cac0ceae1e970206cb6f0de92e5e6c2b930e99beff81ab4')
 ```
 
 Network loaded. Now you can check it's behavior:
 
 ```python
-net.feed_class(5, plot=True)
+net.feed_label(5, plot=True)
 ```
 
 Output:
 
 Prediction: 5
 
-![Spikes](overview/spikes.png)
+![Input image 3](overview/input_image_3.png)
 
-![Input image 5](overview/input_image_5.png)
+![Spikes](overview/spikes_Y.png)
 
-![Best voters](overview/best_voters_5.png)
+
+
+![Best voters](overview/best_voters.png)
+
+![best voters voltage](overview/best_voters_voltage.png)
+
+![random neuron voltage](overview/random_neuron_voltage.png)
 
 ## Training a new network
 
@@ -169,7 +175,7 @@ Then to train the network (and be able so see the progress) run
 ```python
 net.train(n_iter=5000, plot=True, vis_interval=30)  # max is 50000, 5000 is fine 
 
-net.calibrate(n_iter=5000)  # max is 10000, 5000 is fine, again
+net.calibrate(n_iter=5000)  # max is 10000, 5000 is fine
 
 net.calculate_accuracy(n_iter=1000)  # max is 10000
 ```

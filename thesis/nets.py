@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 import sqlite3
-from random import random
+import random
 from time import time as t
 
 import numpy as np
@@ -68,7 +68,7 @@ class AbstractSNN:
         self.c_w = c_w
         self.c_w_min = c_w_min
         if c_w_min is None:
-            self.c_w_min = self.c_w * 10
+            self.c_w_min = -np.inf
         self.calibrated = False
         self.accuracy = None
         self.conf_matrix = None
@@ -92,8 +92,8 @@ class AbstractSNN:
         self.mask_YY = None
         self.error = None
         self.create_network()
-        for c in self.network.connections:
-            self.network.connections[c].learning = True
+        # for c in self.network.connections:
+        #     self.network.connections[c].learning = True
 
         print(f'Created {self.type} network {self.name} with parameters\n{self.parameters}\n')
 
@@ -832,20 +832,20 @@ class AbstractSNN:
                                      margin={'l': 20, 'r': 20, 'b': 20, 't': 40, 'pad': 4},
                                      xaxis=go.layout.XAxis(
                                          title_text='Neuron Index X',
-                                         tickmode='array',
-                                         tickvals=np.linspace(0, self.weights_YY.shape[0],
-                                                              self.output_shape + 1) +
-                                                  self.weights_YY.shape[0] / self.output_shape / 2,
-                                         ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                         # tickmode='array',
+                                         # tickvals=np.linspace(0, self.weights_YY.shape[0],
+                                         #                      self.output_shape + 1) +
+                                         #          self.weights_YY.shape[0] / self.output_shape / 2,
+                                         # ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                                          zeroline=False
                                          ),
                                      yaxis=go.layout.YAxis(
                                          title_text='Neuron Index Y',
-                                         tickmode='array',
-                                         tickvals=np.linspace(0, self.weights_YY.shape[1],
-                                                              self.output_shape + 1) +
-                                                  self.weights_YY.shape[1] / self.output_shape / 2,
-                                         ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                                         # tickmode='array',
+                                         # tickvals=np.linspace(0, self.weights_YY.shape[1],
+                                         #                      self.output_shape + 1) +
+                                         #          self.weights_YY.shape[1] / self.output_shape / 2,
+                                         # ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                                          zeroline=False
                                          )
                                      )
@@ -855,23 +855,33 @@ class AbstractSNN:
     def plot_spikes_Y(self):
         width = 1000
         height = 800
-        active_neuron_spikes = self._spikes['Y'][:, self._spikes['Y'].sum(0).nonzero().squeeze(1)].t()
-        fig_spikes = go.Figure(data=go.Heatmap(z=active_neuron_spikes.numpy().astype(int), colorscale='YlOrBr'))
+        spikes = self.spikes['Y'].get('s').squeeze(1)
+        best_spikes = torch.zeros(self.time_max, self.conv_size**2)
+        best_indices = []
+        for i, row in enumerate(self.best_voters):
+            for j, index in enumerate(row):
+                best_spikes[:, i * self.conv_size + j] = spikes[:, self.best_voters[i][j], i, j]
+                best_indices.append(f'Filter {self.best_voters[i][j].item()}, patch ({i+1}, {j+1})')
+
+
+        fig_spikes = go.Figure(data=go.Heatmap(z=best_spikes.type(torch.LongTensor).t(),
+                                               colorscale='YlOrBr'))
         fig_spikes.update_layout(width=width, height=height,
                                  title=go.layout.Title(
-                                     text='Y spikes',
+                                     text='Best Y neurons spikes',
                                      xref='paper',
                                      ),
                                  xaxis=go.layout.XAxis(
                                      title_text='Time'
                                      ),
                                  yaxis=go.layout.YAxis(
-                                     title_text='Neuron Index',
+                                     title_text='Neuron location',
                                      tickmode='array',
-                                     tickvals=list(range(self._spikes['Y'].sum(0).nonzero().squeeze(1).shape[0])),
-                                     ticktext=self._spikes['Y'].sum(0).nonzero().squeeze(1).numpy(),
+                                     tickvals=list(range(best_spikes.size(0))),
+                                     ticktext=best_indices,
                                      zeroline=False
-                                     )
+                                     ),
+                                 showlegend=False
                                  )
         return fig_spikes
 
@@ -896,7 +906,7 @@ class AbstractSNN:
 
         return fig_spikes
 
-    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
+    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
         dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -930,12 +940,12 @@ class AbstractSNN:
         if to_print:
             print(f'Prediction: {prediction[0:k]}')
         if plot:
-            self.plot_spikes_Y().show()
             plot_image(np.flipud(batch['image'][0, 0, :, :].numpy())).show()
+            self.plot_spikes_Y().show()
 
         return prediction[0:k]
 
-    def feed_class_lc(self, label, to_print=True, plot=False):
+    def feed_label_lc(self, label, to_print=True, plot=False):
         train_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -1075,7 +1085,6 @@ class LC_SNN(AbstractSNN):
 
         # Network
         self.network = Network(learning=True)
-        self.GlobalMonitor = NetworkMonitor(self.network, state_vars=('v', 's', 'w'))
         self.n_input = self.crop ** 2
         self.input_layer = Input(n=self.n_input, shape=(1, self.crop, self.crop), traces=True,
                                  refrac=refrac)
@@ -1108,66 +1117,54 @@ class LC_SNN(AbstractSNN):
             wmin=self.wmin,
             wmax=self.wmax)
 
-        # competitive connections
-        w = torch.zeros(self.n_filters, conv_size, conv_size, self.n_filters, conv_size, conv_size)
-        mask = torch.ones(w.shape)
-        for fltr1 in range(self.n_filters):
-            for fltr2 in range(self.n_filters):
-                if fltr1 != fltr2:
-                    for i in range(conv_size):
-                        for j in range(conv_size):
-                            w[fltr1, i, j, fltr2, i, j] = self.c_w
-        mask[w == 0] = 0
-        self.mask_YY = mask
-
-        # size = self.n_filters * conv_size ** 2
-        # sparse_w = torch.sparse.FloatTensor(w.view(size, size).nonzero().t(), w[w != 0].flatten(),
-        #                                     (size, size))
 
         if not self.c_l:
+            # competitive connections
+            w = torch.zeros(self.n_filters, conv_size, conv_size, self.n_filters, conv_size, conv_size)
+            mask = torch.zeros(w.shape)
+            for fltr1 in range(self.n_filters):
+                for fltr2 in range(self.n_filters):
+                    if fltr1 != fltr2:
+                        for i in range(conv_size):
+                            for j in range(conv_size):
+                                w[fltr1, i, j, fltr2, i, j] = self.c_w
+                                mask[fltr1, i, j, fltr2, i, j] = 1
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
-            if self.c_w == 1:
-                if self.c_w_min is None:
-                    self.c_w_min = -np.inf
-                for fltr1 in range(self.n_filters):
-                    for fltr2 in range(self.n_filters):
-                        if fltr1 != fltr2:
-                            for i in range(conv_size):
-                                for j in range(conv_size):
-                                    w[fltr1, i, j, fltr2, i, j] = random() * -100
-                self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
+            w = torch.zeros(self.n_filters, conv_size, conv_size, self.n_filters, conv_size, conv_size)
+            mask = torch.zeros(w.shape)
+            for fltr1 in range(self.n_filters):
+                for fltr2 in range(self.n_filters):
+                    if fltr1 != fltr2:
+                        for i in range(conv_size):
+                            for j in range(conv_size):
+                                w[fltr1, i, j, fltr2, i, j] = random.random() * self.c_w
+                                mask[fltr1, i, j, fltr2, i, j] = 1
+
+
+            self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
                                         update_rule=PostPre,
                                         nu=self.nu,
                                         wmin=self.c_w_min,
                                         wmax=0)
-            else:
-                self.connection_YY = Connection(self.output_layer, self.output_layer, w=w,
-                                                update_rule=PostPre,
-                                                nu=self.nu,
-                                                wmin=self.c_w_min,
-                                                wmax=0)
+        self.mask_YY = mask
 
         self.network.add_layer(self.input_layer, name='X')
         self.network.add_layer(self.output_layer, name='Y')
         self.network.add_connection(self.connection_XY, source='X', target='Y')
         self.network.add_connection(self.connection_YY, source='Y', target='Y')
-        self.network.add_monitor(self.GlobalMonitor, name='Network')
 
         self.spikes = {}
-        for layer in set(self.network.layers):
-            self.spikes[layer] = Monitor(self.network.layers[layer], state_vars=['s'], time=self.time_max)
-            self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
+        self.spikes['Y'] = Monitor(self.network.layers['Y'], state_vars=['s'], time=self.time_max)
+        self.network.add_monitor(self.spikes['Y'], name='%s_spikes' % 'Y')
 
         self._spikes = {
-            'X': self.spikes['X'].get('s').view(self.time_max, -1),
             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
         self.voltages = {}
-        for layer in set(self.network.layers) - {'X'}:
-            self.voltages[layer] = Monitor(self.network.layers[layer], state_vars=['v'], time=self.time_max)
-            self.network.add_monitor(self.voltages[layer], name='%s_voltages' % layer)
+        self.voltages['Y'] = Monitor(self.network.layers['Y'], state_vars=['v'], time=self.time_max)
+        self.network.add_monitor(self.voltages['Y'], name='%s_voltages' % 'Y')
 
         self.stride = self.stride
         self.conv_size = conv_size
@@ -1193,9 +1190,8 @@ class LC_SNN(AbstractSNN):
         best_patches_max = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
                                                                             self.conv_size**2).max(0)
         best_patches = best_patches_max.indices
-        self.best_voters = best_patches
-        best_patches_values = best_patches_max.values
-        self.best_spikes = best_patches_values
+        self.best_voters = self.spikes['Y'].get('s').sum(0).squeeze(0).max(0).indices
+        self.best_spikes = self.spikes['Y'].get('s').sum(0).squeeze(0).max(0).values
         best_neurons = []
         votes = torch.zeros(10, self.conv_size**2)
         sum_spikes = torch.zeros(self.conv_size**2)
@@ -1211,6 +1207,7 @@ class LC_SNN(AbstractSNN):
             sum_spikes[patch_number] = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
                                                                                         self.conv_size**2)[filter_number, patch_number]
             best_neurons.append(filter_)
+
         res = votes @ sum_spikes
         res = res.argsort(descending=True)
         self.label = res[0]
@@ -1220,40 +1217,70 @@ class LC_SNN(AbstractSNN):
         w = self.network.connections[('X', 'Y')].w
         k1, k2 = self.kernel_size, self.kernel_size
         c1, c2 = self.conv_size, self.conv_size
-        i1, i2 = self.n_input, self.n_input
         c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        fs = int(math.ceil(math.sqrt(self.n_filters)))
-        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
         locations = self.network.connections[('X', 'Y')].locations
         best_patches = self.spikes['Y'].get('s').sum(0).squeeze(0).view(self.n_filters,
                                                                         self.conv_size**2).max(0).indices
+        subplot_titles = []
+        for i, row in enumerate(self.best_voters):
+            for j, filter_number in enumerate(row):
+                subplot_titles.append(f'Filter {filter_number}, patch ({i + 1}, {j + 1})')
         best_neurons = []
-        fig = make_subplots(
+        fig = make_subplots(subplot_titles=subplot_titles,
             rows=self.conv_size, cols=self.conv_size)
-        for patch_number, filter_number in zip(list(range(self.conv_size**2)), best_patches):
+        for patch_number, filter_number in enumerate(best_patches.flatten()):
             filter_ = w[
                 locations[:, patch_number],
                 filter_number * self.conv_size**2 + (patch_number // c2sqrt) * c2sqrt + (patch_number % c2sqrt),
             ].view(k1, k2)
             best_neurons.append(filter_)
-            fig.add_trace(go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale='YlOrBr'),
-                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1)
+            total_spikes = self.best_spikes.flatten()[patch_number]
+            fig.add_trace(go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale='YlOrBr',
+                                     text=[f'Total spikes: {total_spikes.item()}'],
+                                     ),
+                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1
+                          )
 
-        fig.update_layout(height=600, width=600,
+        fig.update_layout(height=800, width=800,
                           title=go.layout.Title(
                               text='Best Voters',
                               xref='paper',
                               x=0
                               )
                           )
+        fig2 = make_subplots(
+            subplot_titles=subplot_titles,
+            rows=self.conv_size, cols=self.conv_size, horizontal_spacing=0.08, vertical_spacing=0.08)
+        for i, row in enumerate(self.best_voters):
+            for j, filter_number in enumerate(row):
+                voltage = self.voltages['Y'].get('v').squeeze(1)[:, filter_number, i, j]
+                subplot = go.Scatter(x=list(range(self.time_max)), y=voltage)
+                fig2.add_trace(subplot, row=i+1, col=j+1)
+        for row in range(self.conv_size):
+            for col in range(self.conv_size):
+                fig2.update_xaxes(title_text='Time', row=row+1, col=col+1)
+                fig2.update_yaxes(title_text='Voltage', row=row+1, col=col+1)
+        fig2.update_layout(title_text='Best neurons voltages', showlegend=False, height=1000, width=1000)
+        return fig, fig2
 
+    def plot_neuron_voltage(self, neuron_index):
+        v = self.voltages['Y'].get('v').squeeze(1).view(self.time_max, -1)[:, neuron_index]
+        fig = go.Figure(go.Scatter(x=list(range(self.time_max)), y=v))
+        fig.update_layout(title_text=f'Neuron {neuron_index} voltage', showlegend=False, height=400, width=800,
+                          xaxis_title_text='Time', yaxis_title_text='Voltage')
         return fig
 
-    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
-        super().feed_class(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
+    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+        super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
         if plot:
-            fig = self.plot_best_voters()
+            fig, fig2 = self.plot_best_voters()
+            random_index = random.randint(0, self.n_output)
+            while random_index in self.best_voters:
+                random_index = random.randint(0, self.n_output)
+            fig3 = self.plot_neuron_voltage(random_index)
             fig.show()
+            fig2.show()
+            fig3.update_layout(title_text=f'Random neuron ({random_index}) voltage').show()
 
 
     def get_weights_XY(self):
@@ -1543,7 +1570,6 @@ class FC_SNN(AbstractSNN):
         best_patches = best_patches_max.indices
         self.best_voters = best_patches
         best_patches_values = best_patches_max.values
-        self.best_spikes = best_patches_values
         best_neurons = []
         votes = torch.zeros(10, self.conv_size**2)
         sum_spikes = torch.zeros(self.conv_size**2)
@@ -1585,7 +1611,8 @@ class FC_SNN(AbstractSNN):
             ].view(k1, k2)
             best_neurons.append(filter_)
             fig.add_trace(go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale='YlOrBr'),
-                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1)
+                          row=patch_number // self.conv_size + 1, col=patch_number % self.conv_size + 1,
+                          )
 
         fig.update_layout(height=600, width=600,
                           title=go.layout.Title(
@@ -1597,8 +1624,8 @@ class FC_SNN(AbstractSNN):
 
         return fig
 
-    def feed_class(self, label, top_n=None, k=1, to_print=True, plot=False):
-        super().feed_class(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
+    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+        super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
         if plot:
             fig = self.plot_best_voters()
             fig.show()
