@@ -182,7 +182,7 @@ class AbstractSNN:
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
                     self._spikes = {
-                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                         'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                         }
                     display.clear_output(wait=True)
@@ -243,7 +243,7 @@ class AbstractSNN:
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
                     self._spikes = {
-                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                         'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                         }
                     display.clear_output(wait=True)
@@ -282,7 +282,6 @@ class AbstractSNN:
                 if plot:
                     if (t_now - t_start) / vis_interval > cnt:
                         self._spikes = {
-                            'X': self.spikes['X'].get('s').view(self.time_max, -1),
                             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                             }
                         display.clear_output(wait=True)
@@ -345,7 +344,7 @@ class AbstractSNN:
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                 'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             outputs.append(self._spikes['Y'].sum(0))
@@ -447,7 +446,7 @@ class AbstractSNN:
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                 'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             label = batch['label'].item()
@@ -521,7 +520,7 @@ class AbstractSNN:
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                 'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
             label = batch['label'].item()
@@ -662,7 +661,7 @@ class AbstractSNN:
                     inpts = {'X': batch['encoded_image'].transpose(0, 1)}
                     self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
                     self._spikes = {
-                        'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                         'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                         }
                     self.network.reset_()
@@ -725,7 +724,7 @@ class AbstractSNN:
                 inpts = {'X': batch['encoded_image'].transpose(0, 1)}
                 self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
                 self._spikes = {
-                    'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                     'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                     }
                 label = batch['label'].item()
@@ -858,14 +857,22 @@ class AbstractSNN:
         spikes = self.spikes['Y'].get('s').squeeze(1)
         best_spikes = torch.zeros(self.time_max, self.conv_size**2)
         best_indices = []
-        for i, row in enumerate(self.best_voters):
-            for j, index in enumerate(row):
-                best_spikes[:, i * self.conv_size + j] = spikes[:, self.best_voters[i][j], i, j]
-                best_indices.append(f'Filter {self.best_voters[i][j].item()}, patch ({i+1}, {j+1})')
+        if self.best_voters is not None:
+            for i, row in enumerate(self.best_voters):
+                for j, index in enumerate(row):
+                    best_spikes[:, i * self.conv_size + j] = spikes[:, self.best_voters[i][j], i, j]
+                    best_indices.append(f'Filter {self.best_voters[i][j].item()}, patch ({i+1}, {j+1})')
+            best_spikes = best_spikes.type(torch.LongTensor).t()
+        else:
+            best_spikes = None
 
 
-        fig_spikes = go.Figure(data=go.Heatmap(z=best_spikes.type(torch.LongTensor).t(),
+        fig_spikes = go.Figure(data=go.Heatmap(z=best_spikes,
                                                colorscale='YlOrBr'))
+        if best_spikes is not None:
+            tickvals = list(range(best_spikes.size(0)))
+        else:
+            tickvals = None
         fig_spikes.update_layout(width=width, height=height,
                                  title=go.layout.Title(
                                      text='Best Y neurons spikes',
@@ -877,7 +884,7 @@ class AbstractSNN:
                                  yaxis=go.layout.YAxis(
                                      title_text='Neuron location',
                                      tickmode='array',
-                                     tickvals=list(range(best_spikes.size(0))),
+                                     tickvals=tickvals,
                                      ticktext=best_indices,
                                      zeroline=False
                                      ),
@@ -932,7 +939,7 @@ class AbstractSNN:
         inpts = {'X': batch['encoded_image'].transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
         self._spikes = {
-            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
@@ -970,7 +977,7 @@ class AbstractSNN:
             inpts = {'X': batch['encoded_image'].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             self._spikes = {
-                'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
                 'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
                 }
 
@@ -1002,7 +1009,7 @@ class AbstractSNN:
         inpts = {'X': encoded_image.transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
         self._spikes = {
-            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
@@ -1171,6 +1178,8 @@ class LC_SNN(AbstractSNN):
         self.conv_prod = int(np.prod(conv_size))
 
         self.weights_XY = self.get_weights_XY()
+
+        self.best_voters = None
 
     def class_from_spikes(self, top_n=None):
         if top_n == 0:
@@ -1386,7 +1395,7 @@ class C_SNN(AbstractSNN):
             self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
 
         self._spikes = {
-            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
@@ -1535,7 +1544,7 @@ class FC_SNN(AbstractSNN):
             self.network.add_monitor(self.spikes[layer], name='%s_spikes' % layer)
 
         self._spikes = {
-            'X': self.spikes['X'].get('s').view(self.time_max, -1),
+
             'Y': self.spikes['Y'].get('s').view(self.time_max, -1),
             }
 
