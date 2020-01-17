@@ -1,0 +1,1 @@
+{"type": "LC_SNN", "mean_weight": 0.46, "n_iter": 5000, "c_w": -100, "time_max": 250, "crop": 20, "kernel_size": 12, "kernel_prod": 144, "stride": 4, "n_filters": 25, "intensity": 127.5, "dt": 1, "c_l": true, "nu": [-0.05, -0.5], "t_pre": 8.0, "t_post": 20.0}

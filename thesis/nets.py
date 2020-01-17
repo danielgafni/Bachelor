@@ -225,6 +225,8 @@ class AbstractSNN:
                     cnt += 1
 
             self.network.reset_()
+            self.n_iter += 1
+
 
         self.network.train(False)
 
@@ -944,7 +946,7 @@ class AbstractSNN:
 
         return fig_weights_YY
 
-    def plot_spikes_Y(self):
+    def plot_best_spikes_Y(self):
         width = 1000
         height = 800
         spikes = self.spikes["Y"].get("s").squeeze(1)
@@ -982,6 +984,43 @@ class AbstractSNN:
             ),
             showlegend=False,
         )
+        return fig_spikes
+
+    def plot_spikes_Y(self):
+        width = 1000
+        height = 800
+        spikes = self.spikes["Y"].get("s").squeeze(1)
+        best_spikes = torch.zeros(self.time_max, self.conv_size ** 2)
+        best_indices = []
+        best_voters = self.spikes["Y"].get("s").sum(0).squeeze(0).max(0).indices
+
+        for i, row in enumerate(best_voters):
+            for j, index in enumerate(row):
+                best_spikes[:, i * self.conv_size + j] = spikes[
+                                                         :, self.best_voters[i][j], i, j
+                                                         ]
+                best_indices.append(
+                    f"Filter {best_voters[i][j].item()}, patch ({i+1}, {j+1})"
+                    )
+        best_spikes = best_spikes.type(torch.LongTensor).t()
+
+
+        fig_spikes = go.Figure(data=go.Heatmap(z=best_spikes, colorscale="YlOrBr"))
+        tickvals = list(range(best_spikes.size(0)))
+        fig_spikes.update_layout(
+            width=width,
+            height=height,
+            title=go.layout.Title(text="Best Y neurons spikes", xref="paper",),
+            xaxis=go.layout.XAxis(title_text="Time"),
+            yaxis=go.layout.YAxis(
+                title_text="Neuron location",
+                tickmode="array",
+                tickvals=tickvals,
+                ticktext=best_indices,
+                zeroline=False,
+                ),
+            showlegend=False,
+            )
         return fig_spikes
 
     def plot_spikes(self):
@@ -1451,8 +1490,8 @@ class LC_SNN(AbstractSNN):
             subplot_titles=subplot_titles,
             rows=self.conv_size,
             cols=self.conv_size,
-            horizontal_spacing=0.08,
-            vertical_spacing=0.08,
+            horizontal_spacing=0.09,
+            vertical_spacing=0.09,
         )
         for i, row in enumerate(self.best_voters):
             for j, filter_number in enumerate(row):
@@ -2036,7 +2075,6 @@ def plot_image(image):
     return fig_img
 
 
-# TODO: plot voltages                                      1
-# TODO: check best 25 filters and 100 filters              2
-# TODO: clamp weights                                      3
-# TODO: C_SNN kernel_size=8 finish gridsearch              4
+# TODO: check best 25 filters and 100 filters              1
+# TODO: clamp weights                                      2
+# TODO: C_SNN kernel_size=8 finish gridsearch              3
