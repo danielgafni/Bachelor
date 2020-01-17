@@ -83,7 +83,7 @@ class AbstractSNN:
     ):
         self.n_iter_counter = 0
         self.n_iter = n_iter
-        self.type = type_
+        self.network_type = type_
         self.mean_weight = mean_weight
         self.c_w = c_w
         self.c_w_min = c_w_min
@@ -116,13 +116,13 @@ class AbstractSNN:
         #     self.network.connections[c].learning = True
 
         print(
-            f"Created {self.type} network {self.name} with parameters\n{self.parameters}\n"
+            f"Created {self.network_type} network {self.name} with parameters\n{self.parameters}\n"
         )
 
     @property
     def parameters(self):
         parameters = {
-            "type": self.type,
+            "type": self.network_type,
             "mean_weight": self.mean_weight,
             "n_iter": self.n_iter,
             "c_w": self.c_w,
@@ -1171,6 +1171,7 @@ class AbstractSNN:
         if self.calibrated:
             torch.save(self.votes, path + "//votes")
             torch.save(self.accuracy, path + "//accuracy")
+            torch.save(self.error, path + "//error")
             torch.save(self.conf_matrix, path + "//confusion_matrix")
 
         with open(path + "//parameters.json", "w") as file:
@@ -1198,12 +1199,12 @@ class AbstractSNN:
             print("Rewriting existing network...")
             crs.execute(
                 "INSERT INTO networks VALUES (?, ?, ?, ?)",
-                (self.name, self.accuracy, self.n_iter, self.type),
+                (self.name, self.accuracy, self.n_iter, self.network_type),
             )
         else:
             crs.execute(
                 "INSERT INTO networks VALUES (?, ?, ?, ?)",
-                (self.name, self.accuracy, self.n_iter, self.type),
+                (self.name, self.accuracy, self.n_iter, self.network_type),
             )
 
         conn.commit()
@@ -2044,7 +2045,7 @@ class FC_SNN(AbstractSNN):
     @property
     def parameters(self):
         parameters = {
-            "type": self.type,
+            "network_type": self.network_type,
             "mean_weight": self.mean_weight,
             "n_iter": self.n_iter,
             "c_w": self.c_w,

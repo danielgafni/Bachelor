@@ -1,1 +1,1 @@
-{"type": "FC_SNN", "mean_weight": 0.5, "n_iter": 5000, "c_w": -100.0, "time_max": 250, "crop": 20, "n_filters": 100, "intensity": 127.5, "dt": 1, "c_l": false, "nu": null, "t_pre": 8.0, "t_post": 20.0}
+{"mean_weight": 0.5, "n_iter": 5000, "c_w": -100.0, "time_max": 250, "crop": 20, "n_filters": 100, "intensity": 127.5, "dt": 1, "c_l": false, "nu": null, "t_pre": 8.0, "t_post": 20.0, "network_type": "FC_SNN"}

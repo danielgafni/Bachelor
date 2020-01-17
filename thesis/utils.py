@@ -39,14 +39,22 @@ def view_database():
     )
     for name in os.listdir("networks"):
         if "." not in name:
-            parameters = view_network(name)
-            if os.path.exists(f"networks//{name}//accuracy"):
-                parameters["accuracy"] = torch.load(f"networks//{name}//accuracy")
-            try:
-                parameters["name"] = name
-            except TypeError:
-                pass
-            database = database.append(parameters, ignore_index=True)
+            if os.path.exists(f"networks//{name}//parameters.json"):
+                parameters = view_network(name)
+                if os.path.exists(f"networks//{name}//accuracy"):
+                    parameters["accuracy"] = torch.load(f"networks//{name}//accuracy")
+                else:
+                    parameters["accuracy"] = None
+                if os.path.exists(f"networks//{name}//error"):
+                    parameters["error"] = torch.load(f"networks//{name}//error")
+                else:
+                    parameters["error"] = None
+                try:
+                    parameters["name"] = name
+                except TypeError:
+                    pass
+
+                database = database.append(parameters, ignore_index=True)
 
     return database
 
@@ -55,7 +63,7 @@ def plot_database(
     n_filters=100, network_type="LC_SNN", kernel_size=12, stride=4, c_l=False
 ):
     data = view_database()
-    data = data[data["type"] == network_type]
+    data = data[data["network_type"] == network_type]
     data = data[data["c_l"] == c_l]
     data = data[data["n_filters"] == n_filters]
     color = data["n_iter"]
@@ -69,9 +77,9 @@ def plot_database(
     elif network_type == "FC_SNN":
         figname = f"{network_type} networks with {n_filters} filters"
 
-    data["error"] = (
-        (data["accuracy"] * (1 - data["accuracy"]) / data["n_iter"]) ** 0.5
-    ).values
+    # data["error"] = (
+    #     (data["accuracy"] * (1 - data["accuracy"]) / data["n_iter"]) ** 0.5
+    # ).values
 
     fig = go.Figure(
         go.Scatter3d(
@@ -138,7 +146,7 @@ def load_network(name):
             if "stride" in parameters.keys():
                 stride = parameters["stride"]
             intensity = parameters["intensity"]
-            network_type = parameters["type"]
+            network_type = parameters["network_type"]
             c_l = False
             if "c_l" in parameters.keys():
                 c_l = parameters["c_l"]
@@ -334,7 +342,7 @@ def sync_database():
                 parameters = json.load(file)
             accuracy = torch.load(f"networks//{name}//accuracy")
             n_iter = parameters["n_iter"]
-            network_type = parameters["type"]
+            network_type = parameters["network_type"]
             crs.execute("SELECT id FROM networks")
             names = [line[0] for line in crs.fetchall()]
             if name in names:
