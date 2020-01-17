@@ -100,11 +100,12 @@ class AbstractSNN:
         self.intensity = intensity
         self.dt = dt
         self.c_l = c_l
-        if not self.c_l:
-            self.nu = None
+
         if nu is None and c_l:
             nu = [-1, -0.1]
         self.nu = nu
+        if not self.c_l:
+            self.nu = None
         self.t_pre = t_pre
         self.t_post = t_post
         self.immutable_name = immutable_name
