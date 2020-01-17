@@ -195,8 +195,9 @@ class AbstractSNN:
             fig_spikes = self.plot_spikes_Y()
             fig_weights_XY.show()
             fig_spikes.show()
-            _, fig_competition_distribtion = self.competition_distribution()
-            fig_competition_distribtion.show()
+            if self.c_l:
+                _, fig_competition_distribtion = self.competition_distribution()
+                fig_competition_distribtion.show()
 
         t_start = t()
         for speed_counter, batch in tqdm_train(
@@ -219,10 +220,11 @@ class AbstractSNN:
                     display.clear_output(wait=True)
                     fig_weights_XY = self.plot_weights_XY()
                     fig_spikes = self.plot_spikes_Y()
-                    _, fig_competition_distribtion = self.competition_distribution()
                     fig_weights_XY.show()
                     fig_spikes.show()
-                    fig_competition_distribtion.show()
+                    if self.c_l:
+                        _, fig_competition_distribtion = self.competition_distribution()
+                        fig_competition_distribtion.show()
                     cnt += 1
 
             self.network.reset_()
@@ -998,7 +1000,7 @@ class AbstractSNN:
         for i, row in enumerate(best_voters):
             for j, index in enumerate(row):
                 best_spikes[:, i * self.conv_size + j] = spikes[
-                                                         :, self.best_voters[i][j], i, j
+                                                         :, best_voters[i][j], i, j
                                                          ]
                 best_indices.append(
                     f"Filter {best_voters[i][j].item()}, patch ({i+1}, {j+1})"
