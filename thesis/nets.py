@@ -80,7 +80,7 @@ class AbstractSNN:
         foldername=None,
         c_w_min=None,
         n_iter=0,
-    ):
+                ):
         self.n_iter_counter = 0
         self.n_iter = n_iter
         self.network_type = type_
@@ -100,6 +100,7 @@ class AbstractSNN:
         self.intensity = intensity
         self.dt = dt
         self.c_l = c_l
+        self.train_method = None
 
         if nu is None and c_l:
             nu = [-1, -0.1]
@@ -123,7 +124,7 @@ class AbstractSNN:
     @property
     def parameters(self):
         parameters = {
-            "type": self.network_type,
+            "network_type": self.network_type,
             "mean_weight": self.mean_weight,
             "n_iter": self.n_iter,
             "c_w": self.c_w,
@@ -139,7 +140,8 @@ class AbstractSNN:
             "nu": self.nu,
             "t_pre": self.t_pre,
             "t_post": self.t_post,
-        }
+            "train_method": self.train_method
+            }
         return parameters
 
     @property
@@ -232,6 +234,7 @@ class AbstractSNN:
 
 
         self.network.train(False)
+        self.train_method = 'basic'
 
     def train_two_steps(self, n_iter=None, plot=False, vis_interval=30):
         if n_iter is None:
@@ -350,6 +353,7 @@ class AbstractSNN:
             #     self.network.connections[('Y', 'Y')].w.view(shape, shape)[i, i] = 0
 
         self.network.train(False)
+        self.train_method = 'two_steps'
 
     def class_from_spikes(self):
         pass

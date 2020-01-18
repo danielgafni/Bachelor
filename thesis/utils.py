@@ -142,6 +142,8 @@ def load_network(name):
             crop = parameters["crop"]
             if "kernel_size" in parameters.keys():
                 kernel_size = parameters["kernel_size"]
+            if "train_method" in parameters.keys():
+                train_method = parameters["train_method"]
             n_filters = parameters["n_filters"]
             if "stride" in parameters.keys():
                 stride = parameters["stride"]
@@ -207,6 +209,9 @@ def load_network(name):
         }
 
         net.network.train(False)
+        net.network.connections[("Y", "Y")].learning = False
+        net.network.connections[("X", "Y")].learning = False
+        net.train_method = train_method
         for c in net.network.connections:
             net.network.connections[c].learning = False
 
