@@ -134,18 +134,18 @@ Output:
 Copy the name of a network you want to load.
 
 ```python
-net = load_network('3a2846ea8cac0ceae1e970206cb6f0de92e5e6c2b930e99beff81ab4')
+net = load_network('01d179e6813f1c54d8e97295259a257c5635f10ee22403b0b975c9ae')
 ```
 
 Network loaded. Now you can check it's behavior:
 
 ```python
-net.feed_label(5, plot=True)
+net.feed_label(3, plot=True)
 ```
 
 Output:
 
-Prediction: 5
+Prediction: 3
 
 ![Input image 3](overview/input_image_3.png)
 
