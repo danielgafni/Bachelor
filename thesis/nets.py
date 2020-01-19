@@ -196,6 +196,7 @@ class AbstractSNN:
             fig_weights_XY = self.plot_weights_XY()
             fig_spikes = self.plot_spikes_Y()
             fig_weights_XY.show()
+
             fig_spikes.show()
             if self.c_l:
                 _, fig_competition_distribtion = self.competition_distribution()
@@ -213,6 +214,8 @@ class AbstractSNN:
             )
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            if self.mask_YY is not None and self.c_l:
+                self.network.connections[("Y", "Y")].w *= self.mask_YY
 
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
@@ -221,9 +224,17 @@ class AbstractSNN:
                     }
                     display.clear_output(wait=True)
                     fig_weights_XY = self.plot_weights_XY()
+
                     fig_spikes = self.plot_spikes_Y()
                     fig_weights_XY.show()
+                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy())).show()
                     fig_spikes.show()
+                    try:
+                        f1, f2 = self.plot_best_voters()
+                        f1.show()
+                        f2.show()
+                    except:
+                        pass
                     if self.c_l:
                         _, fig_competition_distribtion = self.competition_distribution()
                         fig_competition_distribtion.show()
@@ -1459,7 +1470,9 @@ class LC_SNN(AbstractSNN):
             .indices
         )
         subplot_titles = []
-        for i, row in enumerate(self.best_voters):
+
+
+        for i, row in enumerate(best_patches):
             for j, filter_number in enumerate(row):
                 subplot_titles.append(
                     f"Filter {filter_number}, patch ({i + 1}, {j + 1})"
