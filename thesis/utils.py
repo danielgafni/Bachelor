@@ -340,6 +340,19 @@ def delete_network(name, sure=False):
 
 def clean_database():
     #  Clear existing database
+    if not os.path.exists(r"networks/networks.db"):
+        conn = connect(r"networks/networks.db")
+        crs = conn.cursor()
+        crs.execute(
+            """CREATE TABLE networks(
+             name BLOB,
+             accuracy REAL,
+             type BLOB
+             )"""
+            )
+        conn.commit()
+        conn.close()
+
     conn = connect(r"networks/networks.db")
     crs = conn.cursor()
     crs.execute("DELETE FROM networks")
