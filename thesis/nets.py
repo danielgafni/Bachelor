@@ -1186,11 +1186,11 @@ class AbstractSNN:
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + "//network")
-        if self.calibrated:
-            torch.save(self.votes, path + "//votes")
-            torch.save(self.accuracy, path + "//accuracy")
-            torch.save(self.error, path + "//error")
-            torch.save(self.conf_matrix, path + "//confusion_matrix")
+
+        torch.save(self.votes, path + "//votes")
+        torch.save(self.accuracy, path + "//accuracy")
+        torch.save(self.error, path + "//error")
+        torch.save(self.conf_matrix, path + "//confusion_matrix")
 
         with open(path + "//parameters.json", "w") as file:
             json.dump(self.parameters, file)
@@ -1200,9 +1200,8 @@ class AbstractSNN:
             crs = conn.cursor()
             crs.execute(
                 """CREATE TABLE networks(
-                 id BLOB,
+                 name BLOB,
                  accuracy REAL,
-                 n_iter INT,
                  type BLOB
                  )"""
             )
@@ -1211,18 +1210,20 @@ class AbstractSNN:
 
         conn = sqlite3.connect(r"networks/networks.db")
         crs = conn.cursor()
-        crs.execute("SELECT id FROM networks WHERE id = ?", (self.name,))
+        crs.execute("SELECT name FROM networks WHERE name = ?", (self.name,))
         result = crs.fetchone()
         if result:
-            print("Rewriting existing network...")
             crs.execute(
-                "INSERT INTO networks VALUES (?, ?, ?, ?)",
-                (self.name, self.accuracy, self.n_iter, self.network_type),
+                "DELETE FROM networks WHERE name = ?", (self.name, )
+                )
+            crs.execute(
+                "INSERT INTO networks VALUES (?, ?, ?)",
+                (self.name, self.accuracy, self.network_type),
             )
         else:
             crs.execute(
-                "INSERT INTO networks VALUES (?, ?, ?, ?)",
-                (self.name, self.accuracy, self.n_iter, self.network_type),
+                "INSERT INTO networks VALUES (?, ?, ?)",
+                (self.name, self.accuracy, self.network_type),
             )
 
         conn.commit()
@@ -1399,6 +1400,7 @@ class LC_SNN(AbstractSNN):
         self.weights_XY = self.get_weights_XY()
 
         self.best_voters = None
+        self.votes = None
 
     def class_from_spikes(self, top_n=None):
         if top_n == 0:
