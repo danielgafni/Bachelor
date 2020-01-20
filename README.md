@@ -26,7 +26,7 @@ Currently I have trained 25- and 100-filter Locally Connected networks. The netw
 | C\_SNN  | 25         | 8            | 0\.665   |
 | FC\_SNN | 100        | 20           | 0.734    |
 
-I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon.
+I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon. 
 
 I found an interesting way to get good accuracy after training YY. In my method I first lock the YY connection (to some value like -100) and only train XY. Then I clear YY weights, make them zeros, lock XY weights and train YY (the lowest are clamped to some value). The resulting weights look something like this:
 
@@ -36,7 +36,11 @@ Their distribution:
 
 ![competition distribution](overview/competition_distribution.png)
 
-Locally Connected don't need a lot of training examples:
+I'm also experimenting with simultaneous training of XY and YY connections. It also improves the accuracy, but my hypothesis right now is that sequential training gives better results.
+
+**The networks below don't have their weights YY trained**.
+
+Locally Connected networks don't need a lot of training examples:
 
 ![accuracy dependence on number of training iterations](overview/accuracy-n_iter.png)
 
@@ -104,13 +108,15 @@ The **bindsnet** directory contains modified and corrected [bindsnet](https://gi
 
 Pre-trained networks are located in the **networks** directory. Choose branch **no-networks** if you don't want them (~800 MB folder).
 
+An example Jupyter Notebook can be found in the repository.
+
 Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
 ## Basic imports
 
 ```python
-from thesis.nets import LC_SNN, C_SNN
-from thesis.utils import view_database, load_network, delete_network
+from thesis.nets import *
+from thesis.utils import *
 ```
 
 To view available networks use
@@ -216,7 +222,9 @@ net.feed_image('image.png')
 delete_network(net.name)
 ```
 
+## If something goes wrong with the database
 
+Delete `networks/networks.db` and run `thesis.utils.clean_database()`
 
 ## Dash Application
 
