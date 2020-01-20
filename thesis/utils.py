@@ -137,6 +137,9 @@ def load_network(name):
             parameters = json.load(file)
             mean_weight = parameters["mean_weight"]
             c_w = parameters["c_w"]
+            c_w_min = None
+            if "c_w_min" in parameters.keys():
+                c_w_min = parameters["c_w_min"]
             n_iter = parameters["n_iter"]
             time_max = parameters["time_max"]
             crop = parameters["crop"]
@@ -152,9 +155,8 @@ def load_network(name):
             c_l = False
             if "c_l" in parameters.keys():
                 c_l = parameters["c_l"]
-            nu = None
-            if "nu" in parameters.keys():
-                nu = parameters["nu"]
+            nu_pre = parameters["nu_pre"]
+            nu_post = parameters["nu_post"]
             t_pre = parameters["t_pre"]
             t_post = parameters["t_post"]
 
@@ -169,6 +171,7 @@ def load_network(name):
         net = LC_SNN(
             mean_weight=mean_weight,
             c_w=c_w,
+            c_w_min=c_w_min,
             time_max=time_max,
             crop=crop,
             kernel_size=kernel_size,
@@ -176,7 +179,8 @@ def load_network(name):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu=nu,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
             immutable_name=True,

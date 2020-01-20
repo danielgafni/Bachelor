@@ -72,7 +72,8 @@ class AbstractSNN:
         intensity=127.5,
         dt=1,
         c_l=False,
-        nu=None,
+        nu_pre=None,
+        nu_post=None,
         t_pre=8.0,
         t_post=20.0,
         type_="Abstract SNN",
@@ -102,11 +103,11 @@ class AbstractSNN:
         self.c_l = c_l
         self.train_method = None
 
-        if nu is None and c_l:
-            nu = [-1, -0.1]
-        self.nu = nu
+        self.nu = [nu_pre, nu_post]
+
         if not self.c_l:
             self.nu = None
+
         self.t_pre = t_pre
         self.t_post = t_post
         self.immutable_name = immutable_name
@@ -137,7 +138,8 @@ class AbstractSNN:
             "intensity": self.intensity,
             "dt": self.dt,
             "c_l": self.c_l,
-            "nu": self.nu,
+            "nu_pre": self.nu[0],
+            "nu_post": self.nu[1],
             "t_pre": self.t_pre,
             "t_post": self.t_post,
             "train_method": self.train_method
@@ -1250,7 +1252,8 @@ class LC_SNN(AbstractSNN):
         t_post=20.0,
         c_w_min=None,
         c_l=False,
-        nu=None,
+        nu_pre=None,
+        nu_post=None,
         immutable_name=False,
         foldername=None,
         n_iter=0,
@@ -1266,7 +1269,8 @@ class LC_SNN(AbstractSNN):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu=nu,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
             c_w_min=c_w_min,
@@ -1594,7 +1598,8 @@ class C_SNN(AbstractSNN):
         stride=4,
         intensity=127.5,
         c_l=False,
-        nu=None,
+        nu_pre=None,
+        nu_post=None,
         t_pre=9.0,
         t_post=20.0,
         n_iter=0,
@@ -1613,7 +1618,8 @@ class C_SNN(AbstractSNN):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu=nu,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
             c_w_min=c_w_min,
@@ -1787,7 +1793,8 @@ class FC_SNN(AbstractSNN):
         t_post=20.0,
         n_iter=0,
         c_l=False,
-        nu=None,
+        nu_pre=None,
+        nu_post=None,
         immutable_name=False,
         foldername=None,
         c_w_min=None,
@@ -1803,7 +1810,8 @@ class FC_SNN(AbstractSNN):
             t_pre=t_pre,
             t_post=t_post,
             c_l=c_l,
-            nu=nu,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
             immutable_name=immutable_name,
             foldername=foldername,
             n_iter=n_iter,
@@ -2069,6 +2077,7 @@ class FC_SNN(AbstractSNN):
             "mean_weight": self.mean_weight,
             "n_iter": self.n_iter,
             "c_w": self.c_w,
+            "c_w_min": self.c_w_min,
             "time_max": self.time_max,
             "crop": self.crop,
             "n_filters": self.n_filters,
