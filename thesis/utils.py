@@ -2,6 +2,7 @@ from .nets import LC_SNN, C_SNN, FC_SNN
 import os
 import torch
 import json
+import hashlib
 import pandas as pd
 import plotly.graph_objs as go
 from bindsnet.network.monitors import Monitor
@@ -11,7 +12,7 @@ from sqlite3 import connect
 
 def view_network(name):
     if not os.path.exists(f"networks//{name}"):
-        print("Network with such id does not exist")
+        print("Network with such name does not exist")
         return None
     else:
         try:
@@ -325,7 +326,7 @@ def delete_network(name, sure=False):
             rmtree(f"networks//{name}")
             conn = connect(r"networks/networks.db")
             crs = conn.cursor()
-            crs.execute(f"DELETE FROM networks WHERE id = ?", (name,))
+            crs.execute(f"DELETE FROM networks WHERE name = ?", (name,))
             conn.commit()
             conn.close()
             print("Network deleted!")
@@ -335,45 +336,51 @@ def delete_network(name, sure=False):
         rmtree(f"networks//{name}")
         conn = connect(r"networks/networks.db")
         crs = conn.cursor()
-        crs.execute(f"DELETE FROM networks WHERE id = ?", (name,))
+        crs.execute(f"DELETE FROM networks WHERE name = ?", (name,))
         conn.commit()
         conn.close()
         print("Network deleted!")
 
 
-def sync_database():
+def clean_database():
+    #  Clear existing database
+    if not os.path.exists(r"networks/networks.db"):
+        conn = connect(r"networks/networks.db")
+        crs = conn.cursor()
+        crs.execute(
+            """CREATE TABLE networks(
+             name BLOB,
+             accuracy REAL,
+             type BLOB
+             )"""
+            )
+        conn.commit()
+        conn.close()
+
     conn = connect(r"networks/networks.db")
     crs = conn.cursor()
     crs.execute("DELETE FROM networks")
+
     for name in os.listdir("networks"):
         if "." not in name:
+
+            #  Delete networks without saved parameters
+            if not os.path.exists(f"networks//{name}//parameters.json"):
+                rmtree(f"networks//{name}")
+                continue
+
+            #  Rename networks according to current parameters
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
+            new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
             accuracy = torch.load(f"networks//{name}//accuracy")
-            n_iter = parameters["n_iter"]
             network_type = parameters["network_type"]
-            crs.execute("SELECT id FROM networks")
-            names = [line[0] for line in crs.fetchall()]
-            if name in names:
-                crs.execute("DELETE FROM networks WHERE id = (?)", (name,))
+            os.rename(f"networks//{name}", f"networks//{new_name}")
+
+            #  Add network to database
             crs.execute(
-                "INSERT INTO networks VALUES (?, ?, ?, ?)",
-                (name, accuracy, n_iter, network_type),
+                "INSERT INTO networks VALUES (?, ?, ?)",
+                (new_name, accuracy, network_type),
             )
             conn.commit()
     conn.close()
-
-    # conn = connect(r'networks/networks.db')
-    # crs = conn.cursor()
-    # crs.execute('SELECT id FROM networks')
-    # result = crs.fetchall()
-    # for name in result:
-    #     if not os.path.exists(f'networks//{name}'):
-    #         crs.execute(f'DELETE FROM networks WHERE id = ?', (name[0], ))
-
-
-def sync_parameters():
-    for name in os.listdir("networks"):
-        if "." not in name:
-            net = load_network(name)
-            net.save()
