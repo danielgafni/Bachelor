@@ -353,7 +353,7 @@ def clean_database():
              accuracy REAL,
              type BLOB
              )"""
-            )
+        )
         conn.commit()
         conn.close()
 
