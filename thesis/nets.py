@@ -2110,3 +2110,5 @@ def plot_image(image):
 # TODO: check best 25 filters and 100 filters              1
 # TODO: clamp weights                                      2
 # TODO: C_SNN kernel_size=8 finish gridsearch              3
+# TODO: make a function to get Y neuron location from its number. Use this info in all plots with Y neurons.
+# TODO: load activity if n_iter < n_iter_stored
