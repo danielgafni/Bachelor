@@ -3,7 +3,6 @@ import math
 import hashlib
 import json
 import os
-import shutil
 import sqlite3
 import random
 from time import time as t
@@ -30,7 +29,6 @@ from bindsnet.network.topology import (
     Connection,
     Conv2dConnection,
     LocalConnection,
-    SparseConnection,
 )
 from bindsnet.utils import reshape_locally_connected_weights
 
@@ -58,6 +56,9 @@ if in_ipynb():
 else:
     ncols = 100
 
+########################################################################################################################
+######################################  ABSTRACT NETWORK  ##############################################################
+########################################################################################################################
 
 class AbstractSNN:
     def __init__(
@@ -82,6 +83,30 @@ class AbstractSNN:
         c_w_min=None,
         n_iter=0,
     ):
+
+        """
+        Constructor for abstract network.
+        :param mean_weight: a value for normalization of XY weights
+        :param c_w: competitive YY weight value
+        :param time_max: simulation time
+        :param crop: the size in pixels MNIST images are cropped to
+        :param kernel_size: kernel size for Local Connection
+        :param n_filters: number of filter for each patch
+        :param stride: stride for Local Connection
+        :param intensity: intensity to use in Poisson Distribution to emit X spikes
+        :param dt: time step in milliseconds
+        :param c_l: To train or not to train YY connections
+        :param nu_pre: A- parameter of STDP for Y neurons.
+        :param nu_post: A+ parameter of STDP for Y neurons.
+        :param t_pre: tau- parameter of STDP for Y neurons.
+        :param t_post: tau+ parameter of STDP for Y neurons.
+        :param type_: Network type
+        :param immutable_name: if True, then the network name will be `foldername`. If False, then the name will be
+        generated from the network parameters.
+        :param foldername: Name to use with `immutable_name` = True
+        :param c_w_min: minimum value of competitive YY weights
+        :param n_iter: number of complete training iterations.
+        """
         self.n_iter_counter = 0
         self.n_iter = n_iter
         self.network_type = type_
@@ -126,6 +151,10 @@ class AbstractSNN:
 
     @property
     def parameters(self):
+        """
+        Combines network parameters in one dict
+        :return: network parameters dict
+        """
         parameters = {
             "network_type": self.network_type,
             "mean_weight": self.mean_weight,
@@ -150,6 +179,10 @@ class AbstractSNN:
 
     @property
     def name(self):
+        """
+        Network name.
+        :return: returns network name.
+        """
         if self.immutable_name:
             return self.foldername
         else:
@@ -157,6 +190,10 @@ class AbstractSNN:
 
     @property
     def network_state(self):
+        """
+        Hash of network weights.
+        :return: returns hash of network weights.
+        """
         state = (
             self.name + str(self.get_weights_XY()) + str(self.get_weights_YY())
         ).encode("utf8")
@@ -164,6 +201,10 @@ class AbstractSNN:
 
     @property
     def best_voters(self):
+        """
+        Spiking activity of best neurons for each patch.
+        :return: torch.return_types.max - max spiking neurons for each patch
+        """
         best_patches_max = (
             self.spikes["Y"]
             .get("s")
@@ -175,12 +216,24 @@ class AbstractSNN:
         return best_patches_max
 
     def learning(self, learning_XY, learning_YY=None):
+        """
+        Controls if XY and YY connections are mutable or not.
+        :param learning_XY: True - XY is mutable, False - XY is immutable
+        :param learning_YY: True - YY is mutable, False - YY is immutable
+        """
         if learning_YY is None:
             learning_YY = learning_YY
         self.network.connections[("X", "Y")].learning = learning_XY
         self.network.connections[("Y", "Y")].learning = learning_YY
 
     def train(self, n_iter=None, plot=False, vis_interval=30):
+        """
+        The main training function. Simultaneously trains XY and YY connection weights.
+        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        :param n_iter: number of training iterations
+        :param plot: True - to plot info, False - no plotting.
+        :param vis_interval: how often to update plots in seconds.
+        """
         if n_iter is None:
             n_iter = 5000
         encoded_dataset = MNIST(
@@ -275,6 +328,14 @@ class AbstractSNN:
         self.train_method = "basic"
 
     def train_two_steps(self, n_iter=None, plot=False, vis_interval=30):
+        """
+        Alternative training function. Sequentially trains XY and YY connection weights.
+        First trains XY, then locks them, drops YY to zero and trains them.
+        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        :param n_iter: number of training iterations
+        :param plot: True - to plot info, False - no plotting.
+        :param vis_interval: how often to update plots in seconds.
+        """
         if n_iter is None:
             n_iter = 5000
         encoded_dataset = MNIST(
@@ -388,9 +449,16 @@ class AbstractSNN:
         self.train_method = "two_steps"
 
     def class_from_spikes(self):
+        """
+        Abstract method for getting predicted label from current spikes.
+        """
         pass
 
     def collect_activity(self, n_iter=None):
+        """
+        Collect network spiking activity and save it to disk. Sum of spikes for each neuron are being recorded.
+        :param n_iter: number of iterations
+        """
         self.network.train(False)
         if n_iter is None:
             n_iter = 5000
@@ -447,6 +515,12 @@ class AbstractSNN:
         )
 
     def calibrate(self, n_iter=None):
+        """
+        Calculate network `self.votes` based on spiking activity.
+        Each neuron has a vote for each label. The votes are equal to mean amount of spikes.
+        If activity was previously recorded and the weights didn't change since then, saved activity will be used.
+        :param n_iter: number of iterations
+        """
         print("Calibrating network...")
         if n_iter is None:
             n_iter = 5000
@@ -489,6 +563,10 @@ class AbstractSNN:
         self.calibrated = True
 
     def calibrate_lc(self, n_iter=None):
+        """
+        Train a linear classifier on network outputs.
+        :param n_iter: number of training iterations
+        """
         if n_iter is None:
             n_iter = 5000
 
@@ -509,6 +587,10 @@ class AbstractSNN:
         self.classifier.fit(outputs, labels)
 
     def calculate_accuracy_lc(self, n_iter=10000):
+        """
+        Calculate accuracy of the linear classifier.
+        :param n_iter: number of iterations
+        """
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -561,6 +643,10 @@ class AbstractSNN:
         self.accuracy = score
 
     def votes_distribution(self):
+        """
+        Plots mean votes for top classes.
+        :return: plotly.graph_objs.Figure - distribution of votes
+        """
         votes_distibution_fig = go.Figure(
             go.Scatter(
                 y=self.votes.sort(0, descending=True)[0].mean(1).numpy(),
@@ -597,9 +683,15 @@ class AbstractSNN:
         )
         return votes_distibution_fig
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None, method=None):
-        if method is None:
-            method == "patch_voting"
+    def calculate_accuracy(self, n_iter=1000, top_n=None):
+        """
+        Calculate network accuracy.
+        Accuracy is stored in `self.accuracy`, std in `self.error`.
+        All network responses are stored in `self.conf_matrix`.
+        :param n_iter: number of iterations
+        :param top_n: how many labels can each neuron vote for
+        """
+
         test_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -653,8 +745,13 @@ class AbstractSNN:
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
         self.error = error
+        return None
 
     def accuracy_distribution(self):
+        """
+        Get network accuracy distribution across labels.
+        :return: padnas.DataFrame with accuracies for each label; plotly.graph_objs.Figure with a plot.
+        """
         self.network.train(False)
         colnames = ["label", "accuracy", "error"]
         accs = pd.DataFrame(columns=colnames)
@@ -717,6 +814,10 @@ class AbstractSNN:
         return accs, accs_distibution_fig
 
     def competition_distribution(self):
+        """
+        Get network competition weights distribution.
+        :return: padnas.DataFrame with competition weights; plotly.graph_objs.Figure with a histogram.
+        """
         w = self.network.connections[("Y", "Y")].w
         w_comp = []
         for fltr1 in range(w.size(0)):
@@ -741,6 +842,13 @@ class AbstractSNN:
         return w_comp, fig
 
     def accuracy_on_top_n(self, n_iter=1000, labels=False):
+        """
+        This method might not work at the moment, maybe I am going to remove it.
+        Calculate accuracy dependence on top_n.
+        :param n_iter: number of iterations
+        :param labels: If labels=True the accuracy will be calculated separately for each label.
+        :return: accuracies, errors, plotly.graph_objs.Figure - plot.
+        """
         self.network.reset_()
         if not self.calibrated:
             print("The network is not calibrated!")
@@ -889,6 +997,10 @@ class AbstractSNN:
             return scores, errors, fig
 
     def confusion(self):
+        """
+        Plot confusion matrix after accuracy calculation.
+        :return: plotly.graph_objs.Figure - confusion matrix heatmap.
+        """
         row_sums = self.conf_matrix.sum(axis=1)
         average_confusion_matrix = np.nan_to_num(self.conf_matrix / row_sums)
         fig_confusion = go.Figure(
@@ -919,12 +1031,23 @@ class AbstractSNN:
         return fig_confusion
 
     def get_weights_XY(self):
+        """
+        Abstract method to get XY weights in a proper shape to plot them later.
+        """
         pass
 
     def get_weights_YY(self):
+        """
+        Abstract method to get YY weights in a proper shape to plot them later.
+        """
         pass
 
     def plot_weights_XY(self, width=800):
+        """
+        Plots XY weights.
+        :param width: figure width
+        :return: plotly.graph_objs.Figure - XY weights heatmap.
+        """
         self.weights_XY = self.get_weights_XY()
         fig_weights_XY = go.Figure(
             data=go.Heatmap(z=self.weights_XY.numpy(), colorscale="YlOrBr")
@@ -955,6 +1078,11 @@ class AbstractSNN:
         return fig_weights_XY
 
     def plot_weights_YY(self, width=800):
+        """
+        Plots YY weights.
+        :param width: figure width
+        :return: plotly.graph_objs.Figure - YY weights heatmap.
+        """
         self.weights_YY = self.get_weights_YY()
         fig_weights_YY = go.Figure(
             data=go.Heatmap(z=self.weights_YY.numpy(), colorscale="YlOrBr")
@@ -987,6 +1115,10 @@ class AbstractSNN:
         return fig_weights_YY
 
     def plot_spikes_Y(self):
+        """
+        Plots all Y spikes.
+        :return: plotly.graph_objs.Figure - Y spikes heatmap.
+        """
         width = 1000
         height = 800
         spikes = (
@@ -1019,6 +1151,10 @@ class AbstractSNN:
         return fig_spikes
 
     def plot_best_spikes_Y(self):
+        """
+        Plots Y spikes only for best neurons in each patch.
+        :return: plotly.graph_objs.Figure - best Y spikes heatmap.
+        """
         width = 1000
         height = 800
         spikes = self.spikes["Y"].get("s").squeeze(1)
@@ -1055,6 +1191,10 @@ class AbstractSNN:
         return fig_spikes
 
     def plot_spikes(self):
+        """
+        Plots all spikes - X and Y.
+        :return: plotly.graph_objs.Figure - spikes heatmap.
+        """
         spikes_X = self._spikes["X"].transpose(0, 1)
         spikes_Y = (
             self.spikes["Y"].get("s").squeeze(1).view(self.time_max, -1).transpose(0, 1)
@@ -1082,6 +1222,16 @@ class AbstractSNN:
         return fig_spikes
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+        """
+        Inputs given label into the network, calculates network prediction.
+        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        :param label: input label (0 - 9)
+        :param top_n: how many labels can each neuron vote for
+        :param k: how many possible labels are returned in the prediction
+        :param to_print: True - to print the prediction, False - not to print.
+        :param plot: True - to plot info, False - no plotting.
+        :return: torch.tensor with predictions in descending confidence order.
+        """
         dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -1163,10 +1313,17 @@ class AbstractSNN:
 
         return prediction[0]
 
-    def top_voters(self):
-        pass
-
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
+        """
+        Inputs given image into the network, calculates network prediction.
+        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        :param path: filepath to input image
+        :param top_n: how many labels can each neuron vote for
+        :param k: how many possible labels are returned in the prediction
+        :param to_print: True - to print the prediction, False - not to print.
+        :param plot: True - to plot info, False - no plotting.
+        :return: torch.tensor with predictions in descending confidence order.
+        """
         self.network.reset_()
         self.network.train(False)
         img = Image.open(fp=path).convert("1")
@@ -1197,6 +1354,9 @@ class AbstractSNN:
         return prediction[0:k]
 
     def save(self):
+        """
+        Save network to disk.
+        """
         path = f"networks//{self.name}"
         if not os.path.exists(path):
             os.makedirs(path)
@@ -1247,6 +1407,8 @@ class AbstractSNN:
 
 
 ########################################################################################################################
+######################################  LOCALLY CONNECTED NETWORK  #####################################################
+########################################################################################################################
 
 
 class LC_SNN(AbstractSNN):
@@ -1270,7 +1432,27 @@ class LC_SNN(AbstractSNN):
         foldername=None,
         n_iter=0,
     ):
-
+        """
+        Locally Connected network (https://arxiv.org/abs/1904.06269).
+        :param mean_weight: a value for normalization of XY weights
+        :param c_w: competitive YY weight value
+        :param time_max: simulation time
+        :param crop: the size in pixels MNIST images are cropped to
+        :param kernel_size: kernel size for Local Connection
+        :param n_filters: number of filter for each patch
+        :param stride: stride for Local Connection
+        :param intensity: intensity to use in Poisson Distribution to emit X spikes
+        :param t_pre: tau- parameter of STDP Y neurons.
+        :param t_post: tau+ parameter of STDP Y neurons.
+        :param c_w_min: minimum value of competitive YY weights
+        :param c_l: To train or not to train YY connections
+        :param nu_pre: A- parameter of STDP for Y neurons.
+        :param nu_post: A+ parameter of STDP for Y neurons.
+        :param immutable_name: if True, then the network name will be `foldername`. If False, then the name will be
+        generated from the network parameters.
+        :param foldername: Name to use with `immutable_name` = True
+        :param n_iter: number of complete training iterations.
+        """
         super().__init__(
             mean_weight=mean_weight,
             c_w=c_w,
@@ -1293,6 +1475,9 @@ class LC_SNN(AbstractSNN):
         )
 
     def create_network(self):
+        """
+        Builds network structure.
+        """
         # Hyperparameters
         padding = 0
         conv_size = int((self.crop - self.kernel_size + 2 * padding) / self.stride) + 1
@@ -1413,6 +1598,11 @@ class LC_SNN(AbstractSNN):
         self.votes = None
 
     def class_from_spikes(self, top_n=None):
+        """
+        Predicts label from current Y spikes.
+        :param top_n: how many labels can each neuron vote for
+        :return: predicted label
+        """
         if top_n == 0:
             raise ValueError("top_n can't be zero")
         if top_n is None:
@@ -1466,6 +1656,11 @@ class LC_SNN(AbstractSNN):
         return res
 
     def plot_best_voters(self):
+        """
+        Plots information about best Y neurons from current spikes.
+        :return: plotly.graph_objs.Figure - weights of best neurons;
+        plotly.graph_objs.Figure - voltages of best neurons;
+        """
         w = self.network.connections[("X", "Y")].w
         k1, k2 = self.kernel_size, self.kernel_size
         c1, c2 = self.conv_size, self.conv_size
@@ -1571,6 +1766,16 @@ class LC_SNN(AbstractSNN):
         return fig
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+        """
+        Inputs given label into the network, calculates network prediction.
+        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        :param label: input label (0 - 9)
+        :param top_n: how many labels can each neuron vote for
+        :param k: how many possible labels are returned in the prediction
+        :param to_print: True - to print the prediction, False - not to print.
+        :param plot: True - to plot info, False - no plotting.
+        :return: torch.tensor with predictions in descending confidence order.
+        """
         super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
         if plot:
             fig, fig2 = self.plot_best_voters()
@@ -1583,6 +1788,9 @@ class LC_SNN(AbstractSNN):
             fig3.update_layout(title_text=f"Random Y neuron voltage").show()
 
     def get_weights_XY(self):
+        """
+        Get XY weights in a proper shape to plot them later.
+        """
         weights_XY = reshape_locally_connected_weights(
             self.network.connections[("X", "Y")].w,
             n_filters=self.n_filters,
@@ -1594,12 +1802,19 @@ class LC_SNN(AbstractSNN):
         return weights_XY
 
     def get_weights_YY(self):
+        """
+        Get YY weights in a proper shape to plot them later.
+        """
         shape_YY = self.network.connections[("Y", "Y")].w.shape
         weights_YY = self.network.connections[("Y", "Y")].w.view(
             int(np.sqrt(np.prod(shape_YY))), int(np.sqrt(np.prod(shape_YY)))
         )
         return weights_YY
 
+
+########################################################################################################################
+######################################  CONVOLUTION NETWORK  ###########################################################
+########################################################################################################################
 
 class C_SNN(AbstractSNN):
     def __init__(
@@ -1768,6 +1983,9 @@ class C_SNN(AbstractSNN):
         return res
 
     def get_weights_XY(self):
+        """
+        Get XY weights in a proper shape to plot them later.
+        """
         weights = self.network.connections[("X", "Y")].w
         height = int(weights.size(2))
         width = int(weights.size(3))
@@ -1784,12 +2002,18 @@ class C_SNN(AbstractSNN):
         return reshaped
 
     def get_weights_YY(self):
+        """
+        Get YY weights in a proper shape to plot them later.
+        """
         shape_YY = self.network.connections[("Y", "Y")].w.shape
         weights_YY = self.network.connections[("Y", "Y")].w.view(
             int(np.sqrt(np.prod(shape_YY))), int(np.sqrt(np.prod(shape_YY)))
         )
         return weights_YY
 
+########################################################################################################################
+######################################  FULLY CONNECTED NETWORK  #######################################################
+########################################################################################################################
 
 class FC_SNN(AbstractSNN):
     def __init__(
@@ -2023,6 +2247,9 @@ class FC_SNN(AbstractSNN):
             fig.show()
 
     def get_weights_XY(self):
+        """
+        Get XY weights in a proper shape to plot them later.
+        """
         weights = self.network.connections[("X", "Y")].w.view(
             self.crop, self.crop, self.n_filters
         )
@@ -2041,6 +2268,9 @@ class FC_SNN(AbstractSNN):
         return reshaped.flip(0)
 
     def get_weights_YY(self):
+        """
+        Get YY weights in a proper shape to plot them later.
+        """
         shape_YY = self.network.connections[("Y", "Y")].w.shape
         weights_YY = self.network.connections[("Y", "Y")].w.view(
             int(np.sqrt(np.prod(shape_YY))), int(np.sqrt(np.prod(shape_YY)))
