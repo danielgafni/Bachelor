@@ -60,6 +60,7 @@ else:
 ######################################  ABSTRACT NETWORK  ##############################################################
 ########################################################################################################################
 
+
 class AbstractSNN:
     def __init__(
         self,
@@ -1353,6 +1354,26 @@ class AbstractSNN:
 
         return prediction[0:k]
 
+    def reset(self, sure=False):
+        """
+        Reset network weights.
+        This will make XY weights random again and competition weights in YY will becode `self.c_w`.
+        :param sure:
+        """
+        if not sure:
+            print("Are you sure you want to reset the network weights? [Y/N]")
+            i = input().lower()
+            if i != "y":
+                print("Weights clearing canceled.")
+                return None
+
+        self.network.connections[("X", "Y")].w.data = torch.rand(
+            self.network.connections[("X", "Y")].w.data.shape
+        )
+        self.network.connections[("Y", "Y")].w.data.masked_fill_(
+            self.mask_YY.type(torch.BoolTensor), self.c_w
+        )
+
     def save(self):
         """
         Save network to disk.
@@ -1816,6 +1837,7 @@ class LC_SNN(AbstractSNN):
 ######################################  CONVOLUTION NETWORK  ###########################################################
 ########################################################################################################################
 
+
 class C_SNN(AbstractSNN):
     def __init__(
         self,
@@ -2011,9 +2033,11 @@ class C_SNN(AbstractSNN):
         )
         return weights_YY
 
+
 ########################################################################################################################
 ######################################  FULLY CONNECTED NETWORK  #######################################################
 ########################################################################################################################
+
 
 class FC_SNN(AbstractSNN):
     def __init__(
