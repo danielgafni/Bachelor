@@ -226,13 +226,7 @@ class AbstractSNN:
         :return: locations of best Y neurons
         """
         if self.spikes is not None:
-            best_patches_max = (
-                self.spikes["Y"]
-                    .get("s")
-                    .sum(0)
-                    .squeeze(0)
-                    .max(0)
-            )
+            best_patches_max = self.spikes["Y"].get("s").sum(0).squeeze(0).max(0)
             return best_patches_max.indices
         else:
             return None
@@ -1263,7 +1257,7 @@ class AbstractSNN:
             text = f"Total spikes: {total_spikes.item()}"
             subplot_titles.append(
                 f"Filter {patch_index}, patch ({i // self.conv_size}, {i % self.conv_size}) <br> {text}"
-                )
+            )
 
         fig = make_subplots(
             subplot_titles=subplot_titles,
@@ -1271,7 +1265,7 @@ class AbstractSNN:
             cols=self.conv_size,
             horizontal_spacing=0.07,
             vertical_spacing=0.1,
-            )
+        )
         for patch_number, filter_number in enumerate(best_patches_indices.flatten()):
             filter_ = w[
                 locations[:, patch_number],
@@ -1280,54 +1274,69 @@ class AbstractSNN:
                 + (patch_number % c2sqrt),
             ].view(k1, k2)
 
-
             fig.add_trace(
                 go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
                 row=patch_number // self.conv_size + 1,
                 col=patch_number % self.conv_size + 1,
-                )
+            )
 
         fig.update_layout(
             height=800,
             width=800,
             title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
-            )
+        )
         fig2 = make_subplots(
             subplot_titles=subplot_titles,
             rows=self.conv_size,
             cols=self.conv_size,
             horizontal_spacing=0.1,
             vertical_spacing=0.12,
-            )
+        )
         for patch_number, filter_number in enumerate(best_patches_indices):
             voltage = (
                 self.voltages["Y"]
-                    .get("v")
-                    .squeeze(1)
-                    .view(self.time_max, self.n_filters, self.conv_size ** 2)[
-                :, filter_number, patch_number
+                .get("v")
+                .squeeze(1)
+                .view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                    :, filter_number, patch_number
                 ]
             )
 
-            spike_timings = self.spikes['Y'].get('s').squeeze(1).view(self.time_max, self.n_filters, self.conv_size ** 2)[
-                :, best_patches_indices[patch_number], patch_number
-            ].nonzero().squeeze(1)
+            spike_timings = (
+                self.spikes["Y"]
+                .get("s")
+                .squeeze(1)
+                .view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                    :, best_patches_indices[patch_number], patch_number
+                ]
+                .nonzero()
+                .squeeze(1)
+            )
 
-            subplot_voltage = go.Scatter(x=list(range(self.time_max)), y=voltage,
-                                         line=dict(color='blue'), opacity=1)
-            subplot_spikes = go.Scatter(x=spike_timings, y=voltage[spike_timings], mode='markers',
-                                        marker=dict(color='red'), opacity=1)
+            subplot_voltage = go.Scatter(
+                x=list(range(self.time_max)),
+                y=voltage,
+                line=dict(color="blue"),
+                opacity=1,
+            )
+            subplot_spikes = go.Scatter(
+                x=spike_timings,
+                y=voltage[spike_timings],
+                mode="markers",
+                marker=dict(color="red"),
+                opacity=1,
+            )
 
             fig2.add_trace(
                 subplot_voltage,
                 row=patch_number // self.conv_size + 1,
                 col=patch_number % self.conv_size + 1,
-                )
+            )
             fig2.add_trace(
                 subplot_spikes,
                 row=patch_number // self.conv_size + 1,
                 col=patch_number % self.conv_size + 1,
-                )
+            )
 
         for row in range(self.conv_size):
             for col in range(self.conv_size):
@@ -1338,8 +1347,7 @@ class AbstractSNN:
             showlegend=False,
             height=1000,
             width=1000,
-
-            )
+        )
         return fig, fig2
 
     def plot_neuron_voltage(self, index, location1=None, location2=None):
@@ -1352,35 +1360,44 @@ class AbstractSNN:
         """
         if location1 is None and location2 is None:
             v = self.voltages["Y"].get("v").squeeze(1).view(self.time_max, -1)[:, index]
-            spike_timings = self.spikes['Y'].get('s').squeeze(1).view(self.time_max, -1)[
-                            :, index
-                            ].nonzero().squeeze(1) - 1
+            spike_timings = (
+                self.spikes["Y"]
+                .get("s")
+                .squeeze(1)
+                .view(self.time_max, -1)[:, index]
+                .nonzero()
+                .squeeze(1)
+                - 1
+            )
             spike_values_to_plot = v[spike_timings]
             title_text = f"Neuron {index} voltage"
         else:
             v = self.voltages["Y"].get("v").squeeze(1)[:, index, location1, location2]
 
-
-            spike_timings = self.spikes['Y'].get('s').squeeze(1)[index, location1, location2].nonzero().squeeze(1) - 1
+            spike_timings = (
+                self.spikes["Y"]
+                .get("s")
+                .squeeze(1)[index, location1, location2]
+                .nonzero()
+                .squeeze(1)
+                - 1
+            )
 
             title_text = f"Filter {index}, ({location1}, {location2}) voltage"
 
-
-        subplot_voltage = go.Scatter(x=list(range(self.time_max)), y=v,
-                                     line=dict(color='blue'))
-        subplot_spikes = go.Scatter(x=spike_timings, y=v[spike_timings], mode='markers', marker=dict(color='red'))
-
+        subplot_voltage = go.Scatter(
+            x=list(range(self.time_max)), y=v, line=dict(color="blue")
+        )
+        subplot_spikes = go.Scatter(
+            x=spike_timings,
+            y=v[spike_timings],
+            mode="markers",
+            marker=dict(color="red"),
+        )
 
         fig = go.Figure()
-        fig.add_trace(
-            subplot_voltage
-
-            )
-        fig.add_trace(
-            subplot_spikes
-
-            )
-
+        fig.add_trace(subplot_voltage)
+        fig.add_trace(subplot_spikes)
 
         fig.update_layout(
             title_text=title_text,
@@ -1389,7 +1406,7 @@ class AbstractSNN:
             width=800,
             xaxis_title_text="Time",
             yaxis_title_text="Voltage",
-            )
+        )
         return fig
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
@@ -2047,13 +2064,13 @@ class C_SNN(AbstractSNN):
         self.spikes = {}
         self.spikes["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["s"], time=self.time_max
-            )
+        )
         self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
         self.voltages = {}
         self.voltages["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["v"], time=self.time_max
-            )
+        )
         self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
@@ -2241,13 +2258,13 @@ class FC_SNN(AbstractSNN):
         self.spikes = {}
         self.spikes["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["s"], time=self.time_max
-            )
+        )
         self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
         self.voltages = {}
         self.voltages["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["v"], time=self.time_max
-            )
+        )
         self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
@@ -2389,8 +2406,6 @@ def plot_image(image):
     )
 
     return fig_img
-
-
 
 
 # TODO: check best 25 filters and 100 filters              1

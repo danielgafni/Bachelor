@@ -297,19 +297,19 @@ def load_network(name):
     net.spikes = {}
     net.spikes["Y"] = Monitor(
         net.network.layers["Y"], state_vars=["s"], time=net.time_max
-        )
+    )
     net.network.add_monitor(net.spikes["Y"], name="Y_spikes")
 
     net.voltages = {}
     net.voltages["Y"] = Monitor(
         net.network.layers["Y"], state_vars=["v"], time=net.time_max
-        )
+    )
     net.network.add_monitor(net.voltages["Y"], name="Y_voltages")
 
     net.thetas = {}
     net.thetas["Y"] = Monitor(
         net.network.layers["Y"], state_vars=["theta"], time=net.time_max
-        )
+    )
     net.network.add_monitor(net.thetas["Y"], name="Y_thetas")
 
     net.network.train(False)
