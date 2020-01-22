@@ -801,7 +801,7 @@ class AbstractSNN:
             go.Scatter(
                 y=accs["accuracy"].values,
                 error_y=dict(
-                    array=accs["error"], visible=True, color="purple", width=5
+                    array=accs["error"], visible=True, width=5
                 ),
                 mode="markers",
                 marker_size=5,
@@ -1360,6 +1360,8 @@ class AbstractSNN:
         """
         if location1 is None and location2 is None:
             v = self.voltages["Y"].get("v").squeeze(1).view(self.time_max, -1)[:, index]
+            total_spikes = self.spikes['Y'].get('s').sum(0).squeeze(0).flatten[index]
+            text = f"Total spikes: {total_spikes.item()}"
             spike_timings = (
                 self.spikes["Y"]
                 .get("s")
@@ -1367,23 +1369,21 @@ class AbstractSNN:
                 .view(self.time_max, -1)[:, index]
                 .nonzero()
                 .squeeze(1)
-                - 1
             )
-            spike_values_to_plot = v[spike_timings]
-            title_text = f"Neuron {index} voltage"
+            title_text = f"Neuron {index} voltage <br> {text}"
         else:
             v = self.voltages["Y"].get("v").squeeze(1)[:, index, location1, location2]
-
+            total_spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)[index, location1, location2]
+            text = f"Total spikes: {total_spikes.item()}"
             spike_timings = (
                 self.spikes["Y"]
                 .get("s")
-                .squeeze(1)[index, location1, location2]
+                .squeeze(1)[:, index, location1, location2]
                 .nonzero()
                 .squeeze(1)
-                - 1
             )
 
-            title_text = f"Filter {index}, ({location1}, {location2}) voltage"
+            title_text = f"Filter {index}, ({location1}, {location2}) voltage <br> {text}"
 
         subplot_voltage = go.Scatter(
             x=list(range(self.time_max)), y=v, line=dict(color="blue")
@@ -1902,7 +1902,7 @@ class LC_SNN(AbstractSNN):
             i1 = random.randint(0, self.n_filters - 1)
             i2 = random.randint(0, self.conv_size - 1)
             i3 = random.randint(0, self.conv_size - 1)
-            while i1 != self.best_voters_locations[i2, i3]:
+            while i1 == self.best_voters_locations[i2, i3]:
                 i1 = random.randint(0, self.n_filters - 1)
                 i2 = random.randint(0, self.conv_size - 1)
                 i3 = random.randint(0, self.conv_size - 1)
