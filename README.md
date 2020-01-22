@@ -38,7 +38,9 @@ Their distribution:
 
 I'm also experimenting with simultaneous training of XY and YY connections. It also improves the accuracy, but my hypothesis right now is that sequential training gives better results.
 
-**The networks below don't have their weights YY trained**.
+**Right now I managed to get 1.5% better accuracy when simultaneously training XY and YY connections.**
+
+The networks below don't have their weights YY trained.
 
 Locally Connected networks don't need a lot of training examples:
 
@@ -50,7 +52,7 @@ Here are 100-filter Locally Connected weights after 5000 iterations of training:
 
 The overall accuracy of this network is 0.89. Here is the accuracy distribution between different labels:
 
-![Accuracy distribution](overview/accuracy_distribution.png)
+![Accuracy distribution](overview//acc_distribution.png)
 
 And here is the confusion matrix:
 
@@ -153,17 +155,17 @@ Output:
 
 Prediction: 3
 
-![Input image 3](overview/input_image_3.png)
+![Input image 2](overview//input_image_2.png)
 
-![Spikes](overview/spikes_Y.png)
+![Best Y spikes](overview//best_spikes_Y.png)
 
 
 
-![Best voters](overview/best_voters.png)
+![Best voters weights](overview//best_voters_weights.png)
 
-![best voters voltage](overview/best_voters_voltage.png)
+![best voters voltages](overview//best_voters_voltages.png)
 
-![random neuron voltage](overview/random_neuron_voltage.png)
+![random voltage](overview//random_voltage.png)
 
 ## Training a new network
 
