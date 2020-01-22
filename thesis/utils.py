@@ -11,6 +11,11 @@ from sqlite3 import connect
 
 
 def view_network(name):
+    """
+    Get network parameters as dict
+    :param name: network name
+    :return: dict with network parameters
+    """
     if not os.path.exists(f"networks//{name}"):
         print("Network with such name does not exist")
         return None
@@ -24,6 +29,10 @@ def view_network(name):
 
 
 def view_database():
+    """
+    Get a pandas.DataFrame with all available networks
+    :return: pandas.DataFrame with all network names and their parameters
+    """
     database = pd.DataFrame(
         columns=[
             "name",
@@ -63,6 +72,15 @@ def view_database():
 def plot_database(
     n_filters=100, network_type="LC_SNN", kernel_size=12, stride=4, c_l=False
 ):
+    """
+    Plots available networks as a 3D plot
+    :param n_filters:
+    :param network_type:
+    :param kernel_size:
+    :param stride:
+    :param c_l:
+    :return:
+    """
     data = view_database()
     data = data[data["network_type"] == network_type]
     data = data[data["c_l"] == c_l]
@@ -132,6 +150,11 @@ def plot_database(
 
 
 def load_network(name):
+    """
+    Load network from disk.
+    :param name: network name
+    :return: network
+    """
     path = f"networks//{name}"
     try:
         with open(path + "//parameters.json", "r") as file:
@@ -146,6 +169,7 @@ def load_network(name):
             crop = parameters["crop"]
             if "kernel_size" in parameters.keys():
                 kernel_size = parameters["kernel_size"]
+            train_method = None
             if "train_method" in parameters.keys():
                 train_method = parameters["train_method"]
             n_filters = parameters["n_filters"]
@@ -196,29 +220,11 @@ def load_network(name):
         if os.path.exists(path + "//confusion_matrix"):
             conf_matrix = torch.load(path + "//confusion_matrix")
         network = torch.load(path + "//network")
-        net.network.connections[("X", "Y")].w = network.connections[("X", "Y")].w
-        net.network.connections[("Y", "Y")].w = network.connections[("Y", "Y")].w
+        net.network = network
 
         net.votes = votes
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix
-        net.spikes = {}
-        for layer in set(net.network.layers):
-            net.spikes[layer] = Monitor(
-                net.network.layers[layer], state_vars=["s"], time=net.time_max
-            )
-            net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
-        net._spikes = {
-            "X": net.spikes["X"].get("s").view(net.time_max, -1),
-            "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
-        }
-
-        net.network.train(False)
-        net.network.connections[("Y", "Y")].learning = False
-        net.network.connections[("X", "Y")].learning = False
-        net.train_method = train_method
-        for c in net.network.connections:
-            net.network.connections[c].learning = False
 
     elif network_type == "C_SNN":
         net = C_SNN(
@@ -253,20 +259,6 @@ def load_network(name):
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix
 
-        net.spikes = {}
-        for layer in set(net.network.layers):
-            net.spikes[layer] = Monitor(
-                net.network.layers[layer], state_vars=["s"], time=net.time_max
-            )
-            net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
-
-        net._spikes = {
-            "X": net.spikes["X"].get("s").view(net.time_max, -1),
-            "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
-        }
-
-        net.network.train(False)
-
     elif network_type == "FC_SNN":
         net = FC_SNN(
             mean_weight=mean_weight,
@@ -298,28 +290,42 @@ def load_network(name):
         net.accuracy = accuracy
         net.conf_matrix = conf_matrix
 
-        net.spikes = {}
-        for layer in set(net.network.layers):
-            net.spikes[layer] = Monitor(
-                net.network.layers[layer], state_vars=["s"], time=net.time_max
-            )
-            net.network.add_monitor(net.spikes[layer], name="%s_spikes" % layer)
-
-        net._spikes = {
-            "X": net.spikes["X"].get("s").view(net.time_max, -1),
-            "Y": net.spikes["Y"].get("s").view(net.time_max, -1),
-        }
-
-        net.network.train(False)
-
     else:
         print("This network type is not implemented for loading yet")
         raise NotImplementedError
+
+    net.spikes = {}
+    net.spikes["Y"] = Monitor(
+        net.network.layers["Y"], state_vars=["s"], time=net.time_max
+        )
+    net.network.add_monitor(net.spikes["Y"], name="Y_spikes")
+
+    net.voltages = {}
+    net.voltages["Y"] = Monitor(
+        net.network.layers["Y"], state_vars=["v"], time=net.time_max
+        )
+    net.network.add_monitor(net.voltages["Y"], name="Y_voltages")
+
+    net.thetas = {}
+    net.thetas["Y"] = Monitor(
+        net.network.layers["Y"], state_vars=["theta"], time=net.time_max
+        )
+    net.network.add_monitor(net.thetas["Y"], name="Y_thetas")
+
+    net.network.train(False)
+    net.train_method = train_method
+    for c in net.network.connections:
+        net.network.connections[c].learning = False
 
     return net
 
 
 def delete_network(name, sure=False):
+    """
+    Delete network from disk.
+    :param name: network name
+    :param sure: True to skip deletion dialog
+    """
     if not sure:
         print("Are you sure you want to delete the network? [Y/N]")
         if input() == "Y":
@@ -343,6 +349,10 @@ def delete_network(name, sure=False):
 
 
 def clean_database():
+    """
+    Clean database. Renames networks according to their current parameters.
+    Run this if any problems with the database happened.
+    """
     #  Clear existing database
     if not os.path.exists(r"networks/networks.db"):
         conn = connect(r"networks/networks.db")

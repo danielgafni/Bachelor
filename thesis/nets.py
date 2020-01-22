@@ -23,7 +23,7 @@ from bindsnet.datasets import MNIST
 from bindsnet.encoding import PoissonEncoder
 from bindsnet.learning import PostPre
 from bindsnet.network import Network
-from bindsnet.network.monitors import Monitor, NetworkMonitor
+from bindsnet.network.monitors import Monitor
 from bindsnet.network.nodes import AdaptiveLIFNodes, Input
 from bindsnet.network.topology import (
     Connection,
@@ -206,15 +206,36 @@ class AbstractSNN:
         Spiking activity of best neurons for each patch.
         :return: torch.return_types.max - max spiking neurons for each patch
         """
-        best_patches_max = (
-            self.spikes["Y"]
-            .get("s")
-            .sum(0)
-            .squeeze(0)
-            .view(self.n_filters, self.conv_size ** 2)
-            .max(0)
-        )
-        return best_patches_max
+        if self.spikes is not None:
+            best_patches_max = (
+                self.spikes["Y"]
+                .get("s")
+                .sum(0)
+                .squeeze(0)
+                .view(self.n_filters, self.conv_size ** 2)
+                .max(0)
+            )
+            return best_patches_max
+        else:
+            return None
+
+    @property
+    def best_voters_locations(self):
+        """
+        Get locations of best voters
+        :return: locations of best Y neurons
+        """
+        if self.spikes is not None:
+            best_patches_max = (
+                self.spikes["Y"]
+                    .get("s")
+                    .sum(0)
+                    .squeeze(0)
+                    .max(0)
+            )
+            return best_patches_max.indices
+        else:
+            return None
 
     def learning(self, learning_XY, learning_YY=None):
         """
@@ -1169,10 +1190,9 @@ class AbstractSNN:
                     :, best_voters[i][j], i, j
                 ]
                 best_indices.append(
-                    f"Filter {best_voters[i][j].item()}, <br> patch ({i+1}, {j+1})"
+                    f"Filter {best_voters[i][j].item()}, <br> patch ({i}, {j})"
                 )
         best_spikes = best_spikes.type(torch.LongTensor).t()
-
         fig_spikes = go.Figure(data=go.Heatmap(z=best_spikes, colorscale="YlOrBr"))
         tickvals = list(range(best_spikes.size(0)))
         fig_spikes.update_layout(
@@ -1221,6 +1241,156 @@ class AbstractSNN:
         )
 
         return fig_spikes
+
+    def plot_best_voters(self):
+        """
+        Plots information about best Y neurons from current spikes.
+        :return: plotly.graph_objs.Figure - weights of best neurons;
+        plotly.graph_objs.Figure - voltages of best neurons;
+        """
+        w = self.network.connections[("X", "Y")].w
+        k1, k2 = self.kernel_size, self.kernel_size
+        c1, c2 = self.conv_size, self.conv_size
+        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+        locations = self.network.connections[("X", "Y")].locations
+
+        best_patches_indices = self.best_voters.indices
+        best_patches_values = self.best_voters.values
+        subplot_titles = []
+
+        for i, patch_index in enumerate(best_patches_indices):
+            total_spikes = best_patches_values.flatten()[i]
+            text = f"Total spikes: {total_spikes.item()}"
+            subplot_titles.append(
+                f"Filter {patch_index}, patch ({i // self.conv_size}, {i % self.conv_size}) <br> {text}"
+                )
+
+        fig = make_subplots(
+            subplot_titles=subplot_titles,
+            rows=self.conv_size,
+            cols=self.conv_size,
+            horizontal_spacing=0.07,
+            vertical_spacing=0.1,
+            )
+        for patch_number, filter_number in enumerate(best_patches_indices.flatten()):
+            filter_ = w[
+                locations[:, patch_number],
+                filter_number * self.conv_size ** 2
+                + (patch_number // c2sqrt) * c2sqrt
+                + (patch_number % c2sqrt),
+            ].view(k1, k2)
+
+
+            fig.add_trace(
+                go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
+                row=patch_number // self.conv_size + 1,
+                col=patch_number % self.conv_size + 1,
+                )
+
+        fig.update_layout(
+            height=800,
+            width=800,
+            title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
+            )
+        fig2 = make_subplots(
+            subplot_titles=subplot_titles,
+            rows=self.conv_size,
+            cols=self.conv_size,
+            horizontal_spacing=0.1,
+            vertical_spacing=0.12,
+            )
+        for patch_number, filter_number in enumerate(best_patches_indices):
+            voltage = (
+                self.voltages["Y"]
+                    .get("v")
+                    .squeeze(1)
+                    .view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                :, filter_number, patch_number
+                ]
+            )
+
+            spike_timings = self.spikes['Y'].get('s').squeeze(1).view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                :, best_patches_indices[patch_number], patch_number
+            ].nonzero().squeeze(1)
+
+            subplot_voltage = go.Scatter(x=list(range(self.time_max)), y=voltage,
+                                         line=dict(color='blue'), opacity=1)
+            subplot_spikes = go.Scatter(x=spike_timings, y=voltage[spike_timings], mode='markers',
+                                        marker=dict(color='red'), opacity=1)
+
+            fig2.add_trace(
+                subplot_voltage,
+                row=patch_number // self.conv_size + 1,
+                col=patch_number % self.conv_size + 1,
+                )
+            fig2.add_trace(
+                subplot_spikes,
+                row=patch_number // self.conv_size + 1,
+                col=patch_number % self.conv_size + 1,
+                )
+
+        for row in range(self.conv_size):
+            for col in range(self.conv_size):
+                fig2.update_xaxes(title_text="Time", row=row + 1, col=col + 1)
+                fig2.update_yaxes(title_text="Voltage", row=row + 1, col=col + 1)
+        fig2.update_layout(
+            title_text="Best Y neurons voltages",
+            showlegend=False,
+            height=1000,
+            width=1000,
+
+            )
+        return fig, fig2
+
+    def plot_neuron_voltage(self, index, location1=None, location2=None):
+        """
+        Plots neuron voltage. If given one index, uses flatten indexing.
+        :param index: flat neuron index or filter number
+        :param location1: location 1
+        :param location2: location 2
+        :return: plotly.graph_objs.Figure with voltage
+        """
+        if location1 is None and location2 is None:
+            v = self.voltages["Y"].get("v").squeeze(1).view(self.time_max, -1)[:, index]
+            spike_timings = self.spikes['Y'].get('s').squeeze(1).view(self.time_max, -1)[
+                            :, index
+                            ].nonzero().squeeze(1) - 1
+            spike_values_to_plot = v[spike_timings]
+            title_text = f"Neuron {index} voltage"
+        else:
+            v = self.voltages["Y"].get("v").squeeze(1)[:, index, location1, location2]
+
+
+            spike_timings = self.spikes['Y'].get('s').squeeze(1)[index, location1, location2].nonzero().squeeze(1) - 1
+
+            title_text = f"Filter {index}, ({location1}, {location2}) voltage"
+
+
+        subplot_voltage = go.Scatter(x=list(range(self.time_max)), y=v,
+                                     line=dict(color='blue'))
+        subplot_spikes = go.Scatter(x=spike_timings, y=v[spike_timings], mode='markers', marker=dict(color='red'))
+
+
+        fig = go.Figure()
+        fig.add_trace(
+            subplot_voltage
+
+            )
+        fig.add_trace(
+            subplot_spikes
+
+            )
+
+
+        fig.update_layout(
+            title_text=title_text,
+            showlegend=False,
+            height=400,
+            width=800,
+            xaxis_title_text="Time",
+            yaxis_title_text="Voltage",
+            )
+        return fig
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
         """
@@ -1313,6 +1483,28 @@ class AbstractSNN:
             plot_image(np.flipud(batch["image"][0, 0, :, :].numpy())).show()
 
         return prediction[0]
+
+    def index_to_location(self, index):
+        c = 0
+        for i in range(self.n_filters):
+            for j in range(self.conv_size):
+                for k in range(self.conv_size):
+                    if c == index:
+                        return (i, j, k)
+                    else:
+                        c += 1
+        return None
+
+    def location_to_index(self, i, j, k):
+        c = 0
+        for i_ in range(self.n_filters):
+            for j_ in range(self.conv_size):
+                for k_ in range(self.conv_size):
+                    if i == i_ and j_ == j and k_ == k:
+                        return c
+                    else:
+                        c += 1
+        return None
 
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
         """
@@ -1602,13 +1794,13 @@ class LC_SNN(AbstractSNN):
         self.spikes["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["s"], time=self.time_max
         )
-        self.network.add_monitor(self.spikes["Y"], name="%s_spikes" % "Y")
+        self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
         self.voltages = {}
         self.voltages["Y"] = Monitor(
             self.network.layers["Y"], state_vars=["v"], time=self.time_max
         )
-        self.network.add_monitor(self.voltages["Y"], name="%s_voltages" % "Y")
+        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
         self.conv_size = conv_size
@@ -1676,116 +1868,6 @@ class LC_SNN(AbstractSNN):
         self.label = res[0]
         return res
 
-    def plot_best_voters(self):
-        """
-        Plots information about best Y neurons from current spikes.
-        :return: plotly.graph_objs.Figure - weights of best neurons;
-        plotly.graph_objs.Figure - voltages of best neurons;
-        """
-        w = self.network.connections[("X", "Y")].w
-        k1, k2 = self.kernel_size, self.kernel_size
-        c1, c2 = self.conv_size, self.conv_size
-        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        locations = self.network.connections[("X", "Y")].locations
-
-        best_patches_indices = self.best_voters.indices
-        best_patches_values = self.best_voters.values
-        subplot_titles = []
-
-        for i, patch_index in enumerate(best_patches_indices):
-            total_spikes = best_patches_values.flatten()[i]
-            text = f"Total spikes: {total_spikes.item()}"
-            subplot_titles.append(
-                f"Filter {patch_index}, patch ({i // self.conv_size + 1}, {i % self.conv_size + 1}) <br> {text}"
-            )
-        best_neurons = []
-        fig = make_subplots(
-            subplot_titles=subplot_titles,
-            rows=self.conv_size,
-            cols=self.conv_size,
-            horizontal_spacing=0.07,
-            vertical_spacing=0.1,
-        )
-        for patch_number, filter_number in enumerate(best_patches_indices.flatten()):
-            filter_ = w[
-                locations[:, patch_number],
-                filter_number * self.conv_size ** 2
-                + (patch_number // c2sqrt) * c2sqrt
-                + (patch_number % c2sqrt),
-            ].view(k1, k2)
-            best_neurons.append(filter_)
-
-            fig.add_trace(
-                go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
-                row=patch_number // self.conv_size + 1,
-                col=patch_number % self.conv_size + 1,
-            )
-
-        fig.update_layout(
-            height=800,
-            width=800,
-            title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
-        )
-        fig2 = make_subplots(
-            subplot_titles=subplot_titles,
-            rows=self.conv_size,
-            cols=self.conv_size,
-            horizontal_spacing=0.07,
-            vertical_spacing=0.12,
-        )
-        for patch_number, row in enumerate(best_patches_indices):
-            voltage = (
-                self.voltages["Y"]
-                .get("v")
-                .squeeze(1)
-                .view(self.time_max, self.n_filters, self.conv_size ** 2)[
-                    :, best_patches_indices[patch_number], patch_number
-                ]
-            )
-
-            subplot = go.Scatter(x=list(range(self.time_max)), y=voltage)
-            fig2.add_trace(
-                subplot,
-                row=patch_number // self.conv_size + 1,
-                col=patch_number % self.conv_size + 1,
-            )
-        for row in range(self.conv_size):
-            for col in range(self.conv_size):
-                fig2.update_xaxes(title_text="Time", row=row + 1, col=col + 1)
-                fig2.update_yaxes(title_text="Voltage", row=row + 1, col=col + 1)
-        fig2.update_layout(
-            title_text="Best Y neurons voltages",
-            showlegend=False,
-            height=1000,
-            width=1000,
-        )
-        return fig, fig2
-
-    def plot_neuron_voltage(self, index, location1=None, location2=None):
-        """
-        Plots neuron voltage. If given one index, uses flatten indexing.
-        :param index: flat neuron index or filter number
-        :param location1: location 1
-        :param location2: location 2
-        :return: plotly.graph_objs.Figure with voltage
-        """
-        if location1 is None and location2 is None:
-            v = self.voltages["Y"].get("v").squeeze(1).view(self.time_max, -1)[:, index]
-            title_text = f"Neuron {index} voltage"
-        else:
-            v = self.voltages["Y"].get("v").squeeze(1)[:, index, location1, location2]
-            title_text = f"Filter {index}, ({location1}, {location2}) voltage"
-        fig = go.Figure(go.Scatter(x=list(range(self.time_max)), y=v))
-        fig.update_layout(
-            title_text=title_text,
-            showlegend=False,
-            height=400,
-            width=800,
-            xaxis_title_text="Time",
-            yaxis_title_text="Voltage",
-        )
-        return fig
-
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
         """
         Inputs given label into the network, calculates network prediction.
@@ -1800,13 +1882,18 @@ class LC_SNN(AbstractSNN):
         super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
         if plot:
             fig, fig2 = self.plot_best_voters()
-            random_index = random.randint(0, self.n_output)
-            while random_index in self.best_voters.indices:
-                random_index = random.randint(0, self.n_output)
-            fig3 = self.plot_neuron_voltage(random_index)
+            i1 = random.randint(0, self.n_filters - 1)
+            i2 = random.randint(0, self.conv_size - 1)
+            i3 = random.randint(0, self.conv_size - 1)
+            while i1 != self.best_voters_locations[i2, i3]:
+                i1 = random.randint(0, self.n_filters - 1)
+                i2 = random.randint(0, self.conv_size - 1)
+                i3 = random.randint(0, self.conv_size - 1)
+
+            fig3 = self.plot_neuron_voltage(i1, i2, i3)
             fig.show()
             fig2.show()
-            fig3.update_layout(title_text=f"Random Y neuron voltage").show()
+            fig3.show()
 
     def get_weights_XY(self):
         """
@@ -1893,7 +1980,6 @@ class C_SNN(AbstractSNN):
 
         # Network
         self.network = Network(learning=True)
-        self.GlobalMonitor = NetworkMonitor(self.network, state_vars=("v", "s", "w"))
         self.n_input = self.crop ** 2
         self.input_layer = Input(
             n=self.n_input, shape=(1, self.crop, self.crop), traces=True, refrac=refrac
@@ -1957,21 +2043,18 @@ class C_SNN(AbstractSNN):
         self.network.add_layer(self.output_layer, name="Y")
         self.network.add_connection(self.connection_XY, source="X", target="Y")
         self.network.add_connection(self.connection_YY, source="Y", target="Y")
-        self.network.add_monitor(self.GlobalMonitor, name="Network")
 
         self.spikes = {}
-        for layer in set(self.network.layers):
-            self.spikes[layer] = Monitor(
-                self.network.layers[layer], state_vars=["s"], time=self.time_max
+        self.spikes["Y"] = Monitor(
+            self.network.layers["Y"], state_vars=["s"], time=self.time_max
             )
-            self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
+        self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
         self.voltages = {}
-        for layer in set(self.network.layers) - {"X"}:
-            self.voltages[layer] = Monitor(
-                self.network.layers[layer], state_vars=["v"], time=self.time_max
+        self.voltages["Y"] = Monitor(
+            self.network.layers["Y"], state_vars=["v"], time=self.time_max
             )
-            self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
         self.conv_size = conv_size
@@ -2091,7 +2174,6 @@ class FC_SNN(AbstractSNN):
 
         # Network
         self.network = Network(learning=True)
-        self.GlobalMonitor = NetworkMonitor(self.network, state_vars=("v", "s", "w"))
         self.n_input = self.crop ** 2
         self.input_layer = Input(
             n=self.n_input, shape=(1, self.crop, self.crop), traces=True, refrac=refrac
@@ -2155,21 +2237,18 @@ class FC_SNN(AbstractSNN):
         self.network.add_layer(self.output_layer, name="Y")
         self.network.add_connection(self.connection_XY, source="X", target="Y")
         self.network.add_connection(self.connection_YY, source="Y", target="Y")
-        self.network.add_monitor(self.GlobalMonitor, name="Network")
 
         self.spikes = {}
-        for layer in set(self.network.layers):
-            self.spikes[layer] = Monitor(
-                self.network.layers[layer], state_vars=["s"], time=self.time_max
+        self.spikes["Y"] = Monitor(
+            self.network.layers["Y"], state_vars=["s"], time=self.time_max
             )
-            self.network.add_monitor(self.spikes[layer], name="%s_spikes" % layer)
+        self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
         self.voltages = {}
-        for layer in set(self.network.layers) - {"X"}:
-            self.voltages[layer] = Monitor(
-                self.network.layers[layer], state_vars=["v"], time=self.time_max
+        self.voltages["Y"] = Monitor(
+            self.network.layers["Y"], state_vars=["v"], time=self.time_max
             )
-            self.network.add_monitor(self.voltages[layer], name="%s_voltages" % layer)
+        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
         self.conv_size = 1
@@ -2219,50 +2298,6 @@ class FC_SNN(AbstractSNN):
         res = res.argsort(descending=True)
         self.label = res[0]
         return res
-
-    def plot_best_voters(self):
-        w = self.network.connections[("X", "Y")].w
-        k1, k2 = self.kernel_size, self.kernel_size
-        c1, c2 = self.conv_size, self.conv_size
-        i1, i2 = self.n_input, self.n_input
-        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        fs = int(math.ceil(math.sqrt(self.n_filters)))
-        w_ = torch.zeros((self.n_filters * k1, k2 * c1 * c2))
-        locations = self.network.connections[("X", "Y")].locations
-        best_patches = (
-            self.spikes["Y"]
-            .get("s")
-            .sum(0)
-            .squeeze(0)
-            .view(self.n_filters, self.conv_size ** 2)
-            .max(0)
-            .indices
-        )
-        best_neurons = []
-        fig = make_subplots(rows=self.conv_size, cols=self.conv_size)
-        for patch_number, filter_number in zip(
-            list(range(self.conv_size ** 2)), best_patches
-        ):
-            filter_ = w[
-                locations[:, patch_number],
-                filter_number * self.conv_size ** 2
-                + (patch_number // c2sqrt) * c2sqrt
-                + (patch_number % c2sqrt),
-            ].view(k1, k2)
-            best_neurons.append(filter_)
-            fig.add_trace(
-                go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr"),
-                row=patch_number // self.conv_size + 1,
-                col=patch_number % self.conv_size + 1,
-            )
-
-        fig.update_layout(
-            height=600,
-            width=600,
-            title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
-        )
-
-        return fig
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
         super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
@@ -2354,6 +2389,8 @@ def plot_image(image):
     )
 
     return fig_img
+
+
 
 
 # TODO: check best 25 filters and 100 filters              1
