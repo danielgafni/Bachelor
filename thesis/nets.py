@@ -161,6 +161,7 @@ class AbstractSNN:
             "mean_weight": self.mean_weight,
             "n_iter": self.n_iter,
             "c_w": self.c_w,
+            "c_w_min": self.c_w_min,
             "time_max": self.time_max,
             "crop": self.crop,
             "kernel_size": self.kernel_size,
@@ -800,9 +801,7 @@ class AbstractSNN:
         accs_distibution_fig = go.Figure(
             go.Scatter(
                 y=accs["accuracy"].values,
-                error_y=dict(
-                    array=accs["error"], visible=True, width=5
-                ),
+                error_y=dict(array=accs["error"], visible=True, width=5),
                 mode="markers",
                 marker_size=5,
             )
@@ -1360,7 +1359,7 @@ class AbstractSNN:
         """
         if location1 is None and location2 is None:
             v = self.voltages["Y"].get("v").squeeze(1).view(self.time_max, -1)[:, index]
-            total_spikes = self.spikes['Y'].get('s').sum(0).squeeze(0).flatten[index]
+            total_spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).flatten()[index]
             text = f"Total spikes: {total_spikes.item()}"
             spike_timings = (
                 self.spikes["Y"]
@@ -1373,7 +1372,9 @@ class AbstractSNN:
             title_text = f"Neuron {index} voltage <br> {text}"
         else:
             v = self.voltages["Y"].get("v").squeeze(1)[:, index, location1, location2]
-            total_spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)[index, location1, location2]
+            total_spikes = (
+                self.spikes["Y"].get("s").sum(0).squeeze(0)[index, location1, location2]
+            )
             text = f"Total spikes: {total_spikes.item()}"
             spike_timings = (
                 self.spikes["Y"]
@@ -1383,7 +1384,9 @@ class AbstractSNN:
                 .squeeze(1)
             )
 
-            title_text = f"Filter {index}, ({location1}, {location2}) voltage <br> {text}"
+            title_text = (
+                f"Filter {index}, ({location1}, {location2}) voltage <br> {text}"
+            )
 
         subplot_voltage = go.Scatter(
             x=list(range(self.time_max)), y=v, line=dict(color="blue")
