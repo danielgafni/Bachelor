@@ -206,6 +206,5 @@ dmypy.json
 #   git rm -r .ipynb_checkpoints/
 #
 
-networks/*/activity_data*
 networks/*/activity
 networks/77a4eeb0f0ec2ab005aec56954b7ac08989f0716dc4cdd573670c99d
