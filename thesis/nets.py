@@ -2397,6 +2397,10 @@ class FC_SNN(AbstractSNN):
         return parameters
 
 
+def best_avg_spikes(t_pre, t_post, nu_pre, nu_post):
+    return 1 / (t_pre * t_post) * (nu_post*t_post - nu_pre*t_pre) / (nu_pre - nu_post) * 250
+
+
 def plot_image(image):
     width = 400
     height = int(width * image.shape[0] / image.shape[1])
