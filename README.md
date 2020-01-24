@@ -148,24 +148,24 @@ net = load_network('01d179e6813f1c54d8e97295259a257c5635f10ee22403b0b975c9ae')
 Network loaded. Now you can check it's behavior:
 
 ```python
-net.feed_label(3, plot=True)
+net.feed_label(4, plot=True)
 ```
 
 Output:
 
-Prediction: 3
+Prediction: 4
 
-![Input image 2](overview//input_image_2.png)
+![Input image 2](overview//input_image_4.png)
 
-![Best Y spikes](overview//best_spikes_Y.png)
+![Best Y spikes](overview//best_spikes_Y_4.png)
 
 
 
-![Best voters weights](overview//best_voters_weights.png)
+![Best voters weights](overview//best_voters_4.png)
 
-![best voters voltages](overview//best_voters_voltages.png)
+![best voters voltages](overview//best_voters_voltages_4.png)
 
-![random voltage](overview//random_voltage.png)
+![random voltage](overview//random_neuron_voltage_4.png)
 
 ## Training a new network
 
