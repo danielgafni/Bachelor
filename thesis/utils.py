@@ -23,6 +23,12 @@ def view_network(name):
         try:
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
+                with open(f'networks//{name}//score.json', 'r') as file:
+                    score = json.load(file)
+                parameters['accuracy'] = score['accuracy']
+                parameters['error'] = score['error']
+                parameters['accuracy_method'] = score['accuracy_method']
+
             return parameters
         except FileNotFoundError:
             return None
@@ -33,39 +39,45 @@ def view_database():
     Get a pandas.DataFrame with all available networks
     :return: pandas.DataFrame with all network names and their parameters
     """
-    database = pd.DataFrame(
-        columns=[
-            "name",
-            "accuracy",
-            "n_iter",
-            "mean_weight",
-            "n_filters",
-            "c_w",
-            "crop",
-            "kernel_size",
-            "stride",
-            "time_max",
+    columns=[
+        "name",
+        "network_type",
+        "accuracy",
+        "error",
+        "n_iter",
+        "n_filters",
+        "kernel_size",
+        "stride",
+        "c_l",
+        "t_pre",
+        "t_post",
+        "nu_pre",
+        "nu_post",
+        "mean_weight",
+        "c_w",
+        "c_w_min",
+        "crop",
+        "time_max",
+        "intensity",
+        "dt",
+        "train_method",
+        "accuracy_method"
         ]
+    database = pd.DataFrame(
+        columns=[]
     )
     for name in os.listdir("networks"):
         if "." not in name:
             if os.path.exists(f"networks//{name}//parameters.json"):
                 parameters = view_network(name)
-                if os.path.exists(f"networks//{name}//accuracy"):
-                    parameters["accuracy"] = torch.load(f"networks//{name}//accuracy")
-                else:
-                    parameters["accuracy"] = None
-                if os.path.exists(f"networks//{name}//error"):
-                    parameters["error"] = torch.load(f"networks//{name}//error")
-                else:
-                    parameters["error"] = None
+
                 try:
                     parameters["name"] = name
                 except TypeError:
                     pass
 
                 database = database.append(parameters, ignore_index=True)
-
+    database = database[columns]
     return database
 
 
@@ -185,12 +197,9 @@ def load_network(name):
             t_pre = parameters["t_pre"]
             t_post = parameters["t_post"]
 
+
     except FileNotFoundError:
         raise FileNotFoundError
-
-    accuracy = None
-    votes = None
-    conf_matrix = None
 
     if network_type == "LC_SNN":
         net = LC_SNN(
@@ -212,24 +221,17 @@ def load_network(name):
             foldername=name,
             n_iter=n_iter,
         )
-        if os.path.exists(path + "//votes"):
-            votes = torch.load(path + "//votes")
-            net.calibrated = True
-        if os.path.exists(path + "//accuracy"):
-            accuracy = torch.load(path + "//accuracy")
-        if os.path.exists(path + "//confusion_matrix"):
-            conf_matrix = torch.load(path + "//confusion_matrix")
-        network = torch.load(path + "//network")
-        net.network = network
-
-        net.votes = votes
-        net.accuracy = accuracy
-        net.conf_matrix = conf_matrix
 
     elif network_type == "C_SNN":
         net = C_SNN(
             mean_weight=mean_weight,
             c_w=c_w,
+            c_w_min=c_w_min,
+            c_l=c_l,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
+            t_pre=t_pre,
+            t_post=t_post,
             time_max=time_max,
             crop=crop,
             kernel_size=kernel_size,
@@ -241,28 +243,17 @@ def load_network(name):
             n_iter=n_iter,
         )
 
-        net.n_iter = n_iter
-        if os.path.exists(path + "//votes"):
-            votes = torch.load(path + "//votes")
-            net.calibrated = True
-
-        if os.path.exists(path + "//accuracy"):
-            accuracy = torch.load(path + "//accuracy")
-
-        if os.path.exists(path + "//confusion_matrix"):
-            conf_matrix = torch.load(path + "//confusion_matrix")
-
-        network = torch.load(path + "//network")
-        net.network.connections[("X", "Y")].w = network.connections[("X", "Y")].w
-        net.network.connections[("Y", "Y")].w = network.connections[("Y", "Y")].w
-        net.votes = votes
-        net.accuracy = accuracy
-        net.conf_matrix = conf_matrix
 
     elif network_type == "FC_SNN":
         net = FC_SNN(
             mean_weight=mean_weight,
             c_w=c_w,
+            c_w_min=c_w_min,
+            c_l=c_l,
+            nu_pre=nu_pre,
+            nu_post=nu_post,
+            t_pre=t_pre,
+            t_post=t_post,
             time_max=time_max,
             crop=crop,
             n_filters=n_filters,
@@ -272,27 +263,30 @@ def load_network(name):
             n_iter=n_iter,
         )
 
-        net.n_iter = n_iter
-        if os.path.exists(path + "//votes"):
-            votes = torch.load(path + "//votes")
-            net.calibrated = True
-
-        if os.path.exists(path + "//accuracy"):
-            accuracy = torch.load(path + "//accuracy")
-
-        if os.path.exists(path + "//confusion_matrix"):
-            conf_matrix = torch.load(path + "//confusion_matrix")
-
-        network = torch.load(path + "//network")
-        net.network.connections[("X", "Y")].w = network.connections[("X", "Y")].w
-        net.network.connections[("Y", "Y")].w = network.connections[("Y", "Y")].w
-        net.votes = votes
-        net.accuracy = accuracy
-        net.conf_matrix = conf_matrix
-
     else:
         print("This network type is not implemented for loading yet")
         raise NotImplementedError
+
+    try:
+        network = torch.load(path + "//network")
+    except FileNotFoundError:
+        raise FileNotFoundError('Network file not found')
+    net.network = network
+
+    if os.path.exists(path + "//votes"):
+        votes = torch.load(path + "//votes")
+        net.calibrated = True
+    conf_matrix = None
+    if os.path.exists(path + "//confusion_matrix"):
+        conf_matrix = torch.load(path + "//confusion_matrix")
+    with open(f'networks//{name}//score.json', 'r') as file:
+        score = json.load(file)
+
+    net.votes = votes
+    net.accuracy = score['accuracy']
+    net.error = score['error']
+    net.accuracy_method = score['accuracy_method']
+    net.conf_matrix = conf_matrix
 
     net.spikes = {}
     net.spikes["Y"] = Monitor(
@@ -383,7 +377,8 @@ def clean_database():
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
             new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
-            accuracy = torch.load(f"networks//{name}//accuracy")
+            with open(f'networks//{name}//score.json', 'r') as file:
+                accuracy = json.load(file)['accuracy']
             network_type = parameters["network_type"]
             os.rename(f"networks//{name}", f"networks//{new_name}")
 

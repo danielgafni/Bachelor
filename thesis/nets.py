@@ -118,6 +118,7 @@ class AbstractSNN:
             self.c_w_min = -np.inf
         self.calibrated = False
         self.accuracy = None
+        self.accuracy_method = None
         self.conf_matrix = None
         self.time_max = time_max
         self.crop = crop
@@ -471,9 +472,9 @@ class AbstractSNN:
         """
         pass
 
-    def collect_activity(self, n_iter=None):
+    def collect_activity_calibration(self, n_iter=None):
         """
-        Collect network spiking activity and save it to disk. Sum of spikes for each neuron are being recorded.
+        Collect network spiking activity on calibartion dataset and save it to disk. Sum of spikes for each neuron are being recorded.
         :param n_iter: number of iterations
         """
         self.network.train(False)
@@ -531,6 +532,54 @@ class AbstractSNN:
             data, f"networks//{self.name}//activity//{self.network_state}-{n_iter}"
         )
 
+    def collect_activity_test(self, n_iter=None):
+        """
+        Collect network spiking activity on test dataset and save it to disk. Sum of spikes for each neuron are being recorded.
+        :param n_iter: number of iterations
+        """
+        self.network.train(False)
+        if n_iter is None:
+            n_iter = 5000
+
+        test_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=False,
+            transform=transforms.Compose(
+                [
+                    transforms.CenterCrop(self.crop),
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: x * self.intensity),
+                    ]
+                ),
+            )
+        random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
+        test_dataset.data = test_dataset.data[random_choice]
+        test_dataset.targets = test_dataset.targets[random_choice]
+        test_dataloader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=1, shuffle=True
+            )
+
+        labels = []
+        outputs = []
+        print("Collecting activity data...")
+        for batch in tqdm(test_dataloader, ncols=ncols):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            outputs.append(
+                self.spikes["Y"].get("s").squeeze(1).view(self.time_max, -1).sum(0)
+                )
+            labels.append(batch["label"].item())
+            self.network.reset_()
+        data = {"outputs": outputs, "labels": labels}
+        if not os.path.exists(f"networks//{self.name}//activity_test"):
+            os.makedirs(f"networks//{self.name}//activity_test")
+        torch.save(
+            data, f"networks//{self.name}//activity_test//{self.network_state}-{n_iter}"
+            )
+
     def calibrate(self, n_iter=None):
         """
         Calculate network `self.votes` based on spiking activity.
@@ -543,7 +592,7 @@ class AbstractSNN:
             n_iter = 5000
         found_activity = False
         if not os.path.exists(f"networks//{self.name}//activity/"):
-            self.collect_activity(n_iter)
+            self.collect_activity_calibration(n_iter)
 
         for name in os.listdir(f"networks//{self.name}//activity/"):
             if self.network_state in name:
@@ -559,7 +608,7 @@ class AbstractSNN:
                     break
 
         if not found_activity:
-            self.collect_activity(n_iter=n_iter)
+            self.collect_activity_calibration(n_iter=n_iter)
             data = torch.load(
                 f"networks//{self.name}//activity//{self.network_state}-{n_iter}"
             )
@@ -590,7 +639,7 @@ class AbstractSNN:
         if not os.path.exists(
             f"networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
         ):
-            self.collect_activity(n_iter=n_iter)
+            self.collect_activity_calibration(n_iter=n_iter)
 
         data = torch.load(
             f"networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
@@ -628,9 +677,7 @@ class AbstractSNN:
         print("Calculating accuracy...")
         self.network.reset_()
 
-        # if not self.calibrated:
-        #     print('The network is not calibrated!')
-        #     return None
+
         self.network.train(False)
         test_dataloader = torch.utils.data.DataLoader(
             test_dataset, batch_size=1, shuffle=True
@@ -658,6 +705,7 @@ class AbstractSNN:
 
         self.conf_matrix = confusion_matrix(y, y_predict)
         self.accuracy = score
+        # self.accuracy_method = method
 
     def votes_distribution(self):
         """
@@ -700,7 +748,7 @@ class AbstractSNN:
         )
         return votes_distibution_fig
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None):
+    def calculate_accuracy(self, n_iter=1000, top_n=None, method='patch_voting'):
         """
         Calculate network accuracy.
         Accuracy is stored in `self.accuracy`, std in `self.error`.
@@ -709,44 +757,36 @@ class AbstractSNN:
         :param top_n: how many labels can each neuron vote for
         """
 
-        test_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            ".//MNIST",
-            download=False,
-            train=False,
-            transform=transforms.Compose(
-                [
-                    transforms.CenterCrop(self.crop),
-                    transforms.ToTensor(),
-                    transforms.Lambda(lambda x: x * self.intensity),
-                ]
-            ),
-        )
-        random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
-        test_dataset.data = test_dataset.data[random_choice]
-        test_dataset.targets = test_dataset.targets[random_choice]
-        self.network.reset_()
-        if top_n is None:
-            top_n = 10
-        if not self.calibrated:
-            print("The network is not calibrated!")
-            return None
-        self.network.train(False)
-        test_dataloader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=1, shuffle=True
-        )
+        found_activity = False
+        if not os.path.exists(f"networks//{self.name}//activity_test"):
+            self.collect_activity_test(n_iter)
+
+        for name in os.listdir(f"networks//{self.name}//activity_test"):
+            if self.network_state in name:
+                n_iter_saved = int(name.split("-")[-1])
+                if n_iter <= n_iter_saved:
+                    data = torch.load(f"networks//{self.name}//activity_test//{name}")
+                    data_outputs = data["outputs"]
+                    data_labels = data["labels"]
+                    data_outputs = data_outputs[:n_iter]
+                    data_labels = data_labels[:n_iter]
+                    data = {"outputs": data_outputs, "labels": data_labels}
+                    found_activity = True
+                    break
+
+        if not found_activity:
+            self.collect_activity_test(n_iter=n_iter)
+            data = torch.load(
+                f"networks//{self.name}//activity_test//{self.network_state}-{n_iter}"
+                )
+
         x = []
         y = []
-        for batch in tqdm(test_dataloader, ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-
-            label = batch["label"].item()
-            prediction = self.class_from_spikes(top_n=top_n)
+        print('Calculating predictions...')
+        for sum_spikes, label in tqdm((zip(data['outputs'], data['labels'])), ncols=ncols, total=n_iter):
+            prediction = self.class_from_spikes(top_n=top_n, method=method, spikes=sum_spikes)
             x.append(prediction[0].item())
             y.append(label)
-            self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -761,13 +801,14 @@ class AbstractSNN:
 
         self.conf_matrix = confusion_matrix(y, x)
         self.accuracy = scores.mean()
+        self.accuracy_method = method
         self.error = error
         return None
 
     def accuracy_distribution(self):
         """
         Get network accuracy distribution across labels.
-        :return: padnas.DataFrame with accuracies for each label; plotly.graph_objs.Figure with a plot.
+        :return: pandas.DataFrame with accuracies for each label; plotly.graph_objs.Figure with a plot.
         """
         self.network.train(False)
         colnames = ["label", "accuracy", "error"]
@@ -856,7 +897,7 @@ class AbstractSNN:
 
         return w_comp, fig
 
-    def accuracy_on_top_n(self, n_iter=1000, labels=False):
+    def accuracy_on_top_n(self, n_iter=1000, labels=False, method='patch_voting'):
         """
         This method might not work at the moment, maybe I am going to remove it.
         Calculate accuracy dependence on top_n.
@@ -913,7 +954,7 @@ class AbstractSNN:
                     self.network.reset_()
 
                     for top_n in range(1, 11):
-                        prediction = self.class_from_spikes(top_n=top_n)[0]
+                        prediction = self.class_from_spikes(top_n=top_n, method=method)[0]
                         if prediction == label:
                             scores[label, top_n - 1, i] = 1
 
@@ -985,7 +1026,7 @@ class AbstractSNN:
 
                 label = batch["label"].item()
                 for top_n in range(1, 11):
-                    prediction = self.class_from_spikes(top_n=top_n)[0].item()
+                    prediction = self.class_from_spikes(top_n=top_n, method=method)[0].item()
                     if prediction == label:
                         scores[i, top_n - 1] = 1
 
@@ -1412,7 +1453,7 @@ class AbstractSNN:
         )
         return fig
 
-    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False, method='patch_voting'):
         """
         Inputs given label into the network, calculates network prediction.
         If plot=True will visualize information about the network. Use in Jupyter Notebook.
@@ -1449,7 +1490,7 @@ class AbstractSNN:
         inpts = {"X": batch["encoded_image"].transpose(0, 1)}
         self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
-        prediction = self.class_from_spikes(top_n=top_n)
+        prediction = self.class_from_spikes(top_n=top_n, method=method)
         if to_print:
             print(f"Prediction: {prediction[0:k][0]}")
         if plot:
@@ -1594,14 +1635,16 @@ class AbstractSNN:
         if not os.path.exists(path):
             os.makedirs(path)
         torch.save(self.network, path + "//network")
-
         torch.save(self.votes, path + "//votes")
-        torch.save(self.accuracy, path + "//accuracy")
-        torch.save(self.error, path + "//error")
         torch.save(self.conf_matrix, path + "//confusion_matrix")
 
         with open(path + "//parameters.json", "w") as file:
             json.dump(self.parameters, file)
+
+        with open(path + "//score.json", "w") as file:
+            json.dump({'accuracy': self.accuracy,
+                       'error': self.error,
+                       'accuracy_method': self.accuracy_method}, file)
 
         if not os.path.exists(r"networks/networks.db"):
             conn = sqlite3.connect(r"networks/networks.db")
@@ -1830,10 +1873,12 @@ class LC_SNN(AbstractSNN):
 
         self.votes = None
 
-    def class_from_spikes(self, top_n=None):
+    def class_from_spikes(self, top_n=None, method='patch_voting', spikes=None):
         """
         Predicts label from current Y spikes.
         :param top_n: how many labels can each neuron vote for
+        :param method: voting method to use. Options: "patch_voting" and "all_voting"
+        :param spikes: if None, use currently recorded spikes. Else use given spikes.
         :return: predicted label
         """
         if top_n == 0:
@@ -1845,48 +1890,55 @@ class LC_SNN(AbstractSNN):
         for i, top_i in enumerate(args):
             for j, label in enumerate(top_i):
                 top_n_votes[label, j] = self.votes[label, j]
-        w = self.network.connections[("X", "Y")].w
-        k1, k2 = self.kernel_size, self.kernel_size
-        c1, c2 = self.conv_size, self.conv_size
-        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        locations = self.network.connections[("X", "Y")].locations
-        best_patches_max = (
-            self.spikes["Y"]
-            .get("s")
-            .sum(0)
-            .squeeze(0)
-            .view(self.n_filters, self.conv_size ** 2)
-            .max(0)
-        )
-        best_patches = best_patches_max.indices
 
-        best_neurons = []
-        votes = torch.zeros(10, self.conv_size ** 2)
-        sum_spikes = torch.zeros(self.conv_size ** 2)
-        for patch_number, filter_number in zip(
-            list(range(self.conv_size ** 2)), best_patches
-        ):
-            neuron_num = (
-                filter_number * self.conv_size ** 2
-                + (patch_number // c2sqrt) * c2sqrt
-                + (patch_number % c2sqrt)
-            )
-            filter_ = w[locations[:, patch_number], neuron_num].view(k1, k2)
-            vote = top_n_votes[:, neuron_num]
-            votes[:, patch_number] = vote
-            sum_spikes[patch_number] = (
-                self.spikes["Y"]
-                .get("s")
-                .sum(0)
-                .squeeze(0)
-                .view(self.n_filters, self.conv_size ** 2)[filter_number, patch_number]
-            )
-            best_neurons.append(filter_)
+        if spikes is None:
+            spikes = self.spikes['Y'].get('s').sum(0).squeeze(0)
 
-        res = votes @ sum_spikes
-        res = res.argsort(descending=True)
-        self.label = res[0]
-        return res
+        if method == 'patch_voting':
+            c1, c2 = self.conv_size, self.conv_size
+            c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
+            best_patches_max = (
+                spikes
+                .view(self.n_filters, self.conv_size ** 2)
+                .max(0)
+            )
+            best_patches = best_patches_max.indices
+
+            votes = torch.zeros(10, self.conv_size ** 2)
+
+            sum_spikes = torch.zeros(self.conv_size ** 2)
+            for patch_number, filter_number in zip(
+                list(range(self.conv_size ** 2)), best_patches
+            ):
+                neuron_num = (
+                    filter_number * self.conv_size ** 2
+                    + (patch_number // c2sqrt) * c2sqrt
+                    + (patch_number % c2sqrt)
+                )
+
+                vote = top_n_votes[:, neuron_num]
+                votes[:, patch_number] = vote
+                sum_spikes[patch_number] = (
+                    spikes
+                    .view(self.n_filters, self.conv_size ** 2)[filter_number, patch_number]
+                )
+
+            res = votes @ sum_spikes
+
+        elif method == 'all_voting':
+            sum_output = spikes.flatten()
+            res = torch.matmul(top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor))
+
+        else:
+            raise NotImplementedError(f'This voting method [{method}] is not implemented')
+
+        if res.sum(0).item() == 0:
+            self.label = torch.tensor(-1)
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        else:
+            res = res.argsort(descending=True)
+            self.label = res[0]
+            return res
 
     def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
         """
