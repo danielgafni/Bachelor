@@ -295,11 +295,7 @@ class AbstractSNN:
             enumerate(train_dataloader), total=n_iter, ncols=ncols
         ):
             t_now = t()
-            time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
-            speed = (speed_counter + 1) / (t_now - t_start)
-            time_left = str(
-                datetime.timedelta(seconds=int((n_iter - speed_counter) / speed))
-            )
+
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             if self.mask_YY is not None and self.c_l:
@@ -1627,6 +1623,14 @@ class AbstractSNN:
             self.mask_YY.type(torch.BoolTensor), self.c_w
         )
 
+    def record_voltages(self, to_record=False):
+        if to_record:
+            self.voltages = {}
+            self.voltages["Y"] = Monitor(
+                self.network.layers["Y"], state_vars=["v"], time=self.time_max
+                )
+            self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
+
     def save(self):
         """
         Save network to disk.
@@ -1858,12 +1862,6 @@ class LC_SNN(AbstractSNN):
             self.network.layers["Y"], state_vars=["s"], time=self.time_max
         )
         self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
-
-        self.voltages = {}
-        self.voltages["Y"] = Monitor(
-            self.network.layers["Y"], state_vars=["v"], time=self.time_max
-        )
-        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
 
         self.stride = self.stride
         self.conv_size = conv_size
@@ -2122,12 +2120,6 @@ class C_SNN(AbstractSNN):
         )
         self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
-        self.voltages = {}
-        self.voltages["Y"] = Monitor(
-            self.network.layers["Y"], state_vars=["v"], time=self.time_max
-        )
-        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
-
         self.stride = self.stride
         self.conv_size = conv_size
         self.conv_prod = int(np.prod(conv_size))
@@ -2138,12 +2130,18 @@ class C_SNN(AbstractSNN):
 
         self.weights_XY = self.get_weights_XY()
 
-    def class_from_spikes(self, top_n=None):
+    def class_from_spikes(self, top_n=None, method=None, spikes=None):
         if top_n == 0:
             raise ValueError("top_n can't be zero")
         if top_n is None:
             top_n = 10
-        sum_output = self.spikes["Y"].get("s").squeeze(1).view(self.time_max, -1).sum(0)
+
+        if spikes is None:
+            spikes = self.spikes['Y'].get('s').sum(0).squeeze(0)
+
+        spikes_best = torch.where(spikes == spikes.max(0).values, spikes, torch.tensor(0))
+
+        sum_output = spikes_best.flatten()
 
         args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
         top_n_votes = torch.zeros(self.votes.shape)
@@ -2316,23 +2314,21 @@ class FC_SNN(AbstractSNN):
         )
         self.network.add_monitor(self.spikes["Y"], name="Y_spikes")
 
-        self.voltages = {}
-        self.voltages["Y"] = Monitor(
-            self.network.layers["Y"], state_vars=["v"], time=self.time_max
-        )
-        self.network.add_monitor(self.voltages["Y"], name="Y_voltages")
-
         self.stride = self.stride
         self.conv_size = 1
         self.conv_prod = int(np.prod(conv_size))
 
         self.weights_XY = self.get_weights_XY()
 
-    def class_from_spikes(self, top_n=None):
+    def class_from_spikes(self, top_n=None, method=None, spikes=None):
         if top_n == 0:
             raise ValueError("top_n can't be zero")
         if top_n is None:
             top_n = 10
+
+        if spikes is None:
+            spikes = self.spikes['Y'].get('s').sum(0).squeeze(0)
+
         args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
         top_n_votes = torch.zeros(self.votes.shape)
         for i, top_i in enumerate(args):
@@ -2359,10 +2355,7 @@ class FC_SNN(AbstractSNN):
             vote = top_n_votes[:, neuron_num]
             votes[:, patch_number] = vote
             sum_spikes[patch_number] = (
-                self.spikes["Y"]
-                .get("s")
-                .sum(0)
-                .squeeze(0)
+                spikes
                 .view(self.n_filters, self.conv_size ** 2)[filter_number, patch_number]
             )
             best_neurons.append(filter_)
