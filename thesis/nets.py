@@ -1949,7 +1949,7 @@ class LC_SNN(AbstractSNN):
             self.label = res[0]
             return res
 
-    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False):
+    def feed_label(self, label, top_n=None, k=1, to_print=True, plot=False, method='patch_voting'):
         """
         Inputs given label into the network, calculates network prediction.
         If plot=True will visualize information about the network. Use in Jupyter Notebook.
@@ -1960,7 +1960,7 @@ class LC_SNN(AbstractSNN):
         :param plot: True - to plot info, False - no plotting.
         :return: torch.tensor with predictions in descending confidence order.
         """
-        super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot)
+        super().feed_label(label=label, top_n=top_n, k=k, to_print=to_print, plot=plot, method=method)
         if plot:
             fig, fig2 = self.plot_best_voters()
             i1 = random.randint(0, self.n_filters - 1)

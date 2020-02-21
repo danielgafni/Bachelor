@@ -197,8 +197,8 @@ def load_network(name):
             t_pre = parameters["t_pre"]
             t_post = parameters["t_post"]
 
-
     except FileNotFoundError:
+        print('Network folder is corrupted.')
         raise FileNotFoundError
 
     if network_type == "LC_SNN":
@@ -242,7 +242,6 @@ def load_network(name):
             foldername=name,
             n_iter=n_iter,
         )
-
 
     elif network_type == "FC_SNN":
         net = FC_SNN(
