@@ -23,11 +23,11 @@ def view_network(name):
         try:
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
-                with open(f'networks//{name}//score.json', 'r') as file:
+                with open(f"networks//{name}//score.json", "r") as file:
                     score = json.load(file)
-                parameters['accuracy'] = score['accuracy']
-                parameters['error'] = score['error']
-                parameters['accuracy_method'] = score['accuracy_method']
+                parameters["accuracy"] = score["accuracy"]
+                parameters["error"] = score["error"]
+                parameters["accuracy_method"] = score["accuracy_method"]
 
             return parameters
         except FileNotFoundError:
@@ -39,7 +39,7 @@ def view_database():
     Get a pandas.DataFrame with all available networks
     :return: pandas.DataFrame with all network names and their parameters
     """
-    columns=[
+    columns = [
         "name",
         "network_type",
         "accuracy",
@@ -61,11 +61,9 @@ def view_database():
         "intensity",
         "dt",
         "train_method",
-        "accuracy_method"
-        ]
-    database = pd.DataFrame(
-        columns=[]
-    )
+        "accuracy_method",
+    ]
+    database = pd.DataFrame(columns=[])
     for name in os.listdir("networks"):
         if "." not in name:
             if os.path.exists(f"networks//{name}//parameters.json"):
@@ -198,7 +196,7 @@ def load_network(name):
             t_post = parameters["t_post"]
 
     except FileNotFoundError:
-        print('Network folder is corrupted.')
+        print("Network folder is corrupted.")
         raise FileNotFoundError
 
     if network_type == "LC_SNN":
@@ -269,7 +267,7 @@ def load_network(name):
     try:
         network = torch.load(path + "//network")
     except FileNotFoundError:
-        raise FileNotFoundError('Network file not found')
+        raise FileNotFoundError("Network file not found")
     net.network = network
 
     if os.path.exists(path + "//votes"):
@@ -278,13 +276,13 @@ def load_network(name):
     conf_matrix = None
     if os.path.exists(path + "//confusion_matrix"):
         conf_matrix = torch.load(path + "//confusion_matrix")
-    with open(f'networks//{name}//score.json', 'r') as file:
+    with open(f"networks//{name}//score.json", "r") as file:
         score = json.load(file)
 
     net.votes = votes
-    net.accuracy = score['accuracy']
-    net.error = score['error']
-    net.accuracy_method = score['accuracy_method']
+    net.accuracy = score["accuracy"]
+    net.error = score["error"]
+    net.accuracy_method = score["accuracy_method"]
     net.conf_matrix = conf_matrix
 
     net.spikes = {}
@@ -376,8 +374,8 @@ def clean_database():
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
             new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
-            with open(f'networks//{name}//score.json', 'r') as file:
-                accuracy = json.load(file)['accuracy']
+            with open(f"networks//{name}//score.json", "r") as file:
+                accuracy = json.load(file)["accuracy"]
             network_type = parameters["network_type"]
             os.rename(f"networks//{name}", f"networks//{new_name}")
 
