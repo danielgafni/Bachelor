@@ -13,18 +13,18 @@ I have two goals:
 * Comparison of Locally Connected networks to Convolution and Fully Connected networks (with similar  number of parameters)
 * Finding an efficient way of training inhibitor (competitive) connections and finding out if they positively affect the accuracy.
 
-Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Best results are presented with std ~ 0.1-1%. Some of the lower accuracies might be for networks with sub-optimal parameters, because I didn't have enough time for all the computations.
+Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Mean values are presented, n = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters.
 
-| type    | n\_filters | kernel\_size | accuracy |
-| ------- | ---------- | ------------ | -------- |
-| LC\_SNN | 100        | 12           | 0\.896   |
-| LC\_SNN | 100        | 8            | 0\.814   |
-| LC\_SNN | 25         | 12           | 0\.797   |
-| LC\_SNN | 25         | 8            | 0\.75    |
-| C\_SNN  | 100        | 8            | 0\.79    |
-| C\_SNN  | 25         | 12           | 0\.668   |
-| C\_SNN  | 25         | 8            | 0\.665   |
-| FC\_SNN | 100        | 20           | 0.734    |
+| type    | n\_filters | kernel\_size | accuracy | std    |
+| ------- | ---------- | ------------ | -------- | ------ |
+| LC\_SNN | 100        | 12           | 0.8752   | 0.0090 |
+| LC\_SNN | 100        | 8            | 0.8285   | 0.0021 |
+| LC\_SNN | 25         | 12           | 0.7939   | 0.0038 |
+| LC\_SNN | 25         | 8            | 0.7360   | 0.0103 |
+| C\_SNN  | 100        | 8            | 0.7736   | 0.0188 |
+| C\_SNN  | 25         | 12           | 0.6577   | 0.0067 |
+| C\_SNN  | 25         | 8            | 0.5807   | 0.0117 |
+| FC\_SNN | 100        | 20           | 0.734    | 0.0866 |
 
 I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon. 
 
