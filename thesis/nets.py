@@ -1819,8 +1819,8 @@ class LC_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            trace_tc_pre=self.t_pre,
-            trace_tc_post=self.t_post,
+            tc_trace_pre=self.t_pre,
+            tc_trace_post=self.t_post,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
@@ -1930,15 +1930,15 @@ class LC_SNN(AbstractSNN):
         #         top_n_votes[label, j] = self.votes[label, j]
 
         if spikes is None:
-            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)
+            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).type(torch.FloatTensor)
 
         if method == "patch_voting":
-            res = self.votes @ spikes.type(torch.FloatTensor)
-            res = res.max(axis=1).values.sum(axis=[1, 2]).argsort(descending=True)
+            res = spikes * self.votes
+            res = res.max(1).values.sum((1, 2))
 
         elif method == "all_voting":
-            res = self.votes @ spikes.type(torch.FloatTensor)
-            res = res.sum(axis=[1, 2, 3]).argsort(descending=True)
+            res = spikes * self.votes
+            res = res.sum(axis=[1, 2, 3])
 
         else:
             raise NotImplementedError(
@@ -2081,7 +2081,7 @@ class C_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            trace_tc_pre=self.t_pre,
+            tc_trace_pre=self.t_pre,
             tc_trace_post=self.t_post,
             tc_decay=tc_decay,
             theta_plus=0.05,

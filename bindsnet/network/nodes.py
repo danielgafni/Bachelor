@@ -19,6 +19,8 @@ class Nodes(torch.nn.Module):
         traces: bool = False,
         traces_additive: bool = False,
         tc_trace: Union[float, torch.Tensor] = 20.0,
+        tc_trace_pre: Union[float, torch.Tensor] = 20.0,
+        tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
         sum_input: bool = False,
         learning: bool = True,
@@ -67,9 +69,17 @@ class Nodes(torch.nn.Module):
 
         if self.traces:
             self.register_buffer("x", torch.Tensor())  # Firing traces.
+            self.register_buffer("x_pre", torch.Tensor())  # Firing traces.
+            self.register_buffer("x_post", torch.Tensor())  # Firing traces.
             self.register_buffer(
                 "tc_trace", torch.tensor(tc_trace)
             )  # Time constant of spike trace decay.
+            self.register_buffer(
+                "tc_trace_pre", torch.tensor(tc_trace_pre)
+                )  # Time constant of spike trace decay.
+            self.register_buffer(
+                "tc_trace_post", torch.tensor(tc_trace_post)
+                )  # Time constant of spike trace decay.
             if self.traces_additive:
                 self.register_buffer(
                     "trace_scale", torch.tensor(trace_scale)
@@ -77,6 +87,12 @@ class Nodes(torch.nn.Module):
             self.register_buffer(
                 "trace_decay", torch.empty_like(self.tc_trace)
             )  # Set in compute_decays.
+            self.register_buffer(
+                "trace_decay_pre", torch.empty_like(self.tc_trace_pre)
+                )  # Set in compute_decays.
+            self.register_buffer(
+                "trace_decay_post", torch.empty_like(self.tc_trace_post)
+                )  # Set in compute_decays.
 
         if self.sum_input:
             self.register_buffer("summed", torch.FloatTensor())  # Summed inputs.
@@ -95,11 +111,17 @@ class Nodes(torch.nn.Module):
         if self.traces:
             # Decay and set spike traces.
             self.x *= self.trace_decay
+            self.x_pre *= self.trace_decay_pre
+            self.x_post *= self.trace_decay_post
 
             if self.traces_additive:
                 self.x += self.trace_scale * self.s.float()
+                self.x_pre += self.trace_scale * self.s.float()
+                self.x_post += self.trace_scale * self.s.float()
             else:
                 self.x.masked_fill_(self.s != 0, 1)
+                self.x_pre.masked_fill_(self.s != 0, 1)
+                self.x_post.masked_fill_(self.s != 0, 1)
 
         if self.sum_input:
             # Add current input to running sum.
@@ -114,6 +136,8 @@ class Nodes(torch.nn.Module):
 
         if self.traces:
             self.x.zero_()  # Spike traces.
+            self.x_pre.zero_()  # Spike traces.
+            self.x_post.zero_()  # Spike traces.
 
         if self.sum_input:
             self.summed.zero_()  # Summed inputs.
@@ -141,6 +165,8 @@ class Nodes(torch.nn.Module):
 
         if self.traces:
             self.x = torch.zeros(batch_size, *self.shape, device=self.x.device)
+            self.x_pre = torch.zeros(batch_size, *self.shape, device=self.x_pre.device)
+            self.x_post = torch.zeros(batch_size, *self.shape, device=self.x_post.device)
 
         if self.sum_input:
             self.summed = torch.zeros(
@@ -179,6 +205,8 @@ class Input(Nodes, AbstractInput):
         traces: bool = False,
         traces_additive: bool = False,
         tc_trace: Union[float, torch.Tensor] = 20.0,
+        tc_trace_pre: Union[float, torch.Tensor] = 20.0,
+        tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
         sum_input: bool = False,
         **kwargs,
@@ -201,6 +229,8 @@ class Input(Nodes, AbstractInput):
             traces=traces,
             traces_additive=traces_additive,
             tc_trace=tc_trace,
+            tc_trace_pre=tc_trace_pre,
+            tc_trace_post=tc_trace_post,
             trace_scale=trace_scale,
             sum_input=sum_input,
         )
@@ -776,6 +806,8 @@ class AdaptiveLIFNodes(Nodes):
         traces: bool = False,
         traces_additive: bool = False,
         tc_trace: Union[float, torch.Tensor] = 20.0,
+        tc_trace_pre: Union[float, torch.Tensor] = 20.0,
+        tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
         sum_input: bool = False,
         rest: Union[float, torch.Tensor] = -65.0,
@@ -814,6 +846,8 @@ class AdaptiveLIFNodes(Nodes):
             traces=traces,
             traces_additive=traces_additive,
             tc_trace=tc_trace,
+            tc_trace_pre=tc_trace_pre,
+            tc_trace_post=tc_trace_post,
             trace_scale=trace_scale,
             sum_input=sum_input,
         )
