@@ -18,7 +18,6 @@ class Nodes(torch.nn.Module):
         shape: Optional[Iterable[int]] = None,
         traces: bool = False,
         traces_additive: bool = False,
-        tc_trace: Union[float, torch.Tensor] = 20.0,
         tc_trace_pre: Union[float, torch.Tensor] = 20.0,
         tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
@@ -34,7 +33,8 @@ class Nodes(torch.nn.Module):
         :param shape: The dimensionality of the layer.
         :param traces: Whether to record decaying spike traces.
         :param traces_additive: Whether to record spike traces additively.
-        :param tc_trace: Time constant of spike trace decay.
+        :param tc_trace_pre: Time constant of pre spike trace decay.
+        :param tc_trace_post: Time constant of post spike trace decay.
         :param trace_scale: Scaling factor for spike trace.
         :param sum_input: Whether to sum all inputs.
         :param learning: Whether to be in learning or testing.
@@ -72,9 +72,6 @@ class Nodes(torch.nn.Module):
             self.register_buffer("x_pre", torch.Tensor())  # Firing traces.
             self.register_buffer("x_post", torch.Tensor())  # Firing traces.
             self.register_buffer(
-                "tc_trace", torch.tensor(tc_trace)
-            )  # Time constant of spike trace decay.
-            self.register_buffer(
                 "tc_trace_pre", torch.tensor(tc_trace_pre)
                 )  # Time constant of spike trace decay.
             self.register_buffer(
@@ -84,9 +81,6 @@ class Nodes(torch.nn.Module):
                 self.register_buffer(
                     "trace_scale", torch.tensor(trace_scale)
                 )  # Scaling factor for spike trace.
-            self.register_buffer(
-                "trace_decay", torch.empty_like(self.tc_trace)
-            )  # Set in compute_decays.
             self.register_buffer(
                 "trace_decay_pre", torch.empty_like(self.tc_trace_pre)
                 )  # Set in compute_decays.
@@ -110,16 +104,13 @@ class Nodes(torch.nn.Module):
         """
         if self.traces:
             # Decay and set spike traces.
-            self.x *= self.trace_decay
             self.x_pre *= self.trace_decay_pre
             self.x_post *= self.trace_decay_post
 
             if self.traces_additive:
-                self.x += self.trace_scale * self.s.float()
                 self.x_pre += self.trace_scale * self.s.float()
                 self.x_post += self.trace_scale * self.s.float()
             else:
-                self.x.masked_fill_(self.s != 0, 1)
                 self.x_pre.masked_fill_(self.s != 0, 1)
                 self.x_post.masked_fill_(self.s != 0, 1)
 
@@ -135,7 +126,6 @@ class Nodes(torch.nn.Module):
         self.s.zero_()
 
         if self.traces:
-            self.x.zero_()  # Spike traces.
             self.x_pre.zero_()  # Spike traces.
             self.x_post.zero_()  # Spike traces.
 
@@ -149,9 +139,13 @@ class Nodes(torch.nn.Module):
         """
         self.dt = dt
         if self.traces:
-            self.trace_decay = torch.exp(
-                -self.dt / self.tc_trace
+            self.trace_decay_pre = torch.exp(
+                -self.dt / self.tc_trace_pre
             )  # Spike trace decay (per timestep).
+
+            self.trace_decay_post = torch.exp(
+                -self.dt / self.tc_trace_post
+                )  # Spike trace decay (per timestep).
 
     def set_batch_size(self, batch_size) -> None:
         # language=rst
@@ -164,7 +158,6 @@ class Nodes(torch.nn.Module):
         self.s = torch.zeros(batch_size, *self.shape, device=self.s.device)
 
         if self.traces:
-            self.x = torch.zeros(batch_size, *self.shape, device=self.x.device)
             self.x_pre = torch.zeros(batch_size, *self.shape, device=self.x_pre.device)
             self.x_post = torch.zeros(batch_size, *self.shape, device=self.x_post.device)
 
@@ -805,7 +798,6 @@ class AdaptiveLIFNodes(Nodes):
         shape: Optional[Iterable[int]] = None,
         traces: bool = False,
         traces_additive: bool = False,
-        tc_trace: Union[float, torch.Tensor] = 20.0,
         tc_trace_pre: Union[float, torch.Tensor] = 20.0,
         tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
@@ -835,7 +827,8 @@ class AdaptiveLIFNodes(Nodes):
         :param reset: Post-spike reset voltage.
         :param thresh: Spike threshold voltage.
         :param refrac: Refractory (non-firing) period of the neuron.
-        :param tc_decay: Time constant of neuron voltage decay.
+        :param tc_trace_pre: Time constant of pre spike trace decay.
+        :param tc_trace_post: Time constant of post spike trace decay.
         :param theta_plus: Voltage increase of threshold after spiking.
         :param tc_theta_decay: Time constant of adaptive threshold decay.
         :param lbound: Lower bound of the voltage.
@@ -845,7 +838,6 @@ class AdaptiveLIFNodes(Nodes):
             shape=shape,
             traces=traces,
             traces_additive=traces_additive,
-            tc_trace=tc_trace,
             tc_trace_pre=tc_trace_pre,
             tc_trace_post=tc_trace_post,
             trace_scale=trace_scale,

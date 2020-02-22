@@ -175,9 +175,9 @@ class PostPre(LearningRule):
         """
         batch_size = self.source.batch_size
         source_s = self.source.s.view(batch_size, -1).unsqueeze(2).float()
-        source_x = self.source.x_pre.view(batch_size, -1).unsqueeze(2)
+        source_x = self.source.x_post.view(batch_size, -1).unsqueeze(2)
         target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
-        target_x = self.target.x_post.view(batch_size, -1).unsqueeze(1)
+        target_x = self.target.x_pre.view(batch_size, -1).unsqueeze(1)
 
         # Pre-synaptic update.
         if self.nu[0]:
