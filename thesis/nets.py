@@ -516,7 +516,7 @@ class AbstractSNN:
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
             outputs.append(
-                self.spikes["Y"].get("s").squeeze(1).view(self.time_max, -1).sum(0)
+                self.spikes["Y"].get("s").sum(0).squeeze(0)
             )
             labels.append(batch["label"].item())
 
@@ -569,7 +569,7 @@ class AbstractSNN:
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
             outputs.append(
-                self.spikes["Y"].get("s").squeeze(1).view(self.time_max, -1).sum(0)
+                self.spikes["Y"].get("s").sum(0).squeeze(0)
             )
             labels.append(batch["label"].item())
             self.network.reset_()
@@ -617,14 +617,12 @@ class AbstractSNN:
 
         outputs = data["outputs"]
         labels = data["labels"]
-        votes = torch.zeros(10, self.n_output)
-        for (label, output) in tqdm(
-            zip(labels, outputs), total=len(labels), ncols=ncols
-        ):
-            for i, spikes_sum in enumerate(output):
-                votes[label, i] += spikes_sum
+
+        votes = torch.zeros([10] + list(outputs[0].shape))
+        for (label, output) in zip(labels, outputs):
+            votes[label] += output
         for i in range(10):
-            votes[i, :] = votes[i, :] / len((np.array(labels) == i).nonzero()[0])
+            votes[i] /= len((np.array(labels) == i).nonzero()[0])
         self.votes = votes
         self.calibrated = True
 
@@ -711,17 +709,19 @@ class AbstractSNN:
         Plots mean votes for top classes.
         :return: plotly.graph_objs.Figure - distribution of votes
         """
+        means = self.votes.sort(0, descending=True).values.mean(axis=list(range(1, len(self.votes.shape))))
+        stds = self.votes.sort(0, descending=True).values.std(axis=list(range(1, len(self.votes.shape))))
         votes_distibution_fig = go.Figure(
             go.Scatter(
-                y=self.votes.sort(0, descending=True)[0].mean(1).numpy(),
+                y=means,
                 error_y=dict(
-                    array=self.votes.sort(0, descending=True)[0].std(1),
+                    array=stds,
                     width=5,
                     color="purple",
                     visible=True,
                 ),
                 mode="markers",
-                marker_size=15,
+                marker_size=10,
             )
         )
         votes_distibution_fig.update_layout(
@@ -1922,49 +1922,23 @@ class LC_SNN(AbstractSNN):
             raise ValueError("top_n can't be zero")
         if top_n is None:
             top_n = 10
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
+
+        # args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        # top_n_votes = torch.zeros(self.votes.shape)
+        # for i, top_i in enumerate(args):
+        #     for j, label in enumerate(top_i):
+        #         top_n_votes[label, j] = self.votes[label, j]
 
         if spikes is None:
             spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)
 
         if method == "patch_voting":
-            c1, c2 = self.conv_size, self.conv_size
-            c1sqrt, c2sqrt = (
-                int(math.ceil(math.sqrt(c1))),
-                int(math.ceil(math.sqrt(c2))),
-            )
-            best_patches_max = spikes.view(self.n_filters, self.conv_size ** 2).max(0)
-            best_patches = best_patches_max.indices
-
-            votes = torch.zeros(10, self.conv_size ** 2)
-
-            sum_spikes = torch.zeros(self.conv_size ** 2)
-            for patch_number, filter_number in zip(
-                list(range(self.conv_size ** 2)), best_patches
-            ):
-                neuron_num = (
-                    filter_number * self.conv_size ** 2
-                    + (patch_number // c2sqrt) * c2sqrt
-                    + (patch_number % c2sqrt)
-                )
-
-                vote = top_n_votes[:, neuron_num]
-                votes[:, patch_number] = vote
-                sum_spikes[patch_number] = spikes.view(
-                    self.n_filters, self.conv_size ** 2
-                )[filter_number, patch_number]
-
-            res = votes @ sum_spikes
+            res = self.votes @ spikes.type(torch.FloatTensor)
+            res = res.max(axis=1).values.sum(axis=[1, 2]).argsort(descending=True)
 
         elif method == "all_voting":
-            sum_output = spikes.flatten()
-            res = torch.matmul(
-                top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor)
-            )
+            res = self.votes @ spikes.type(torch.FloatTensor)
+            res = res.sum(axis=[1, 2, 3]).argsort(descending=True)
 
         else:
             raise NotImplementedError(
