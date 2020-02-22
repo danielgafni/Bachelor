@@ -44,7 +44,7 @@ The networks below don't have their weights YY trained.
 
 Locally Connected networks don't need a lot of training examples:
 
-![accuracy dependence on number of training iterations](overview/accuracy-n_iter.png)
+![accuracy dependence on number of training iterations](overview/acc-n_iter.png)
 
 Here are 100-filter Locally Connected weights after 5000 iterations of training:
 
