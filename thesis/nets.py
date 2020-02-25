@@ -1629,7 +1629,21 @@ class AbstractSNN:
         if to_print:
             print(f"Prediction: {prediction[0:k]}")
         if plot:
-            self.plot_best_spikes_Y().show()
+            fig, fig2 = self.plot_best_voters()
+            i1 = random.randint(0, self.n_filters - 1)
+            i2 = random.randint(0, self.conv_size - 1)
+            i3 = random.randint(0, self.conv_size - 1)
+            while i1 == self.best_voters_locations[i2, i3]:
+                i1 = random.randint(0, self.n_filters - 1)
+                i2 = random.randint(0, self.conv_size - 1)
+                i3 = random.randint(0, self.conv_size - 1)
+
+            fig3 = self.plot_neuron_voltage(i1, i2, i3)
+            fig.show()
+            if fig2 is not None:
+                fig2.show()
+            if fig3 is not None:
+                fig3.show()
             plot_image(np.flipud(image.squeeze().numpy())).show()
 
         return prediction[0:k]
