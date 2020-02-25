@@ -1947,11 +1947,14 @@ class LC_SNN(AbstractSNN):
             spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).type(torch.FloatTensor)
 
         if method == "patch_voting":
-            res = spikes * self.votes
-            res = res.max(1).values.sum((1, 2))
+            res = spikes * self.votes.view([10] + list(spikes.shape))
+            # res = res.max(1).values
+            # for axis in range(1, len(res.shape)):
+            #     res = res.sum(1)
+            res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
-            res = spikes * self.votes
+            res = spikes * self.votes.view([10] + list(spikes.shape))
             res = res.sum(axis=[1, 2, 3])
 
         else:

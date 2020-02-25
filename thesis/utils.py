@@ -265,10 +265,12 @@ def load_network(name):
         raise NotImplementedError
 
     try:
-        network = torch.load(path + "//network")
+        loaded_network = torch.load(path + "//network")
     except FileNotFoundError:
         raise FileNotFoundError("Network file not found")
-    net.network = network
+
+    for c in loaded_network.connections:
+        net.network.connections[c].w.data = loaded_network.connections[c].w.data
 
     if os.path.exists(path + "//votes"):
         votes = torch.load(path + "//votes")
