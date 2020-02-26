@@ -3,6 +3,7 @@ import math
 import hashlib
 import json
 import os
+from shutil import rmtree
 import sqlite3
 import random
 from time import time as t
@@ -179,6 +180,7 @@ class AbstractSNN:
             "t_pre": self.t_pre,
             "t_post": self.t_post,
             "train_method": self.train_method,
+            "immutable_name": self.immutable_name
         }
         return parameters
 
@@ -1735,6 +1737,24 @@ class AbstractSNN:
         conn.commit()
         conn.close()
 
+    def clear_activity(self, calibration=True, test=True):
+        if calibration:
+            if os.path.exists(f'networks//{self.name}//activity'):
+                rmtree(f'networks//{self.name}//activity')
+                print('Cleared calibration activity')
+        if test:
+            if os.path.exists(f'networks//{self.name}//activity_test'):
+                rmtree(f'networks//{self.name}//activity_test')
+                print('Cleared test activity')
+
+    def set_name(self, name=None):
+        if name is None:
+            self.immutable_name = False
+            self.foldername = None
+        else:
+            self.immutable_name = True
+            self.foldername = str(name)
+
     def __str__(self):
         return f"Network with parameters:\n {self.parameters}"
 
@@ -1944,13 +1964,13 @@ class LC_SNN(AbstractSNN):
         #         top_n_votes[label, j] = self.votes[label, j]
 
         if spikes is None:
-            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).type(torch.FloatTensor)
+            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
         if method == "patch_voting":
-            res = spikes * self.votes.view([10] + list(spikes.shape))
-            # res = res.max(1).values
-            # for axis in range(1, len(res.shape)):
-            #     res = res.sum(1)
+            try:
+                res = spikes * self.votes
+            except:
+                raise TypeError('Votes and spikes shape does not match. The network must be recalibrated.')
             res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
@@ -2579,6 +2599,7 @@ class FC_SNN(AbstractSNN):
             "nu_post": self.nu_post,
             "t_pre": self.t_pre,
             "t_post": self.t_post,
+            "immutable_name": self.immutable_name
         }
         return parameters
 

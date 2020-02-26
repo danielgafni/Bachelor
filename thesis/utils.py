@@ -375,11 +375,13 @@ def clean_database():
             #  Rename networks according to current parameters
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
-            new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
-            with open(f"networks//{name}//score.json", "r") as file:
-                accuracy = json.load(file)["accuracy"]
-            network_type = parameters["network_type"]
-            os.rename(f"networks//{name}", f"networks//{new_name}")
+            new_name = name
+            if not parameters['immutable_name']:
+                new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
+                with open(f"networks//{name}//score.json", "r") as file:
+                    accuracy = json.load(file)["accuracy"]
+                network_type = parameters["network_type"]
+                os.rename(f"networks//{name}", f"networks//{new_name}")
 
             #  Add network to database
             crs.execute(

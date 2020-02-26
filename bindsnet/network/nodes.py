@@ -68,7 +68,6 @@ class Nodes(torch.nn.Module):
         self.sum_input = sum_input  # Whether to sum all inputs.
 
         if self.traces:
-            self.register_buffer("x", torch.Tensor())  # Firing traces.
             self.register_buffer("x_pre", torch.Tensor())  # Firing traces.
             self.register_buffer("x_post", torch.Tensor())  # Firing traces.
             self.register_buffer(
@@ -923,9 +922,7 @@ class AdaptiveLIFNodes(Nodes):
         Sets the relevant decays.
         """
         super().compute_decays(dt=dt)
-        self.decay = torch.exp(
-            -self.dt / self.tc_decay
-        )  # Neuron voltage decay (per timestep).
+
         self.theta_decay = torch.exp(
             -self.dt / self.tc_theta_decay
         )  # Adaptive threshold decay (per timestep).
