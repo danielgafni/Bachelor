@@ -215,8 +215,9 @@ def load_network(name):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
-            immutable_name=True,
+            immutable_name=parameters['immutable_name'],
             foldername=name,
+            loaded_from_disk=True,
             n_iter=n_iter,
         )
 
@@ -236,8 +237,9 @@ def load_network(name):
             n_filters=n_filters,
             stride=stride,
             intensity=intensity,
-            immutable_name=True,
+            immutable_name=parameters['immutable_name'],
             foldername=name,
+            loaded_from_disk=True,
             n_iter=n_iter,
         )
 
@@ -255,8 +257,9 @@ def load_network(name):
             crop=crop,
             n_filters=n_filters,
             intensity=intensity,
-            immutable_name=True,
+            immutable_name=parameters['immutable_name'],
             foldername=name,
+            loaded_from_disk=True,
             n_iter=n_iter,
         )
 

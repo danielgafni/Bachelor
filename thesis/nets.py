@@ -82,6 +82,7 @@ class AbstractSNN:
         type_="Abstract SNN",
         immutable_name=False,
         foldername=None,
+        loaded_from_disk=False,
         c_w_min=None,
         n_iter=0,
     ):
@@ -142,6 +143,7 @@ class AbstractSNN:
         self.t_post = t_post
         self.immutable_name = immutable_name
         self.foldername = foldername
+        self.loaded_from_disk = loaded_from_disk
         self.mask_YY = None
         self.error = None
         self.create_network()
@@ -190,10 +192,13 @@ class AbstractSNN:
         Network name.
         :return: returns network name.
         """
-        if self.immutable_name:
+        if self.loaded_from_disk:
             return self.foldername
         else:
-            return hashlib.sha224(str(self.parameters).encode("utf8")).hexdigest()
+            if not self.immutable_name:
+                return hashlib.sha224(str(self.parameters).encode("utf8")).hexdigest()
+            else:
+                return self.foldername
 
     @property
     def network_state(self):
@@ -1783,6 +1788,7 @@ class LC_SNN(AbstractSNN):
         nu_post=None,
         immutable_name=False,
         foldername=None,
+        loaded_from_disk=False,
         n_iter=0,
     ):
         """
@@ -1823,6 +1829,7 @@ class LC_SNN(AbstractSNN):
             c_w_min=c_w_min,
             immutable_name=immutable_name,
             foldername=foldername,
+            loaded_from_disk=loaded_from_disk,
             n_iter=n_iter,
             type_="LC_SNN",
         )
@@ -2072,6 +2079,7 @@ class C_SNN(AbstractSNN):
         n_iter=0,
         immutable_name=False,
         foldername=None,
+        loaded_from_disk=False,
         c_w_min=None,
     ):
 
@@ -2092,6 +2100,7 @@ class C_SNN(AbstractSNN):
             c_w_min=c_w_min,
             immutable_name=immutable_name,
             foldername=foldername,
+            loaded_from_disk=loaded_from_disk,
             n_iter=n_iter,
             type_="C_SNN",
         )
@@ -2267,6 +2276,7 @@ class FC_SNN(AbstractSNN):
         nu_post=None,
         immutable_name=False,
         foldername=None,
+        loaded_from_disk=False,
         c_w_min=None,
     ):
 
@@ -2284,6 +2294,7 @@ class FC_SNN(AbstractSNN):
             nu_post=nu_post,
             immutable_name=immutable_name,
             foldername=foldername,
+            loaded_from_disk=loaded_from_disk,
             n_iter=n_iter,
             c_w_min=c_w_min,
             type_="FC_SNN",
