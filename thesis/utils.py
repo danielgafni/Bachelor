@@ -280,8 +280,8 @@ def load_network(name):
         conf_matrix = torch.load(path + "//confusion_matrix")
     with open(f"networks//{name}//score.json", "r") as file:
         score = json.load(file)
-
-    net.votes = votes
+    conv_size = int((crop - kernel_size) / stride) + 1
+    net.votes = votes.view(10, n_filters, conv_size, conv_size)
     net.accuracy = score["accuracy"]
     net.error = score["error"]
     net.accuracy_method = score["accuracy_method"]

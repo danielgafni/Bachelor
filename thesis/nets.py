@@ -5,6 +5,7 @@ import json
 import os
 import sqlite3
 import random
+from shutil import rmtree
 from time import time as t
 
 import numpy as np
@@ -515,9 +516,7 @@ class AbstractSNN:
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
-            outputs.append(
-                self.spikes["Y"].get("s").sum(0).squeeze(0)
-            )
+            outputs.append(self.spikes["Y"].get("s").sum(0).squeeze(0))
             labels.append(batch["label"].item())
 
             self.network.reset_()
@@ -568,9 +567,7 @@ class AbstractSNN:
         for batch in tqdm(test_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            outputs.append(
-                self.spikes["Y"].get("s").sum(0).squeeze(0)
-            )
+            outputs.append(self.spikes["Y"].get("s").sum(0).squeeze(0))
             labels.append(batch["label"].item())
             self.network.reset_()
         data = {"outputs": outputs, "labels": labels}
@@ -709,17 +706,16 @@ class AbstractSNN:
         Plots mean votes for top classes.
         :return: plotly.graph_objs.Figure - distribution of votes
         """
-        means = self.votes.sort(0, descending=True).values.mean(axis=list(range(1, len(self.votes.shape))))
-        stds = self.votes.sort(0, descending=True).values.std(axis=list(range(1, len(self.votes.shape))))
+        means = self.votes.sort(0, descending=True).values.mean(
+            axis=list(range(1, len(self.votes.shape)))
+        )
+        stds = self.votes.sort(0, descending=True).values.std(
+            axis=list(range(1, len(self.votes.shape)))
+        )
         votes_distibution_fig = go.Figure(
             go.Scatter(
                 y=means,
-                error_y=dict(
-                    array=stds,
-                    width=5,
-                    color="purple",
-                    visible=True,
-                ),
+                error_y=dict(array=stds, width=5, color="purple", visible=True,),
                 mode="markers",
                 marker_size=10,
             )
@@ -1735,6 +1731,16 @@ class AbstractSNN:
         conn.commit()
         conn.close()
 
+    def clear_activity(self, calibration=True, test=True):
+        if calibration:
+            if os.path.exists(f"networks//{self.name}//activity"):
+                rmtree(f"networks//{self.name}//activity")
+                print("Cleared calibration activity")
+        if test:
+            if os.path.exists(f"networks//{self.name}//activity_test"):
+                rmtree(f"networks//{self.name}//activity_test")
+                print("Cleared test activity")
+
     def __str__(self):
         return f"Network with parameters:\n {self.parameters}"
 
@@ -2253,6 +2259,8 @@ class FC_SNN(AbstractSNN):
         super().__init__(
             mean_weight=mean_weight,
             c_w=c_w,
+            kernel_size=20,
+            stride=1,
             time_max=time_max,
             crop=crop,
             n_filters=n_filters,
@@ -2270,7 +2278,6 @@ class FC_SNN(AbstractSNN):
         )
 
     def create_network(self):
-        self.kernel_size = self.crop
         conv_size = 1
 
         # Hyperparameters
@@ -2358,48 +2365,49 @@ class FC_SNN(AbstractSNN):
 
         self.weights_XY = self.get_weights_XY()
 
-    def class_from_spikes(self, top_n=None, method=None, spikes=None):
+    def class_from_spikes(self, top_n=None, method="patch_voting", spikes=None):
+        """
+        Predicts label from current Y spikes.
+        :param top_n: how many labels can each neuron vote for
+        :param method: voting method to use. Options: "patch_voting" and "all_voting"
+        :param spikes: if None, use currently recorded spikes. Else use given spikes.
+        :return: predicted label
+        """
         if top_n == 0:
             raise ValueError("top_n can't be zero")
         if top_n is None:
             top_n = 10
 
+        # args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
+        # top_n_votes = torch.zeros(self.votes.shape)
+        # for i, top_i in enumerate(args):
+        #     for j, label in enumerate(top_i):
+        #         top_n_votes[label, j] = self.votes[label, j]
+
         if spikes is None:
-            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)
+            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).type(torch.FloatTensor)
 
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        w = self.network.connections[("X", "Y")].w
-        k1, k2 = self.kernel_size, self.kernel_size
-        c1, c2 = self.conv_size, self.conv_size
-        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        locations = self.network.connections[("X", "Y")].locations
+        if method == "patch_voting":
+            res = spikes * self.votes.view([10] + list(spikes.shape))
+            # res = res.max(1).values
+            # for axis in range(1, len(res.shape)):
+            #     res = res.sum(1)
+            res = res.sum(1)
 
-        best_neurons = []
-        votes = torch.zeros(10, self.conv_size ** 2)
-        sum_spikes = torch.zeros(self.conv_size ** 2)
-        for patch_number, filter_number in zip(
-            list(range(self.conv_size ** 2)), self.best_voters.indices
-        ):
-            neuron_num = (
-                filter_number * self.conv_size ** 2
-                + (patch_number // c2sqrt) * c2sqrt
-                + (patch_number % c2sqrt)
-            )
-            filter_ = w[locations[:, patch_number], neuron_num].view(k1, k2)
-            vote = top_n_votes[:, neuron_num]
-            votes[:, patch_number] = vote
-            sum_spikes[patch_number] = spikes.view(self.n_filters, self.conv_size ** 2)[
-                filter_number, patch_number
-            ]
-            best_neurons.append(filter_)
-        res = votes @ sum_spikes
-        res = res.argsort(descending=True)
-        self.label = res[0]
-        return res
+        elif method == "all_voting":
+            res = spikes * self.votes.view([10] + list(spikes.shape))
+            res = res.sum(1)
+
+        else:
+            raise NotImplementedError(f"Voting method [{method}] is not implemented")
+
+        if res.sum(0).item() == 0:
+            self.label = torch.tensor(-1)
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        else:
+            res = res.argsort(descending=True)
+            self.label = res[0]
+            return res
 
     def plot_best_voters(self):
         """
@@ -2571,6 +2579,8 @@ class FC_SNN(AbstractSNN):
             "c_w_min": self.c_w_min,
             "time_max": self.time_max,
             "crop": self.crop,
+            "kernel_size": self.kernel_size,
+            "stride": self.stride,
             "n_filters": self.n_filters,
             "intensity": self.intensity,
             "dt": self.dt,
