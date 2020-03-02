@@ -381,15 +381,26 @@ def clean_database():
             new_name = name
             if not parameters['immutable_name']:
                 new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
-                with open(f"networks//{name}//score.json", "r") as file:
-                    accuracy = json.load(file)["accuracy"]
-                network_type = parameters["network_type"]
-                os.rename(f"networks//{name}", f"networks//{new_name}")
 
-            #  Add network to database
+            if os.path.exists(f"networks//{new_name}") and new_name != name:
+                with open(f"networks//{new_name}//parameters.json", "r") as file:
+                    other_parameters = json.load(file)
+
+                    if parameters == other_parameters:
+                        print(f'Deleting duplicated networks:\n{name}\nand\n{new_name}')
+                        rmtree(f"networks//{name}")
+            else:
+                if new_name != name:
+                    os.rename(f"networks//{name}", f"networks//{new_name}")
+
+            #  Add each network to database
+            with open(f"networks//{new_name}//score.json", "r") as file:
+                accuracy = json.load(file)["accuracy"]
+            network_type = parameters["network_type"]
             crs.execute(
                 "INSERT INTO networks VALUES (?, ?, ?)",
                 (new_name, accuracy, network_type),
-            )
+                )
             conn.commit()
+
     conn.close()

@@ -922,7 +922,9 @@ class AdaptiveLIFNodes(Nodes):
         Sets the relevant decays.
         """
         super().compute_decays(dt=dt)
-
+        self.decay = torch.exp(
+            -self.dt / self.tc_decay
+        )  # Neuron voltage decay (per timestep).
         self.theta_decay = torch.exp(
             -self.dt / self.tc_theta_decay
         )  # Adaptive threshold decay (per timestep).
