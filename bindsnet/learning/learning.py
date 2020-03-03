@@ -191,51 +191,6 @@ class PostPre(LearningRule):
 
         super().update()
 
-    def _sparse_connection_update(self, **kwargs) -> None:  # EDITED: added this
-        # language=rst
-        """
-        Post-pre learning rule for ``Connection`` subclass of ``AbstractConnection`` class.
-        """
-        batch_size = self.source.batch_size
-        source_x = self.source.x.view(batch_size, -1).unsqueeze(2)
-        target_s = self.target.s.view(batch_size, -1).unsqueeze(1).float()
-
-        size = self.source.s.float().view(self.source.s.size(0), -1).size()[1]
-        weights = self.connection.w.view(size, size)
-
-
-        # Pre-synaptic update.
-        if self.nu[0]:
-            source_s = self.source.s.view(batch_size, -1).float()
-            sparse_source_s = bsr_matrix(source_s)
-            target_x = self.target.x.view(batch_size, -1)
-            sparse_target_x = bsr_matrix(target_x)
-            update = (sparse_source_s.T @ sparse_target_x)
-            sparse_weights = bsr_matrix(weights)
-            sparse_weights -= self.nu[0] * update
-            w = torch.FloatTensor(sparse_weights.toarray())
-            self.connection.w = Parameter(w, False)
-            # update2 = self.reduction(torch.bmm(target_x.unsqueeze(2), source_s.unsqueeze(1)), dim=0)
-
-            #print((update == update2.numpy()).sum())
-
-        # Post-synaptic update.
-        if self.nu[1]:
-            target_s = self.target.s.view(batch_size, -1).float()
-            sparse_target_s = bsr_matrix(target_s)
-            source_x = self.source.x.view(batch_size, -1)
-            sparse_source_x = bsr_matrix(source_x)
-            update = (sparse_source_x.T @ sparse_target_s)
-            sparse_weights = bsr_matrix(weights)
-            sparse_weights += self.nu[1] * update
-            w = torch.FloatTensor(sparse_weights.toarray())
-            self.connection.w = Parameter(w, False)
-
-            #update = self.reduction(torch.bmm(source_x, target_s), dim=0)
-            #self.connection.w += self.nu[1] * update.reshape(self.connection.w.shape) # EDITED (self.connection.w -= self.nu[0] * update)
-
-        super().update()
-
     def _conv2d_connection_update(self, **kwargs) -> None:
         # language=rst
         """
@@ -248,9 +203,9 @@ class PostPre(LearningRule):
 
         # Reshaping spike traces and spike occurrences.
         source_x = im2col_indices(
-            self.source.x, kernel_height, kernel_width, padding=padding, stride=stride
+            self.source.x_pre, kernel_height, kernel_width, padding=padding, stride=stride
         )
-        target_x = self.target.x.view(batch_size, out_channels, -1)
+        target_x = self.target.x_post.view(batch_size, out_channels, -1)
         source_s = im2col_indices(
             self.source.s.float(),
             kernel_height,
