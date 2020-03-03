@@ -928,7 +928,6 @@ class AbstractSNN:
 
             return w_comp, fig
         else:
-            print('update')
             fig.data[0].x = w_comp
 
     def accuracy_on_top_n(self, n_iter=1000, labels=False, method="patch_voting"):
