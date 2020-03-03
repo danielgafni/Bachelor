@@ -1219,21 +1219,23 @@ class AbstractSNN:
                 title=go.layout.Title(text="Weights XY", xref="paper"),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(
-                    title_text="Neuron Index X",
+                    title_text="Neuron Index",
                     tickmode="array",
                     tickvals=np.linspace(
                         0, self.weights_XY.shape[0], self.output_shape + 1
-                    + self.weights_XY.shape[0] / self.output_shape / 2),
-                    ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                    )
+                    + self.weights_XY.shape[0] / self.output_shape / 2,
+                    ticktext=[str(i) for i in range(self.output_shape + 1)],
                     zeroline=False,
                 ),
                 yaxis=go.layout.YAxis(
-                    title_text="Neuron Index Y",
+                    title_text="Neuron Index",
                     tickmode="array",
                     tickvals=np.linspace(
-                        0, self.weights_XY.shape[1], self.output_shape + 1
-                    + self.weights_XY.shape[1] / self.output_shape / 2),
-                    ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                        0, self.weights_XY.shape[0], self.output_shape + 1
+                    )
+                    + self.weights_XY.shape[0] / self.output_shape / 2,
+                    ticktext=[str(i) for i in range(self.output_shape + 1)],
                     zeroline=False,
                 ),
             )
@@ -1258,21 +1260,23 @@ class AbstractSNN:
                 title=go.layout.Title(text="Weights YY", xref="paper"),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(
-                    title_text="Neuron Index X",
-                    # tickmode='array',
-                    # tickvals=np.linspace(0, self.weights_YY.shape[0],
-                    #                      self.output_shape + 1) +
-                    #          self.weights_YY.shape[0] / self.output_shape / 2,
-                    # ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                    title_text="Neuron Index",
+                    tickmode="array",
+                    tickvals=np.linspace(
+                        0, self.weights_YY.shape[0], self.n_filters + 1
+                    )
+                    + self.weights_YY.shape[0] / self.n_filters / 2,
+                    ticktext=[str(i) for i in range(self.n_filters + 1)],
                     zeroline=False,
                 ),
                 yaxis=go.layout.YAxis(
-                    title_text="Neuron Index Y",
-                    # tickmode='array',
-                    # tickvals=np.linspace(0, self.weights_YY.shape[1],
-                    #                      self.output_shape + 1) +
-                    #          self.weights_YY.shape[1] / self.output_shape / 2,
-                    # ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
+                    title_text="Neuron Index",
+                    tickmode="array",
+                    tickvals=np.linspace(
+                        0, self.weights_YY.shape[1], self.n_filters + 1
+                    )
+                    + self.weights_YY.shape[1] / self.n_filters / 2,
+                    ticktext=[str(i) for i in range(self.n_filters + 1)],
                     zeroline=False,
                 ),
             )
