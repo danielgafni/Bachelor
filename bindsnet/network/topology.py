@@ -103,8 +103,9 @@ class AbstractConnection(ABC, Module):
         """
         learning = kwargs.get("learning", True)
 
-        if learning:
-            self.update_rule.update(**kwargs)
+        if self.learning:
+            if learning:
+                self.update_rule.update(**kwargs)
 
         mask = kwargs.get("mask", None)
         if mask is not None:

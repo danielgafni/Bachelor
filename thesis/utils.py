@@ -215,7 +215,7 @@ def load_network(name):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
-            immutable_name=parameters['immutable_name'],
+            immutable_name=parameters["immutable_name"],
             foldername=name,
             loaded_from_disk=True,
             n_iter=n_iter,
@@ -237,7 +237,7 @@ def load_network(name):
             n_filters=n_filters,
             stride=stride,
             intensity=intensity,
-            immutable_name=parameters['immutable_name'],
+            immutable_name=parameters["immutable_name"],
             foldername=name,
             loaded_from_disk=True,
             n_iter=n_iter,
@@ -257,7 +257,7 @@ def load_network(name):
             crop=crop,
             n_filters=n_filters,
             intensity=intensity,
-            immutable_name=parameters['immutable_name'],
+            immutable_name=parameters["immutable_name"],
             foldername=name,
             loaded_from_disk=True,
             n_iter=n_iter,
@@ -379,7 +379,7 @@ def clean_database():
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
             new_name = name
-            if not parameters['immutable_name']:
+            if not parameters["immutable_name"]:
                 new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
 
             if os.path.exists(f"networks//{new_name}") and new_name != name:
@@ -387,7 +387,7 @@ def clean_database():
                     other_parameters = json.load(file)
 
                     if parameters == other_parameters:
-                        print(f'Deleting duplicated networks:\n{name}\nand\n{new_name}')
+                        print(f"Deleting duplicated networks:\n{name}\nand\n{new_name}")
                         rmtree(f"networks//{name}")
             else:
                 if new_name != name:
@@ -400,7 +400,7 @@ def clean_database():
             crs.execute(
                 "INSERT INTO networks VALUES (?, ?, ?)",
                 (new_name, accuracy, network_type),
-                )
+            )
             conn.commit()
 
     conn.close()

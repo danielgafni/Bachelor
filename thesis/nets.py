@@ -33,6 +33,7 @@ from bindsnet.network.topology import (
 )
 from bindsnet.utils import reshape_locally_connected_weights
 
+
 def in_ipynb():
     try:
         cfg = get_ipython().config
@@ -179,7 +180,7 @@ class AbstractSNN:
             "t_pre": self.t_pre,
             "t_post": self.t_post,
             "train_method": self.train_method,
-            "immutable_name": self.immutable_name
+            "immutable_name": self.immutable_name,
         }
         return parameters
 
@@ -330,13 +331,13 @@ class AbstractSNN:
                     #  Plot input image
                     plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
                     #  Plot XY weights
-                    self.plot_weights_XY(fig_weights_XY=fig_weights_XY)
+                    self.plot_weights_XY(fig=fig_weights_XY)
 
                     #  Plot best Y spikes
                     self.plot_best_spikes_Y(fig_spikes)
 
                     #  Plot best Y neurons weights and voltages
-                    self.plot_best_voters(fig=fig1, fig2=fig2)
+                    self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                     #  Plot random neuron voltage to compare with best neurons
                     random_index = random.randint(0, self.n_output)
@@ -348,7 +349,28 @@ class AbstractSNN:
                         #  Plot competitive weights distribution
                         self.competition_distribution(fig=fig_competition_distribtion)
                     cnt += 1
+            if plot:
+                if (t_now - t_start) / vis_interval > cnt:
+                    #  Plot input image
+                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
+                    #  Plot XY weights
+                    self.plot_weights_XY(fig=fig_weights_XY)
 
+                    #  Plot best Y spikes
+                    self.plot_best_spikes_Y(fig_spikes)
+
+                    #  Plot best Y neurons weights and voltages
+                    self.plot_best_voters(fig1=fig1, fig2=fig2)
+
+                    #  Plot random neuron voltage to compare with best neurons
+                    random_index = random.randint(0, self.n_output)
+                    while random_index in self.best_voters.indices:
+                        random_index = random.randint(0, self.n_output)
+                    self.plot_neuron_voltage(random_index, fig=random_figure)
+
+                    if self.c_l:
+                        #  Plot competitive weights distribution
+                        self.competition_distribution(fig=fig_competition_distribtion)
             self.network.reset_()
             self.n_iter += 1
 
@@ -392,10 +414,29 @@ class AbstractSNN:
         )
         cnt = 0
         if plot:
+            fig_image = plot_image(np.zeros((self.crop, self.crop)))
+            display.display(fig_image)
             fig_weights_XY = self.plot_weights_XY()
             fig_spikes = self.plot_best_spikes_Y()
-            fig_weights_XY.show()
-            fig_spikes.show()
+            display.display(fig_weights_XY)
+
+            if self.c_l:
+                _, fig_competition_distribtion = self.competition_distribution()
+                display.display(fig_competition_distribtion)
+
+            display.display(fig_spikes)
+
+            fig1, fig2 = self.plot_best_voters()
+            display.display(fig1)
+            if fig2 is not None:
+                display.display(fig2)
+            #  Plot random neuron voltage to compare with best neurons
+            random_index = random.randint(0, self.n_output)
+            while random_index in self.best_voters.indices:
+                random_index = random.randint(0, self.n_output)
+            random_figure = self.plot_neuron_voltage(random_index)
+            random_figure.layout.title.text = f"Random Y neuron voltage"
+
         self.network.connections[("Y", "Y")].learning = False
         self.network.connections[("X", "Y")].learning = True
         print("Training XY connection...")
@@ -403,50 +444,46 @@ class AbstractSNN:
         for speed_counter, batch in tqdm(
             enumerate(train_dataloader), total=n_iter, ncols=ncols
         ):
-            
+
             t_now = time.time()
-            time_from_start = str(datetime.timedelta(seconds=(int(t_now - t_start))))
-            speed = (speed_counter + 1) / (t_now - t_start)
-            time_left = str(
-                datetime.timedelta(seconds=int((n_iter - speed_counter) / speed))
-            )
+
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
-                    display.clear_output(wait=True)
-                    fig_weights_XY = self.plot_weights_XY()
-                    fig_spikes = self.plot_best_spikes_Y()
-                    fig_weights_XY.show()
-                    fig_spikes.show()
+                    #  Plot input image
+                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
+                    #  Plot XY weights
+                    self.plot_weights_XY(fig=fig_weights_XY)
+
+                    #  Plot best Y spikes
+                    self.plot_best_spikes_Y(fig_spikes)
+
+                    #  Plot best Y neurons weights and voltages
+                    self.plot_best_voters(fig1=fig1, fig2=fig2)
+
+                    #  Plot random neuron voltage to compare with best neurons
+                    random_index = random.randint(0, self.n_output)
+                    while random_index in self.best_voters.indices:
+                        random_index = random.randint(0, self.n_output)
+                    self.plot_neuron_voltage(random_index, fig=random_figure)
+
                     cnt += 1
 
             self.network.reset_()
         self.network.connections[("X", "Y")].learning = False
         if self.c_l:
             self.network.connections[("Y", "Y")].w.fill_(0)
-            display.clear_output(wait=True)
             self.network.connections[("Y", "Y")].learning = True
             print("Training YY connection...")
-            if plot:
-                fig_weights_XY = self.plot_weights_XY()
-                fig_spikes = self.plot_best_spikes_Y()
-                fig_weights_XY.show()
-                fig_spikes.show()
             t_start = time.time()
             cnt = 0
             for speed_counter, batch in tqdm(
                 enumerate(train_dataloader), total=n_iter, ncols=ncols
             ):
                 t_now = time.time()
-                time_from_start = str(
-                    datetime.timedelta(seconds=(int(t_now - t_start)))
-                )
-                speed = (speed_counter + 1) / (t_now - t_start)
-                time_left = str(
-                    datetime.timedelta(seconds=int((n_iter - speed_counter) / speed))
-                )
+
                 inpts = {"X": batch["encoded_image"].transpose(0, 1)}
                 self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
                 if self.mask_YY is not None:
@@ -456,19 +493,55 @@ class AbstractSNN:
 
                 if plot:
                     if (t_now - t_start) / vis_interval > cnt:
-                        display.clear_output(wait=True)
-                        fig_weights_XY = self.plot_weights_XY()
-                        fig_spikes = self.plot_best_spikes_Y()
-                        fig_weights_XY.show()
-                        fig_spikes.show()
-                        if self.c_l:
-                            fig_weights_YY = self.plot_weights_YY()
-                            fig_weights_YY.show()
-                            _, fig_comp_hist = self.competition_distribution()
-                            fig_comp_hist.show()
-                        cnt += 1
+                        #  Plot input image
+                        plot_image(
+                            np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image
+                        )
+                        #  Plot XY weights
+                        self.plot_weights_XY(fig=fig_weights_XY)
 
+                        if self.c_l:
+                            #  Plot competitive weights distribution
+                            self.competition_distribution(
+                                fig=fig_competition_distribtion
+                            )
+
+                        #  Plot best Y spikes
+                        self.plot_best_spikes_Y(fig_spikes)
+
+                        #  Plot best Y neurons weights and voltages
+                        self.plot_best_voters(fig1=fig1, fig2=fig2)
+
+                        #  Plot random neuron voltage to compare with best neurons
+                        random_index = random.randint(0, self.n_output)
+                        while random_index in self.best_voters.indices:
+                            random_index = random.randint(0, self.n_output)
+                        self.plot_neuron_voltage(random_index, fig=random_figure)
+
+                        cnt += 1
                 self.network.reset_()
+            if plot:
+                if (t_now - t_start) / vis_interval > cnt:
+                    #  Plot input image
+                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
+                    #  Plot XY weights
+                    self.plot_weights_XY(fig=fig_weights_XY)
+
+                    #  Plot best Y spikes
+                    self.plot_best_spikes_Y(fig_spikes)
+
+                    #  Plot best Y neurons weights and voltages
+                    self.plot_best_voters(fig1=fig1, fig2=fig2)
+
+                    #  Plot random neuron voltage to compare with best neurons
+                    random_index = random.randint(0, self.n_output)
+                    while random_index in self.best_voters.indices:
+                        random_index = random.randint(0, self.n_output)
+                    self.plot_neuron_voltage(random_index, fig=random_figure)
+
+                    if self.c_l:
+                        #  Plot competitive weights distribution
+                        self.competition_distribution(fig=fig_competition_distribtion)
             self.network.connections[("Y", "Y")].learning = False
             # shape = int(np.sqrt(np.prod(self.network.connections[('Y', 'Y')].w.shape)))
             # for i in range(shape):
@@ -526,9 +599,7 @@ class AbstractSNN:
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
 
-            outputs.append(
-                self.spikes["Y"].get("s").sum(0).squeeze(0)
-            )
+            outputs.append(self.spikes["Y"].get("s").sum(0).squeeze(0))
             labels.append(batch["label"].item())
 
             self.network.reset_()
@@ -579,9 +650,7 @@ class AbstractSNN:
         for batch in tqdm(test_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-            outputs.append(
-                self.spikes["Y"].get("s").sum(0).squeeze(0)
-            )
+            outputs.append(self.spikes["Y"].get("s").sum(0).squeeze(0))
             labels.append(batch["label"].item())
             self.network.reset_()
         data = {"outputs": outputs, "labels": labels}
@@ -720,18 +789,17 @@ class AbstractSNN:
         Plots mean votes for top classes.
         :return: plotly.graph_objs.Figure - distribution of votes
         """
-        means = self.votes.sort(0, descending=True).values.mean(axis=list(range(1, len(self.votes.shape))))
-        stds = self.votes.sort(0, descending=True).values.std(axis=list(range(1, len(self.votes.shape))))
+        means = self.votes.sort(0, descending=True).values.mean(
+            axis=list(range(1, len(self.votes.shape)))
+        )
+        stds = self.votes.sort(0, descending=True).values.std(
+            axis=list(range(1, len(self.votes.shape)))
+        )
         if fig is None:
             fig = go.Figure(
                 go.Scatter(
                     y=means,
-                    error_y=dict(
-                        array=stds,
-                        width=5,
-                        color="purple",
-                        visible=True,
-                    ),
+                    error_y=dict(array=stds, width=5, color="purple", visible=True,),
                     mode="markers",
                     marker_size=10,
                 )
@@ -762,11 +830,8 @@ class AbstractSNN:
         else:
             fig.data[0].y = means
             fig.data[0].error_y = dict(
-                array=stds,
-                width=5,
-                color="purple",
-                visible=True,
-                )
+                array=stds, width=5, color="purple", visible=True,
+            )
 
     def calculate_accuracy(self, n_iter=1000, top_n=None, method="patch_voting"):
         """
@@ -896,7 +961,6 @@ class AbstractSNN:
         else:
             fig.data[0].y = accs["accuracy"].values
             fig.data[0].error_y = dict(array=accs["error"], visible=True, width=5)
-
 
     def competition_distribution(self, fig=None):
         """
@@ -1139,19 +1203,17 @@ class AbstractSNN:
         """
         pass
 
-    def plot_weights_XY(self, fig_weights_XY=None):
+    def plot_weights_XY(self, fig=None):
         """
-        Plots XY weights.
-        :param width: figure width
-        :return: plotly.graph_objs.Figure - XY weights heatmap.
+        Plots XY weights with a plotly FigureWidget.
+        :param fig: widget to update
+        :return: plotly.graph_objs.FigureWidget - XY weights heatmap.
         """
         self.weights_XY = self.get_weights_XY()
-        if fig_weights_XY is None:
-            fig_weights_XY = go.FigureWidget()
-            fig_weights_XY.add_heatmap(
-                z=self.weights_XY, colorscale="YlOrBr"
-            )
-            fig_weights_XY.update_layout(
+        if fig is None:
+            fig = go.FigureWidget()
+            fig.add_heatmap(z=self.weights_XY, colorscale="YlOrBr")
+            fig.update_layout(
                 width=800,
                 height=800,
                 title=go.layout.Title(text="Weights XY", xref="paper"),
@@ -1159,7 +1221,9 @@ class AbstractSNN:
                 xaxis=go.layout.XAxis(
                     title_text="Neuron Index X",
                     tickmode="array",
-                    tickvals=np.linspace(0, self.weights_XY.shape[0], self.output_shape + 1)
+                    tickvals=np.linspace(
+                        0, self.weights_XY.shape[0], self.output_shape + 1
+                    )
                     + self.weights_XY.shape[0] / self.output_shape / 2,
                     ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                     zeroline=False,
@@ -1167,17 +1231,17 @@ class AbstractSNN:
                 yaxis=go.layout.YAxis(
                     title_text="Neuron Index Y",
                     tickmode="array",
-                    tickvals=np.linspace(0, self.weights_XY.shape[1], self.output_shape + 1)
+                    tickvals=np.linspace(
+                        0, self.weights_XY.shape[1], self.output_shape + 1
+                    )
                     + self.weights_XY.shape[1] / self.output_shape / 2,
                     ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                     zeroline=False,
                 ),
             )
-            return fig_weights_XY
+            return fig
         else:
-            fig_weights_XY.data[0].z = self.weights_XY
-
-
+            fig.data[0].z = self.weights_XY
 
     def plot_weights_YY(self, fig_weights_YY=None):
         """
@@ -1188,8 +1252,7 @@ class AbstractSNN:
         self.weights_YY = self.get_weights_YY()
         if fig_weights_YY is None:
             fig_weights_YY = go.FigureWidget()
-            fig_weights_YY.add_heatmap(
-                z=self.weights_YY, colorscale="YlOrBr")
+            fig_weights_YY.add_heatmap(z=self.weights_YY, colorscale="YlOrBr")
 
             fig_weights_YY.update_layout(
                 width=800,
@@ -1218,8 +1281,6 @@ class AbstractSNN:
             return fig_weights_YY
         else:
             fig_weights_YY.data[0].z = self.weights_YY
-
-
 
     def plot_spikes_Y(self, fig_spikes=None):
         """
@@ -1260,7 +1321,6 @@ class AbstractSNN:
             return fig_spikes
         else:
             fig_spikes.data[0].z = spikes[active_spikes_indices, :]
-
 
     def plot_best_spikes_Y(self, fig_spikes=None):
         """
@@ -1305,15 +1365,14 @@ class AbstractSNN:
         else:
             fig_spikes.data[0].z = best_spikes
 
-
-    def plot_best_voters(self, fig=None, fig2=None):
+    def plot_best_voters(self, fig1=None, fig2=None):
         """
         Plots information about best Y neurons from current spikes.
         :return: plotly.graph_objs.Figure - weights of best neurons;
         plotly.graph_objs.Figure - voltages of best neurons;
         """
         to_return = False
-        if fig is None and fig2 is None:
+        if fig1 is None:
             to_return = True
         w = self.network.connections[("X", "Y")].w
         k1, k2 = self.kernel_size, self.kernel_size
@@ -1331,15 +1390,17 @@ class AbstractSNN:
             subplot_titles.append(
                 f"Filter {patch_index}, patch ({i // self.conv_size}, {i % self.conv_size})<br>{text}"
             )
-        if fig is None:
-            fig = make_subplots(
+        if fig1 is None:
+            fig1 = make_subplots(
                 subplot_titles=subplot_titles,
                 rows=self.conv_size,
                 cols=self.conv_size,
                 horizontal_spacing=0.07,
                 vertical_spacing=0.1,
             )
-            for patch_number, filter_number in enumerate(best_patches_indices.flatten()):
+            for patch_number, filter_number in enumerate(
+                best_patches_indices.flatten()
+            ):
                 filter_ = w[
                     locations[:, patch_number],
                     filter_number * self.conv_size ** 2
@@ -1347,20 +1408,22 @@ class AbstractSNN:
                     + (patch_number % c2sqrt),
                 ].view(k1, k2)
 
-                fig.add_trace(
+                fig1.add_trace(
                     go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
                     row=patch_number // self.conv_size + 1,
                     col=patch_number % self.conv_size + 1,
                 )
 
-            fig.update_layout(
+            fig1.update_layout(
                 height=800,
                 width=800,
                 title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
             )
-            fig = go.FigureWidget(fig)
+            fig1 = go.FigureWidget(fig1)
         else:
-            for patch_number, filter_number in enumerate(best_patches_indices.flatten()):
+            for patch_number, filter_number in enumerate(
+                best_patches_indices.flatten()
+            ):
                 filter_ = w[
                     locations[:, patch_number],
                     filter_number * self.conv_size ** 2
@@ -1368,8 +1431,10 @@ class AbstractSNN:
                     + (patch_number % c2sqrt),
                 ].view(k1, k2)
 
-                fig.data[patch_number].z = filter_.flip(0)
-                fig.layout.annotations[patch_number].text = subplot_titles[patch_number]
+                fig1.data[patch_number].z = filter_.flip(0)
+                fig1.layout.annotations[patch_number].text = subplot_titles[
+                    patch_number
+                ]
 
         if fig2 is None:
             fig2 = None
@@ -1430,7 +1495,9 @@ class AbstractSNN:
                 for row in range(self.conv_size):
                     for col in range(self.conv_size):
                         fig2.update_xaxes(title_text="Time", row=row + 1, col=col + 1)
-                        fig2.update_yaxes(title_text="Voltage", row=row + 1, col=col + 1)
+                        fig2.update_yaxes(
+                            title_text="Voltage", row=row + 1, col=col + 1
+                        )
                 fig2.update_layout(
                     title_text="Best Y neurons voltages",
                     showlegend=False,
@@ -1443,31 +1510,33 @@ class AbstractSNN:
                 for patch_number, filter_number in enumerate(best_patches_indices):
                     voltage = (
                         self.voltages["Y"]
-                            .get("v")
-                            .squeeze(1)
-                            .view(self.time_max, self.n_filters, self.conv_size ** 2)[
-                        :, filter_number, patch_number
+                        .get("v")
+                        .squeeze(1)
+                        .view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                            :, filter_number, patch_number
                         ]
                     )
 
                     spike_timings = (
                         self.spikes["Y"]
-                            .get("s")
-                            .squeeze(1)
-                            .view(self.time_max, self.n_filters, self.conv_size ** 2)[
-                        :, best_patches_indices[patch_number], patch_number
+                        .get("s")
+                        .squeeze(1)
+                        .view(self.time_max, self.n_filters, self.conv_size ** 2)[
+                            :, best_patches_indices[patch_number], patch_number
                         ]
-                            .nonzero()
-                            .squeeze(1)
+                        .nonzero()
+                        .squeeze(1)
                     )
                     fig2.data[patch_number * 2].x = list(range(self.time_max))
                     fig2.data[patch_number * 2].y = voltage
 
                     fig2.data[patch_number * 2 + 1].x = spike_timings
                     fig2.data[patch_number * 2 + 1].y = voltage[spike_timings]
-                    fig2.layout.annotations[patch_number].text = subplot_titles[patch_number]
+                    fig2.layout.annotations[patch_number].text = subplot_titles[
+                        patch_number
+                    ]
         if to_return:
-            return fig, fig2
+            return fig1, fig2
 
     def plot_neuron_voltage(self, index, location1=None, location2=None, fig=None):
         """
@@ -1554,9 +1623,9 @@ class AbstractSNN:
                 if location1 is None and location2 is None:
                     v = (
                         self.voltages["Y"]
-                            .get("v")
-                            .squeeze(1)
-                            .view(self.time_max, -1)[:, index]
+                        .get("v")
+                        .squeeze(1)
+                        .view(self.time_max, -1)[:, index]
                     )
                     total_spikes = (
                         self.spikes["Y"].get("s").sum(0).squeeze(0).flatten()[index]
@@ -1564,32 +1633,32 @@ class AbstractSNN:
                     text = f"Total spikes: {total_spikes.item()}"
                     spike_timings = (
                         self.spikes["Y"]
-                            .get("s")
-                            .squeeze(1)
-                            .view(self.time_max, -1)[:, index]
-                            .nonzero()
-                            .squeeze(1)
+                        .get("s")
+                        .squeeze(1)
+                        .view(self.time_max, -1)[:, index]
+                        .nonzero()
+                        .squeeze(1)
                     )
                     title_text = f"Neuron {index} voltage<br>{text}"
                 else:
                     v = (
                         self.voltages["Y"]
-                            .get("v")
-                            .squeeze(1)[:, index, location1, location2]
+                        .get("v")
+                        .squeeze(1)[:, index, location1, location2]
                     )
                     total_spikes = (
                         self.spikes["Y"]
-                            .get("s")
-                            .sum(0)
-                            .squeeze(0)[index, location1, location2]
+                        .get("s")
+                        .sum(0)
+                        .squeeze(0)[index, location1, location2]
                     )
                     text = f"Total spikes: {total_spikes.item()}"
                     spike_timings = (
                         self.spikes["Y"]
-                            .get("s")
-                            .squeeze(1)[:, index, location1, location2]
-                            .nonzero()
-                            .squeeze(1)
+                        .get("s")
+                        .squeeze(1)[:, index, location1, location2]
+                        .nonzero()
+                        .squeeze(1)
                     )
 
                     title_text = (
@@ -1863,13 +1932,13 @@ class AbstractSNN:
 
     def clear_activity(self, calibration=True, test=True):
         if calibration:
-            if os.path.exists(f'networks//{self.name}//activity'):
-                rmtree(f'networks//{self.name}//activity')
-                print('Cleared calibration activity')
+            if os.path.exists(f"networks//{self.name}//activity"):
+                rmtree(f"networks//{self.name}//activity")
+                print("Cleared calibration activity")
         if test:
-            if os.path.exists(f'networks//{self.name}//activity_test'):
-                rmtree(f'networks//{self.name}//activity_test')
-                print('Cleared test activity')
+            if os.path.exists(f"networks//{self.name}//activity_test"):
+                rmtree(f"networks//{self.name}//activity_test")
+                print("Cleared test activity")
 
     def set_name(self, name=None):
         if name is None:
@@ -2096,7 +2165,9 @@ class LC_SNN(AbstractSNN):
             try:
                 res = spikes * self.votes
             except:
-                raise TypeError('Votes and spikes shape does not match. The network must be recalibrated.')
+                raise TypeError(
+                    "Votes and spikes shape does not match. The network must be recalibrated."
+                )
             res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
@@ -2551,12 +2622,15 @@ class FC_SNN(AbstractSNN):
         self.label = res[0]
         return res
 
-    def plot_best_voters(self):
+    def plot_best_voters(self, fig1=None, fig2=None):
         """
         Plots information about best Y neurons from current spikes.
         :return: plotly.graph_objs.Figure - weights of best neurons;
         plotly.graph_objs.Figure - voltages of best neurons;
         """
+        to_return = False
+        if fig1 is None:
+            to_return = True
         best_filter_index = self.best_voters.indices
         best_patch_value = self.best_voters.values
 
@@ -2569,14 +2643,19 @@ class FC_SNN(AbstractSNN):
             .view(self.kernel_size, self.kernel_size)
         )
 
-        fig = go.Figure(
-            go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
-        )
+        if fig1 is None:
+            fig1 = go.Figure(
+                go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
+            )
 
-        fig.update_layout(
-            height=800, width=800, title=go.layout.Title(text=title, xref="paper", x=0),
-        )
-        fig2 = None
+            fig1.update_layout(
+                height=800,
+                width=800,
+                title=go.layout.Title(text=title, xref="paper", x=0),
+            )
+            fig1 = go.FigureWidget(fig1)
+        else:
+            fig1.data[0].z = filter_.flip(0)
         if self.voltages is not None:
             voltage = (
                 self.voltages["Y"]
@@ -2607,17 +2686,31 @@ class FC_SNN(AbstractSNN):
                 marker=dict(color="red"),
                 opacity=1,
             )
-            fig2 = go.Figure()
-            fig2.add_trace(voltage_plot,)
-            fig2.add_trace(spike_plot,)
 
-            fig2.update_xaxes(title_text="Time")
-            fig2.update_yaxes(title_text="Voltage")
+            if fig2 is not None:
+                fig2 = go.Figure()
+                fig2.add_trace(voltage_plot,)
+                fig2.add_trace(spike_plot,)
 
-            fig2.update_layout(
-                title_text=title, showlegend=False, height=1000, width=1000,
-            )
-        return fig, fig2
+                fig2.update_xaxes(title_text="Time")
+                fig2.update_yaxes(title_text="Voltage")
+
+                fig2.update_layout(
+                    title_text=title, showlegend=False, height=1000, width=1000,
+                )
+                fig2 = go.FigureWidget(fig2)
+            else:
+                fig2.data[0].x = list(range(self.time_max))
+                fig2.data[0].y = voltage
+
+                fig2.data[1].x = spike_timings
+                fig2.data[1].y = voltage[spike_timings]
+
+                fig2.layout.title.text = title
+        else:
+            fig2 = None
+        if to_return:
+            return fig1, fig2
 
     def plot_best_spikes_Y(self, fig_spikes=None):
         """
@@ -2707,7 +2800,9 @@ class FC_SNN(AbstractSNN):
             fig.update_layout(
                 width=800,
                 height=500,
-                title=go.layout.Title(text="Competition weights histogram", xref="paper"),
+                title=go.layout.Title(
+                    text="Competition weights histogram", xref="paper"
+                ),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(title_text="Weight",),
                 yaxis=go.layout.YAxis(title_text="Quantity", zeroline=False,),
@@ -2735,7 +2830,7 @@ class FC_SNN(AbstractSNN):
             "nu_post": self.nu_post,
             "t_pre": self.t_pre,
             "t_post": self.t_post,
-            "immutable_name": self.immutable_name
+            "immutable_name": self.immutable_name,
         }
         return parameters
 
@@ -2769,5 +2864,3 @@ def plot_image(image, fig=None):
 # TODO: check best 25 filters and 100 filters              1
 # TODO: clamp weights                                      2
 # TODO: C_SNN kernel_size=8 finish gridsearch              3
-# TODO: make a function to get Y neuron location from its number. Use this info in all plots with Y neurons.
-# TODO: load activity if n_iter < n_iter_stored
