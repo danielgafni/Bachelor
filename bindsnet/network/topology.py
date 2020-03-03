@@ -60,6 +60,7 @@ class AbstractConnection(ABC, Module):
         from ..learning import NoOp
 
         self.update_rule = kwargs.get("update_rule", NoOp)
+        self.learning = True
         self.wmin = kwargs.get("wmin", -np.inf)
         self.wmax = kwargs.get("wmax", np.inf)
         self.norm = kwargs.get("norm", None)

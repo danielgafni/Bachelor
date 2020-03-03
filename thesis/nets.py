@@ -304,9 +304,9 @@ class AbstractSNN:
             if fig2 is not None:
                 display.display(fig2)
             #  Plot random neuron voltage to compare with best neurons
-            random_index = random.randint(0, self.n_output)
+            random_index = random.randint(0, self.n_output - 1)
             while random_index in self.best_voters.indices:
-                random_index = random.randint(0, self.n_output)
+                random_index = random.randint(0, self.n_output - 1)
             random_figure = self.plot_neuron_voltage(random_index)
             random_figure.layout.title.text = f"Random Y neuron voltage"
 
@@ -340,9 +340,9 @@ class AbstractSNN:
                     self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                     #  Plot random neuron voltage to compare with best neurons
-                    random_index = random.randint(0, self.n_output)
+                    random_index = random.randint(0, self.n_output - 1)
                     while random_index in self.best_voters.indices:
-                        random_index = random.randint(0, self.n_output)
+                        random_index = random.randint(0, self.n_output - 1)
                     self.plot_neuron_voltage(random_index, fig=random_figure)
 
                     if self.c_l:
@@ -363,9 +363,9 @@ class AbstractSNN:
                     self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                     #  Plot random neuron voltage to compare with best neurons
-                    random_index = random.randint(0, self.n_output)
+                    random_index = random.randint(0, self.n_output - 1)
                     while random_index in self.best_voters.indices:
-                        random_index = random.randint(0, self.n_output)
+                        random_index = random.randint(0, self.n_output - 1)
                     self.plot_neuron_voltage(random_index, fig=random_figure)
 
                     if self.c_l:
@@ -431,9 +431,9 @@ class AbstractSNN:
             if fig2 is not None:
                 display.display(fig2)
             #  Plot random neuron voltage to compare with best neurons
-            random_index = random.randint(0, self.n_output)
+            random_index = random.randint(0, self.n_output - 1)
             while random_index in self.best_voters.indices:
-                random_index = random.randint(0, self.n_output)
+                random_index = random.randint(0, self.n_output - 1)
             random_figure = self.plot_neuron_voltage(random_index)
             random_figure.layout.title.text = f"Random Y neuron voltage"
 
@@ -464,9 +464,9 @@ class AbstractSNN:
                     self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                     #  Plot random neuron voltage to compare with best neurons
-                    random_index = random.randint(0, self.n_output)
+                    random_index = random.randint(0, self.n_output - 1)
                     while random_index in self.best_voters.indices:
-                        random_index = random.randint(0, self.n_output)
+                        random_index = random.randint(0, self.n_output - 1)
                     self.plot_neuron_voltage(random_index, fig=random_figure)
 
                     cnt += 1
@@ -513,9 +513,9 @@ class AbstractSNN:
                         self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                         #  Plot random neuron voltage to compare with best neurons
-                        random_index = random.randint(0, self.n_output)
+                        random_index = random.randint(0, self.n_output - 1)
                         while random_index in self.best_voters.indices:
-                            random_index = random.randint(0, self.n_output)
+                            random_index = random.randint(0, self.n_output - 1)
                         self.plot_neuron_voltage(random_index, fig=random_figure)
 
                         cnt += 1
@@ -534,9 +534,9 @@ class AbstractSNN:
                     self.plot_best_voters(fig1=fig1, fig2=fig2)
 
                     #  Plot random neuron voltage to compare with best neurons
-                    random_index = random.randint(0, self.n_output)
+                    random_index = random.randint(0, self.n_output - 1)
                     while random_index in self.best_voters.indices:
-                        random_index = random.randint(0, self.n_output)
+                        random_index = random.randint(0, self.n_output - 1)
                     self.plot_neuron_voltage(random_index, fig=random_figure)
 
                     if self.c_l:
@@ -1223,8 +1223,7 @@ class AbstractSNN:
                     tickmode="array",
                     tickvals=np.linspace(
                         0, self.weights_XY.shape[0], self.output_shape + 1
-                    )
-                    + self.weights_XY.shape[0] / self.output_shape / 2,
+                    + self.weights_XY.shape[0] / self.output_shape / 2),
                     ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                     zeroline=False,
                 ),
@@ -1233,8 +1232,7 @@ class AbstractSNN:
                     tickmode="array",
                     tickvals=np.linspace(
                         0, self.weights_XY.shape[1], self.output_shape + 1
-                    )
-                    + self.weights_XY.shape[1] / self.output_shape / 2,
+                    + self.weights_XY.shape[1] / self.output_shape / 2),
                     ticktext=np.linspace(0, self.output_shape, self.output_shape + 1),
                     zeroline=False,
                 ),
@@ -1364,6 +1362,8 @@ class AbstractSNN:
             return fig_spikes
         else:
             fig_spikes.data[0].z = best_spikes
+            fig_spikes.layout.xaxis.ticktext = best_indices
+            fig_spikes.layout.yaxis.ticktext = best_indices
 
     def plot_best_voters(self, fig1=None, fig2=None):
         """
@@ -2687,7 +2687,7 @@ class FC_SNN(AbstractSNN):
                 opacity=1,
             )
 
-            if fig2 is not None:
+            if fig2 is None:
                 fig2 = go.Figure()
                 fig2.add_trace(voltage_plot,)
                 fig2.add_trace(spike_plot,)

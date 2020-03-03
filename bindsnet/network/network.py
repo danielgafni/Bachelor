@@ -392,4 +392,6 @@ class Network(torch.nn.Module):
         :return: ``self`` as specified in ``torch.nn.Module``.
         """
         self.learning = mode
+        for c in self.connections:
+            self.connections[c].learning = mode
         return super().train(mode)
