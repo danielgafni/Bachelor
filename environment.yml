@@ -1,0 +1,16 @@
+name: bachelor
+channels:
+  - defaults
+dependencies:
+  - python=3.7
+  - pytorch
+  - cudatoolkit=10.1
+  - torchvision
+  - jupyter
+  - notebook
+  - autopep8
+  - psutil
+  - plotly-orca
+  - requests
+prefix: /home/dan/anaconda3/envs/bachelor
+
