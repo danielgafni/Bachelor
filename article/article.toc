@@ -19,10 +19,10 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {1.4}Локально соединенная архитектура}{5}{subsection.1.4}% 
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {2}Методика}{5}{section.2}% 
+\contentsline {section}{\numberline {2}Методика}{6}{section.2}% 
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {3}Сравнение архитектур}{5}{section.3}% 
+\contentsline {section}{\numberline {3}Сравнение архитектур}{6}{section.3}% 
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {4}Обучение конкуренции}{6}{section.4}% 
+\contentsline {section}{\numberline {4}Обучение конкуренции}{8}{section.4}% 
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {5}Вывод}{6}{section.5}% 
+\contentsline {section}{\numberline {5}Вывод}{8}{section.5}% 

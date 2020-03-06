@@ -13,6 +13,7 @@
 \usepackage[utf8]{inputenc}
 \usepackage[14pt]{extsizes}
 \usepackage{graphicx}
+\graphicspath{{../misc/}}
 \usepackage{setspace,amsmath}
 \usepackage[left=20mm, top=15mm, right=15mm, bottom=15mm, nohead, footskip=10mm]{geometry} 
 
@@ -22,50 +23,53 @@
 \begin{document} 
 
 \begin{center}
-\hfill \break
-ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ БЮДЖЕТНОЕ ОБРАЗОВАТЕЛЬНОЕ 
+    \hfill \break
+    ФЕДЕРАЛЬНОЕ ГОСУДАРСТВЕННОЕ БЮДЖЕТНОЕ ОБРАЗОВАТЕЛЬНОЕ 
 
-УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ
+    УЧРЕЖДЕНИЕ ВЫСШЕГО ОБРАЗОВАНИЯ
 
-«МОСКОВСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ
+    «МОСКОВСКИЙ ГОСУДАРСТВЕННЫЙ УНИВЕРСИТЕТ
 
-имени М.В.ЛОМОНОСОВА»
+    имени М.В.ЛОМОНОСОВА»
 
-\hfill \break
-\normalsize{ФИЗИЧЕСКИЙ ФАКУЛЬТЕТ}\\
- \hfill \break
-\normalsize{КАФЕДРА ОБЩЕЙ ФИЗИКИ И МОЛЕКУЛЯРНОЙ ЭЛЕКТРОНИКИ}\\
-\hfill\break
-\hfill \break
-\normalsize{БАКАЛАВРСКАЯ РАБОТА}\\
-\hfill \break
-\large\textbf{«МОДЕЛИРОВАНИЕ РАСПОЗНАВАНИЯ ОБРАЗОВ НА ОСНОВЕ ИСПУЛЬСНЫХ НЕЙРОННЫХ СЕТЕЙ С КОНКУРЕНЦИЕЙ ЛОКАЛЬНЫХ РЕЦЕПТИВНЫХ ПОЛЕЙ»}\\
-\hfill \break
-\hfill \break
-\hfill \break
-\hfill \break
+    \hfill \break
+    \normalsize{ФИЗИЧЕСКИЙ ФАКУЛЬТЕТ}\\
+    \hfill \break
+    \normalsize{КАФЕДРА ОБЩЕЙ ФИЗИКИ И МОЛЕКУЛЯРНОЙ ЭЛЕКТРОНИКИ}\\
+    \hfill\break
+    \hfill \break
+    \normalsize{БАКАЛАВРСКАЯ РАБОТА}\\
+    \hfill \break
+    \large\textbf{«МОДЕЛИРОВАНИЕ РАСПОЗНАВАНИЯ ОБРАЗОВ НА ОСНОВЕ ИСПУЛЬСНЫХ НЕЙРОННЫХ СЕТЕЙ С КОНКУРЕНЦИЕЙ ЛОКАЛЬНЫХ РЕЦЕПТИВНЫХ ПОЛЕЙ»}\\
+    \hfill \break
 
 \end{center}
 
 \begin{flushright}
 
-Выполнил студент:
+    Выполнил студент:
 
-406 группа
+    406 группа
 
-Гафни Д.
+    Гафни Д.
 
-$\underset{\text{подпись студента}}{\underline{\hspace{0.3\textwidth}}}$
+    $\underset{\text{подпись студента}}{\underline{\hspace{0.3\textwidth}}}$
 
-\hfill\break
+    \hfill\break
 
-Научный руководитель:
+    Научный руководитель:
 
-кандидат ф-м наук,
+    Королёва А.В.
 
-Демин В.А.
+    $\underset{\text{подпись научного руководителя}}{\underline{\hspace{0.3\textwidth}}}$
+    
+    \hfill\break
+    
+    Научный консультант:
 
-$\underset{\text{подпись научного руководителя}}{\underline{\hspace{0.3\textwidth}}}$
+    Дёмин В.А.
+
+    $\underset{\text{подпись научного консультанта}}{\underline{\hspace{0.3\textwidth}}}$
 
 \end{flushright}
 
@@ -124,15 +128,17 @@ $\underset{\text{подпись научного руководителя}}{\und
 \paragraph{Устройство нейронной сети}
 Нейроны там есть всякие спайки
 \paragraph{Обучение по правилу STDP}
-STDP - Spike Timing Dependend Plasticity - биологически инпирированное правило обучения без учителя.
+STDP - Spike Timing Dependent Plasticity - биологически инспирированное правило обучения без учителя.
 \begin{equation}
- \Delta w = A \cdot e^{- \Delta t / \tau}
+ \Delta w = A \cdot e^{- \frac{t_{pre} - t_{post}}{\tau}}
 \end{equation}
 
 \begin{figure}
 \begin{center}
  \includegraphics[,
- width=\textwidth,keepaspectratio=true]{misc/STDP.png}
+ width=\textwidth,keepaspectratio=true]{STDP.pdf}
+ \label{STDP}
+ \caption{Правило STDP. График зависимости изменения веса от разности времени регистрации пост- и пре- спайков.}
 \end{center}
 \end{figure}
 
@@ -140,21 +146,38 @@ STDP - Spike Timing Dependend Plasticity - биологически инпири
 \subsection{Локально соединенная архитектура}
 Эта нейросетевая архитектура вдохновлена строением зрительной коры мозга. В отличие от сверточной сети, ее нейроны не имеют общих весов, которые потому и называются локальными. На иллюстрации ниже показано строение локально соединенной сети.
 
-\begin{figure}
+\begin{figure}[H]
     \centering
     \def\svgwidth{\columnwidth}
-    \input{misc//LCSNN.pdf_tex}
+    \input{../misc/LCSNN.pdf_tex}
+    \label{LCSNN}
+    \caption{Схема архитектуры LCSNN}
 \end{figure}
+
+% \begin{figure}
+%  \includegraphics{LCSNN.pdf}
+% \end{figure}
+
 
 
 Нейроны, имеющие общие рецептивные поля дополнительно соединяются связями конкуренции. Такие связи имеют отрицательные веса, а значит, негативно влияют на активность. Заметим, что нейроны, не имеющие общего рецептивного поля (а значит, реагирующие на разные области изображения) не конкурируют между собой.\\
-LCSNN отличаются большой скоростью обучения. Через несколько тысяч итераций точность распознавания выходит на плато насыщения, после чего уже не возрастает:
+LCSNN отличаются большой скоростью обучения. Через несколько тысяч итераций точность распознавания выходит на плато насыщения, после чего уже не возрастает.
+
 \begin{center}
 \begin{figure}[H]
- \includegraphics[width=\textwidth,keepaspectratio=true]{misc/acc-n_iter.png}
+ \includegraphics[width=\textwidth,keepaspectratio=true]{acc-n_iter_ru.pdf}
  \caption{Скорость обучения LCSNN}
 \end{figure}
 \end{center}
+
+\begin{figure}
+\begin{center}
+ \includegraphics[,
+ width=\textwidth,keepaspectratio=true]{weights_XY.pdf}
+ \label{weights_XY}
+ \caption{Веса XY слоя после обучения}
+\end{center}
+\end{figure}
 
 
 \section{Методика}
