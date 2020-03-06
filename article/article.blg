@@ -1,0 +1,17 @@
+[0] Config.pm:304> INFO - This is Biber 2.13
+[0] Config.pm:307> INFO - Logfile is 'article.blg'
+[17] biber:315> INFO - === Пт мар  6, 2020, 16:15:31
+[27] Biber.pm:375> INFO - Reading 'article.bcf'
+[74] Biber.pm:905> INFO - Found 3 citekeys in bib section 0
+[83] Biber.pm:4196> INFO - Processing section 0
+[83] Utils.pm:75> INFO - Globbing data source 'lit.bib'
+[83] Utils.pm:91> INFO - Globbed data source 'lit.bib' to lit.bib
+[90] Biber.pm:4373> INFO - Looking for bibtex format file 'lit.bib' for section 0
+[91] bibtex.pm:1462> INFO - LaTeX decoding ...
+[94] bibtex.pm:1281> INFO - Found BibTeX data source 'lit.bib'
+[158] UCollate.pm:68> INFO - Overriding locale 'ru-RU' defaults 'normalization = NFD' with 'normalization = prenormalized'
+[158] UCollate.pm:68> INFO - Overriding locale 'ru-RU' defaults 'variable = shifted' with 'variable = non-ignorable'
+[158] Biber.pm:4024> INFO - Sorting list 'nty/global//global/global' of type 'entry' with template 'nty' and locale 'ru-RU'
+[158] Biber.pm:4030> INFO - No sort tailoring available for locale 'ru-RU'
+[161] bbl.pm:648> INFO - Writing 'article.bbl' with encoding 'UTF-8'
+[162] bbl.pm:751> INFO - Output to article.bbl
