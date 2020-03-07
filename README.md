@@ -44,11 +44,7 @@ The networks below don't have their weights YY trained.
 
 Locally Connected networks don't need a lot of training examples:
 
-<object data="https://github.com/danielgafni/Bachelor/tree/master/misc/acc-n_iter.pdf" type="application/pdf" width="700px" height="700px">
-    <embed src="https://github.com/danielgafni/Bachelor/tree/master/misc/acc-n_iter.pdf">
-        <p>This browser does not support PDFs. Please download the PDF to view it: <a href="https://github.com/danielgafni/Bachelor/tree/master/misc/acc-n_iter.pdf">Download PDF</a>.</p>
-    </embed>
-</object>
+![Accuracy against number of training iterations](misc/acc-n_iter.svg)
 
 Here are 100-filter Locally Connected weights after 5000 iterations of training:
 
