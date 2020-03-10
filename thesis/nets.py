@@ -295,11 +295,6 @@ class AbstractSNN:
             fig_weights_XY = self.plot_weights_XY()
             fig_spikes = self.plot_best_spikes_Y()
             display.display(fig_weights_XY)
-
-            if self.c_l:
-                _, fig_competition_distribtion = self.competition_distribution()
-                fig_competition_distribtion.show()
-
             display.display(fig_spikes)
 
             fig1, fig2 = self.plot_best_voters()
