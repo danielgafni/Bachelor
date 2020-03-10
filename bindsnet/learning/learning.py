@@ -73,7 +73,7 @@ class LearningRule(ABC):
         """
         # Implement weight decay.
         if self.weight_decay:
-            self.connection.w -= self.weight_decay * self.connection.w
+            self.connection.w -= self.weight_decay
 
         # Bound weights.
         if (

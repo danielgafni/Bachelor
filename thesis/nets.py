@@ -77,6 +77,7 @@ class AbstractSNN:
         nu_post=None,
         t_pre=8.0,
         t_post=20.0,
+        weight_decay=None,
         type_="Abstract SNN",
         immutable_name=False,
         foldername=None,
@@ -132,6 +133,7 @@ class AbstractSNN:
 
         self.nu_pre = nu_pre
         self.nu_post = nu_post
+        self.weight_decay = weight_decay
 
         if not self.c_l:
             self.nu_pre = None
@@ -179,6 +181,7 @@ class AbstractSNN:
             "nu_post": self.nu_post,
             "t_pre": self.t_pre,
             "t_post": self.t_post,
+            "weight_decay": self.weight_decay,
             "train_method": self.train_method,
             "immutable_name": self.immutable_name,
         }
@@ -349,28 +352,7 @@ class AbstractSNN:
                         #  Plot competitive weights distribution
                         self.competition_distribution(fig=fig_competition_distribtion)
                     cnt += 1
-            if plot:
-                if (t_now - t_start) / vis_interval > cnt:
-                    #  Plot input image
-                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
-                    #  Plot XY weights
-                    self.plot_weights_XY(fig=fig_weights_XY)
 
-                    #  Plot best Y spikes
-                    self.plot_best_spikes_Y(fig_spikes)
-
-                    #  Plot best Y neurons weights and voltages
-                    self.plot_best_voters(fig1=fig1, fig2=fig2)
-
-                    #  Plot random neuron voltage to compare with best neurons
-                    random_index = random.randint(0, self.n_output - 1)
-                    while random_index in self.best_voters.indices:
-                        random_index = random.randint(0, self.n_output - 1)
-                    self.plot_neuron_voltage(random_index, fig=random_figure)
-
-                    if self.c_l:
-                        #  Plot competitive weights distribution
-                        self.competition_distribution(fig=fig_competition_distribtion)
             self.network.reset_()
             self.n_iter += 1
 
@@ -1978,6 +1960,7 @@ class LC_SNN(AbstractSNN):
         c_l=False,
         nu_pre=None,
         nu_post=None,
+        weight_decay=None,
         immutable_name=False,
         foldername=None,
         loaded_from_disk=False,
@@ -2016,6 +1999,7 @@ class LC_SNN(AbstractSNN):
             c_l=c_l,
             nu_pre=nu_pre,
             nu_post=nu_post,
+            weight_decay=weight_decay,
             t_pre=t_pre,
             t_post=t_post,
             c_w_min=c_w_min,
@@ -2119,6 +2103,7 @@ class LC_SNN(AbstractSNN):
                 w=w,
                 update_rule=PostPre,
                 nu=[self.nu_pre, self.nu_post],
+                weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
             )
@@ -2837,6 +2822,7 @@ class FC_SNN(AbstractSNN):
             "nu_post": self.nu_post,
             "t_pre": self.t_pre,
             "t_post": self.t_post,
+            "weight_decay": self.weight_decay,
             "immutable_name": self.immutable_name,
         }
         return parameters
