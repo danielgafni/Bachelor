@@ -53,6 +53,7 @@ def view_database():
         "t_post",
         "nu_pre",
         "nu_post",
+        "weight_decay",
         "mean_weight",
         "c_w",
         "c_w_min",
