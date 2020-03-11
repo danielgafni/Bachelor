@@ -216,6 +216,7 @@ def load_network(name):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
+            weight_decay=parameters['weight_decay'],
             immutable_name=parameters["immutable_name"],
             foldername=name,
             loaded_from_disk=True,
@@ -232,6 +233,7 @@ def load_network(name):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
+            weight_decay=parameters['weight_decay'],
             time_max=time_max,
             crop=crop,
             kernel_size=kernel_size,
@@ -254,6 +256,7 @@ def load_network(name):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
+            weight_decay=parameters['weight_decay'],
             time_max=time_max,
             crop=crop,
             n_filters=n_filters,
@@ -370,13 +373,14 @@ def clean_database():
     crs.execute("DELETE FROM networks")
     conn.close()
 
+    for name_ in os.listdir("networks"):
+        if name_ != "networks.db":
+            #  Delete networks without saved parameters
+            if not os.path.exists(f"networks//{name_}//parameters.json"):
+                rmtree(f"networks//{name_}")
+
     for name in os.listdir("networks"):
         if name != "networks.db":
-            #  Delete networks without saved parameters
-            if not os.path.exists(f"networks//{name}//parameters.json"):
-                rmtree(f"networks//{name}")
-                continue
-
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
 
@@ -390,7 +394,7 @@ def clean_database():
                             other_parameters = json.load(file)
 
                         if parameters == other_parameters:
-                            rmtree(f"networks//{other_name}//other_parameters")
+                            rmtree(f"networks//{other_name}")
 
             #  Rename networks according to current parameters and add it to the database
             if not parameters["immutable_name"]:

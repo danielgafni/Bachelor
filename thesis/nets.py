@@ -582,13 +582,10 @@ class AbstractSNN:
             self.network.reset_()
 
         data = {"outputs": outputs, "labels": labels}
-        if not os.path.exists(f"networks//{self.name}//activity"):
-            os.makedirs(f"networks//{self.name}//activity")
-        # for file in os.listdir(f'networks//{self.name}//activity'):
-        #     if self.network_state not in file:
-        #         os.remove(f'networks//{self.name}//activity//{file}')
+        if not os.path.exists(f"activity//{self.name}//activity"):
+            os.makedirs(f"activity//{self.name}//activity")
         torch.save(
-            data, f"networks//{self.name}//activity//{self.network_state}-{n_iter}"
+            data, f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
         )
 
     def collect_activity_test(self, n_iter=None):
@@ -631,10 +628,10 @@ class AbstractSNN:
             labels.append(batch["label"].item())
             self.network.reset_()
         data = {"outputs": outputs, "labels": labels}
-        if not os.path.exists(f"networks//{self.name}//activity_test"):
-            os.makedirs(f"networks//{self.name}//activity_test")
+        if not os.path.exists(f"activity//{self.name}//activity_test"):
+            os.makedirs(f"activity//{self.name}//activity_test")
         torch.save(
-            data, f"networks//{self.name}//activity_test//{self.network_state}-{n_iter}"
+            data, f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
         )
 
     def calibrate(self, n_iter=None):
@@ -648,14 +645,14 @@ class AbstractSNN:
         if n_iter is None:
             n_iter = 5000
         found_activity = False
-        if not os.path.exists(f"networks//{self.name}//activity/"):
+        if not os.path.exists(f"activity//{self.name}//activity/"):
             self.collect_activity_calibration(n_iter)
 
-        for name in os.listdir(f"networks//{self.name}//activity/"):
+        for name in os.listdir(f"activity//{self.name}//activity/"):
             if self.network_state in name:
                 n_iter_saved = int(name.split("-")[-1])
                 if n_iter <= n_iter_saved:
-                    data = torch.load(f"networks//{self.name}//activity//{name}")
+                    data = torch.load(f"activity//{self.name}//activity//{name}")
                     data_outputs = data["outputs"]
                     data_labels = data["labels"]
                     data_outputs = data_outputs[:n_iter]
@@ -667,7 +664,7 @@ class AbstractSNN:
         if not found_activity:
             self.collect_activity_calibration(n_iter=n_iter)
             data = torch.load(
-                f"networks//{self.name}//activity//{self.network_state}-{n_iter}"
+                f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
             )
 
         print("Calculating votes...")
@@ -692,12 +689,12 @@ class AbstractSNN:
             n_iter = 5000
 
         if not os.path.exists(
-            f"networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
+            f"activity//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
         ):
             self.collect_activity_calibration(n_iter=n_iter)
 
         data = torch.load(
-            f"networks//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
+            f"activity//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
         )
         outputs = [output.sum(0).numpy() for output in data["outputs"]]
         labels = data["labels"]
@@ -820,14 +817,14 @@ class AbstractSNN:
         """
 
         found_activity = False
-        if not os.path.exists(f"networks//{self.name}//activity_test"):
+        if not os.path.exists(f"activity//{self.name}//activity_test"):
             self.collect_activity_test(n_iter)
 
-        for name in os.listdir(f"networks//{self.name}//activity_test"):
+        for name in os.listdir(f"activity//{self.name}//activity_test"):
             if self.network_state in name:
                 n_iter_saved = int(name.split("-")[-1])
                 if n_iter <= n_iter_saved:
-                    data = torch.load(f"networks//{self.name}//activity_test//{name}")
+                    data = torch.load(f"activity//{self.name}//activity_test//{name}")
                     data_outputs = data["outputs"]
                     data_labels = data["labels"]
                     data_outputs = data_outputs[:n_iter]
@@ -839,7 +836,7 @@ class AbstractSNN:
         if not found_activity:
             self.collect_activity_test(n_iter=n_iter)
             data = torch.load(
-                f"networks//{self.name}//activity_test//{self.network_state}-{n_iter}"
+                f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
             )
 
         x = []
@@ -1913,12 +1910,12 @@ class AbstractSNN:
 
     def clear_activity(self, calibration=True, test=True):
         if calibration:
-            if os.path.exists(f"networks//{self.name}//activity"):
-                rmtree(f"networks//{self.name}//activity")
+            if os.path.exists(f"activity//{self.name}//activity"):
+                rmtree(f"activity//{self.name}//activity")
                 print("Cleared calibration activity")
         if test:
-            if os.path.exists(f"networks//{self.name}//activity_test"):
-                rmtree(f"networks//{self.name}//activity_test")
+            if os.path.exists(f"activity//{self.name}//activity_test"):
+                rmtree(f"activity//{self.name}//activity_test")
                 print("Cleared test activity")
 
     def rename(self, name=None):
@@ -2135,7 +2132,9 @@ class LC_SNN(AbstractSNN):
                             for j in range(conv_size):
                                 w[fltr1, i, j, fltr2, i, j] = random.random() * self.c_w
                                 mask[fltr1, i, j, fltr2, i, j] = 1
-
+            weight_decay = self.weight_decay
+            if weight_decay == 0:
+                weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
@@ -2294,6 +2293,7 @@ class C_SNN(AbstractSNN):
         nu_post=None,
         t_pre=9.0,
         t_post=20.0,
+        weight_decay=None,
         n_iter=0,
         immutable_name=False,
         foldername=None,
@@ -2315,6 +2315,7 @@ class C_SNN(AbstractSNN):
             nu_post=nu_post,
             t_pre=t_pre,
             t_post=t_post,
+            weight_decay=weight_decay,
             c_w_min=c_w_min,
             immutable_name=immutable_name,
             foldername=foldername,
@@ -2384,12 +2385,16 @@ class C_SNN(AbstractSNN):
         if not self.c_l:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
+            weight_decay = self.weight_decay
+            if weight_decay == 0:
+                weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
                 nu=[self.nu_pre, self.nu_post],
+                weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
             )
@@ -2495,6 +2500,7 @@ class FC_SNN(AbstractSNN):
         c_l=False,
         nu_pre=None,
         nu_post=None,
+        weight_decay=None,
         immutable_name=False,
         foldername=None,
         loaded_from_disk=False,
@@ -2513,6 +2519,7 @@ class FC_SNN(AbstractSNN):
             c_l=c_l,
             nu_pre=nu_pre,
             nu_post=nu_post,
+            weight_decay=weight_decay,
             immutable_name=immutable_name,
             foldername=foldername,
             loaded_from_disk=loaded_from_disk,
@@ -2583,12 +2590,16 @@ class FC_SNN(AbstractSNN):
         if not self.c_l:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
+            weight_decay = self.weight_decay
+            if weight_decay == 0:
+                weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
                 nu=[self.nu_pre, self.nu_post],
+                weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
             )
