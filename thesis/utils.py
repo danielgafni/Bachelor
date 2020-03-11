@@ -1,4 +1,4 @@
-from .nets import LC_SNN, C_SNN, FC_SNN
+from .nets import LC_SNN, C_SNN, FC_SNN, AbstractSNN
 import os
 import torch
 import json
@@ -350,7 +350,7 @@ def clean_database():
     Clean database. Renames networks according to their current parameters.
     Run this if any problems with the database happened.
     """
-    #  Clear existing database
+
     if not os.path.exists(r"networks/networks.db"):
         conn = connect(r"networks/networks.db")
         crs = conn.cursor()
@@ -364,44 +364,85 @@ def clean_database():
         conn.commit()
         conn.close()
 
+    #  Clear existing database
     conn = connect(r"networks/networks.db")
     crs = conn.cursor()
     crs.execute("DELETE FROM networks")
+    conn.close()
 
     for name in os.listdir("networks"):
-        if "." not in name:
-
+        if name != "networks.db":
             #  Delete networks without saved parameters
             if not os.path.exists(f"networks//{name}//parameters.json"):
                 rmtree(f"networks//{name}")
                 continue
 
-            #  Rename networks according to current parameters
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
-            new_name = name
+
+            # Remove networks with duplicated parameters
+            for other_name in os.listdir("networks"):
+                if other_name != name:
+                    if other_name != "networks.db":
+                        with open(
+                            f"networks//{other_name}//parameters.json", "r"
+                        ) as file:
+                            other_parameters = json.load(file)
+
+                        if parameters == other_parameters:
+                            rmtree(f"networks//{other_name}//other_parameters")
+
+            #  Rename networks according to current parameters and add it to the database
             if not parameters["immutable_name"]:
+                rename_network(name)
+
+
+def rename_network(name, new_name=None):
+    if isinstance(name, AbstractSNN):
+        name.rename(new_name)
+    else:
+        with open(f"networks//{name}//parameters.json", "r") as file:
+            parameters = json.load(file)
+
+            if new_name is None:
+                parameters["immutable_name"] = False
                 new_name = hashlib.sha224(str(parameters).encode("utf8")).hexdigest()
-
-            if os.path.exists(f"networks//{new_name}") and new_name != name:
-                with open(f"networks//{new_name}//parameters.json", "r") as file:
-                    other_parameters = json.load(file)
-
-                    if parameters == other_parameters:
-                        print(f"Deleting duplicated networks:\n{name}\nand\n{new_name}")
-                        rmtree(f"networks//{name}")
             else:
-                if new_name != name:
-                    os.rename(f"networks//{name}", f"networks//{new_name}")
+                parameters["immutable_name"] = True
 
-            #  Add each network to database
-            with open(f"networks//{new_name}//score.json", "r") as file:
-                accuracy = json.load(file)["accuracy"]
-            network_type = parameters["network_type"]
-            crs.execute(
-                "INSERT INTO networks VALUES (?, ?, ?)",
-                (new_name, accuracy, network_type),
-            )
+            os.rename(f"networks//{name}", f"networks//{new_name}")
+            with open(f"networks//{new_name}//parameters.json", "w") as file:
+                json.dump(parameters, file)
+
+            if not os.path.exists(r"networks/networks.db"):
+                conn = connect(r"networks/networks.db")
+                crs = conn.cursor()
+                crs.execute(
+                    """CREATE TABLE networks(
+                     name BLOB,
+                     accuracy REAL,
+                     type BLOB
+                     )"""
+                )
+                conn.commit()
+                conn.close()
+
+            conn = connect(r"networks/networks.db")
+            crs = conn.cursor()
+            crs.execute("SELECT name FROM networks WHERE name = ?", (name,))
+            result = crs.fetchone()
+            if result:
+                crs.execute(
+                    """UPDATE networks set name = ? WHERE name = ?""", (new_name, name),
+                )
+            else:
+                with open(f"networks//{new_name}//score.json", "r") as file_score:
+                    accuracy = json.load(file_score)["accuracy"]
+                network_type = parameters["network_type"]
+                crs.execute(
+                    "INSERT INTO networks VALUES (?, ?, ?)",
+                    (new_name, accuracy, network_type),
+                )
+
             conn.commit()
-
-    conn.close()
+            conn.close()

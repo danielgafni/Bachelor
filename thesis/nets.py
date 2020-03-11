@@ -1921,13 +1921,57 @@ class AbstractSNN:
                 rmtree(f"networks//{self.name}//activity_test")
                 print("Cleared test activity")
 
-    def set_name(self, name=None):
+    def rename(self, name=None):
+        old_name = self.name
         if name is None:
             self.immutable_name = False
             self.foldername = None
+            self.loaded_from_disk = False
         else:
             self.immutable_name = True
             self.foldername = str(name)
+
+        if old_name != self.name:
+            os.rename(f"networks//{old_name}", f"networks//{self.name}")
+
+        with open(f"networks//{self.name}//parameters.json", "w") as file:
+            json.dump(self.parameters, file)
+
+        if not os.path.exists(r"networks/networks.db"):
+            conn = sqlite3.connect(r"networks/networks.db")
+            crs = conn.cursor()
+            crs.execute(
+                """CREATE TABLE networks(
+                 name BLOB,
+                 accuracy REAL,
+                 type BLOB
+                 )"""
+            )
+            conn.commit()
+            conn.close()
+
+        conn = sqlite3.connect(r"networks//networks.db")
+        crs = conn.cursor()
+        crs.execute("SELECT name FROM networks WHERE name = ?", (old_name,))
+        result = crs.fetchone()
+        if result:
+            crs.execute(
+                """UPDATE networks
+                set name = ?,
+                accuracy = ?,
+                type = ?
+                WHERE name = ?""",
+                (self.name, self.accuracy, self.network_type, old_name),
+            )
+            conn.commit()
+            conn.close()
+        else:
+            crs.execute(
+                "INSERT INTO networks VALUES (?, ?, ?)",
+                (self.name, self.accuracy, self.network_type),
+            )
+            conn.commit()
+            conn.close()
 
     def __str__(self):
         return f"Network with parameters:\n {self.parameters}"
