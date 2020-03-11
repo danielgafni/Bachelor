@@ -2127,8 +2127,8 @@ class LC_SNN(AbstractSNN):
         n_filters=25,
         stride=4,
         intensity=127.5,
-        t_pre=8.0,
-        t_post=20.0,
+        t_pre=20.,
+        t_post=20.,
         c_w_min=None,
         c_l=False,
         nu_pre=None,
@@ -2316,12 +2316,6 @@ class LC_SNN(AbstractSNN):
         if top_n is None:
             top_n = 10
 
-        # args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        # top_n_votes = torch.zeros(self.votes.shape)
-        # for i, top_i in enumerate(args):
-        #     for j, label in enumerate(top_i):
-        #         top_n_votes[label, j] = self.votes[label, j]
-
         if spikes is None:
             spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
@@ -2428,7 +2422,7 @@ class C_SNN(AbstractSNN):
         c_l=False,
         nu_pre=None,
         nu_post=None,
-        t_pre=9.0,
+        t_pre=20.0,
         t_post=20.0,
         weight_decay=None,
         n_iter=0,
@@ -2564,25 +2558,33 @@ class C_SNN(AbstractSNN):
             top_n = 10
 
         if spikes is None:
-            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)
+            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
-        # spikes = torch.where(spikes == spikes.max(0).values, spikes, torch.tensor(0))
+        if method == "patch_voting":
+            try:
+                res = spikes * self.votes
+            except:
+                raise TypeError(
+                    "Votes and spikes shape does not match. The network must be recalibrated."
+                    )
+            res = res.max(1).values.sum(axis=[1, 2])
 
-        sum_output = spikes.flatten()
+        elif method == "all_voting":
+            res = spikes * self.votes.view([10] + list(spikes.shape))
+            res = res.sum(axis=[1, 2, 3])
 
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        res = torch.matmul(
-            top_n_votes.type(torch.FloatTensor), sum_output.type(torch.FloatTensor)
-        )
+        else:
+            raise NotImplementedError(
+                f"This voting method [{method}] is not implemented"
+                )
+
         if res.sum(0).item() == 0:
+            self.label = torch.tensor(-1)
             return torch.zeros(10).fill_(-1).type(torch.LongTensor)
-        res = res.argsort(descending=True)
-        self.label = res[0]
-        return res
+        else:
+            res = res.argsort(descending=True)
+            self.label = res[0]
+            return res
 
     def get_weights_XY(self):
         """
@@ -2631,7 +2633,7 @@ class FC_SNN(AbstractSNN):
         crop=20,
         n_filters=25,
         intensity=127.5,
-        t_pre=8.0,
+        t_pre=20.0,
         t_post=20.0,
         n_iter=0,
         c_l=False,
