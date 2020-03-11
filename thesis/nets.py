@@ -1889,7 +1889,7 @@ class AbstractSNN:
 
         if not os.path.exists(f'reports//{self.name}'):
             os.makedirs(f'reports//{self.name}')
-
+        print(f'Accuracy: {self.accuracy}')
         # XY weights
         f = self.plot_weights_XY()
         display.display(f)
@@ -1954,9 +1954,15 @@ class AbstractSNN:
             geometry_options = {"tmargin": "1.5cm", "bmargin": "1.5cm", "lmargin": "2cm", "rmargin": "1.5cm"}
             doc = Document(geometry_options=geometry_options)
 
-            # # Write network parameters in the document
-            # with doc.create(Section('Network parameters')):
-            #     doc.append(verbatim(str(self.parameters)))
+
+            # Write network parameters in the document
+            with doc.create(Section('Network parameters')):
+                for key in self.parameters.keys():
+                    text = f'{key}: {self.parameters[key]}\n'
+                    doc.append(text)
+
+            with doc.create(Section('Results')):
+                doc.append('Accuracy: ' + str(self.accuracy))
 
             with doc.create(Figure()) as pic:
                 pic.add_image(f'{path}//weights_XY.pdf')
@@ -1976,7 +1982,7 @@ class AbstractSNN:
                 pic.add_image(f'{path}//best_voters_voltages.pdf')
             with doc.create(Figure()) as pic:
                 pic.add_image(f'{path}//random_neuron_voltage.pdf')
-            doc.generate_pdf(f'{path}//report.pdf', clean_tex=True)
+            doc.generate_pdf(f'{path}//report', clean_tex=True)
 
     def save(self):
         """
