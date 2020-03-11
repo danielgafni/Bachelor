@@ -205,6 +205,13 @@ dmypy.json
 # Remove previous ipynb_checkpoints
 #   git rm -r .ipynb_checkpoints/
 #
+.idea/Bachelor.iml
+.idea/dataSources.xml
+.idea/inspectionProfiles/
+.idea/misc.xml
+.idea/modules.xml
+.idea/sqldialects.xml
+.idea/vcs.xml
 
-networks/*/activity
-networks/77a4eeb0f0ec2ab005aec56954b7ac08989f0716dc4cdd573670c99d
+# Saved network activity - big
+activity/
