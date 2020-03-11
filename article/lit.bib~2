@@ -1,0 +1,30 @@
+@misc{saunders2019locally,
+	archiveprefix = {arXiv},
+	author = {Saunders, Daniel J. and Patel, Devdhar and Hazan, Hananel and Siegelmann, Hava T. and Kozma, Robert},
+	eprint = {1904.06269},
+	primaryclass = {cs.NE},
+	title = {Locally Connected Spiking Neural Networks for Unsupervised Feature Learning},
+	year = {2019}
+}
+
+@article{MaxActiv1,
+	author = {Demin, Vyacheslav and Nekhaev, Dmitry},
+	doi = {10.3389/fninf.2018.00079},
+	journal = {Frontiers in Neuroinformatics},
+	month = {11},
+	pages = {79},
+	title = {Recurrent Spiking Neural Network Learning Based on a Competitive Maximization of Neuronal Activity},
+	volume = {12},
+	year = {2018}
+}
+
+@inbook{MaxActiv2,
+	author = {Nekhaev, Dmitry and Demin, Vyacheslav},
+	doi = {10.1007/978-3-030-30425-6_30},
+	isbn = {978-3-030-30424-9},
+	month = {01},
+	pages = {255--262},
+	title = {Competitive Maximization of Neuronal Activity in Convolutional Recurrent Spiking Neural Networks},
+	year = {2020}
+}
+
