@@ -1852,6 +1852,132 @@ class AbstractSNN:
         else:
             self.voltages = None
 
+    def report(self, label=None, pdf=True, top_n=10, method='patch_voting'):
+        if label is None:
+            label = random.randint(0, 9)
+        set_true = False
+        if self.voltages:
+            set_true = True
+        self.record_voltages(True)
+        dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=True,
+            transform=transforms.Compose(
+                [
+                    transforms.CenterCrop(self.crop),
+                    transforms.ToTensor(),
+                    transforms.Lambda(lambda x: x * self.intensity),
+                    ]
+                ),
+            )
+        self.network.reset_()
+        self.network.train(False)
+        label_mask = dataset.targets == label
+        dataset.data = dataset.data[label_mask]
+        dataset.targets = dataset.targets[label_mask]
+        dataloader = torch.utils.data.DataLoader(dataset, batch_size=1, shuffle=True)
+
+        batch = next(iter(dataloader))
+
+        inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+        self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+
+        prediction = self.class_from_spikes(top_n=top_n, method=method)
+
+        if not os.path.exists(f'reports//{self.name}'):
+            os.makedirs(f'reports//{self.name}')
+
+        # XY weights
+        f = self.plot_weights_XY()
+        display.display(f)
+        f.write_image(f'reports//{self.name}//weights_XY.pdf')
+
+        # STDP and competition distribution
+        if self.c_l:
+            f = plot_STDP(self.nu_pre, self.nu_post, self.t_pre, self.t_post)
+            display.display(f)
+            f.write_image(f'reports//{self.name}//competitive_STDP.pdf')
+
+
+            w, f = self.competition_distribution()
+            display.display(f)
+            f.write_image(f'reports//{self.name}//competitive_weights.pdf')
+
+
+        # Input image
+        f = plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()))
+        f.layout.title.text = f'Actual: {label}<br>Predicted: {prediction[0].item()}'
+        display.display(f)
+        f.write_image(f'reports//{self.name}//input_image.pdf')
+
+
+        # Y spikes
+        f = self.plot_best_spikes_Y()
+        display.display(f)
+        f.write_image(f'reports//{self.name}//best_Y_spikes.pdf')
+
+
+        # Best neurons weights and voltages
+        f1, f2 = self.plot_best_voters()
+        display.display(f1)
+        display.display(f2)
+        f1.write_image(f'reports//{self.name}//best_voters_weights.pdf')
+
+        f2.write_image(f'reports//{self.name}//best_voters_voltages.pdf')
+
+
+        # Random neuron voltage
+        i1 = random.randint(0, self.n_filters - 1)
+        i2 = random.randint(0, self.conv_size - 1)
+        i3 = random.randint(0, self.conv_size - 1)
+        while i1 == self.best_voters_locations[i2, i3]:
+            i1 = random.randint(0, self.n_filters - 1)
+            i2 = random.randint(0, self.conv_size - 1)
+            i3 = random.randint(0, self.conv_size - 1)
+
+        f = self.plot_neuron_voltage(i1, i2, i3)
+        display.display(f)
+        f.write_image(f'reports//{self.name}//random_neuron_voltage.pdf')
+
+        self.record_voltages(set_true)
+
+        if pdf:
+            # Generate a pdf report
+            from pylatex import Document, Section, Subsection, Tabular, Math, TikZ, Axis, \
+                Plot, Figure, Matrix, Alignat
+            from pylatex.utils import verbatim
+            import pathlib
+            path = str(pathlib.Path().absolute()) + f'//reports//{self.name}'
+            geometry_options = {"tmargin": "1.5cm", "bmargin": "1.5cm", "lmargin": "2cm", "rmargin": "1.5cm"}
+            doc = Document(geometry_options=geometry_options)
+
+            # # Write network parameters in the document
+            # with doc.create(Section('Network parameters')):
+            #     doc.append(verbatim(str(self.parameters)))
+
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//weights_XY.pdf')
+                # pic.add_caption('Weights')
+            if self.c_l:
+                with doc.create(Figure()) as pic:
+                    pic.add_image(f'{path}//competitive_STDP.pdf')
+                with doc.create(Figure()) as pic:
+                    pic.add_image(f'{path}//competitive_weights.pdf')
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//input_image.pdf')
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//best_Y_spikes.pdf')
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//best_voters_weights.pdf')
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//best_voters_voltages.pdf')
+            with doc.create(Figure()) as pic:
+                pic.add_image(f'{path}//random_neuron_voltage.pdf')
+            doc.generate_pdf(f'{path}//report.pdf', clean_tex=True)
+
     def save(self):
         """
         Save network to disk.
@@ -1929,10 +2055,15 @@ class AbstractSNN:
             self.foldername = str(name)
 
         if old_name != self.name:
-            os.rename(f"networks//{old_name}", f"networks//{self.name}")
+            if os.path.exists(f"networks//{old_name}"):
+                os.rename(f"networks//{old_name}", f"networks//{self.name}")
 
-        with open(f"networks//{self.name}//parameters.json", "w") as file:
-            json.dump(self.parameters, file)
+            if os.path.exists(f"activity//{old_name}"):
+                os.rename(f"activity//{old_name}", f"activity//{self.name}")
+
+        if os.path.exists(f"networks//{old_name}//parameters.json"):
+            with open(f"networks//{self.name}//parameters.json", "w") as file:
+                json.dump(self.parameters, file)
 
         if not os.path.exists(r"networks/networks.db"):
             conn = sqlite3.connect(r"networks/networks.db")
@@ -2241,11 +2372,11 @@ class LC_SNN(AbstractSNN):
                 i3 = random.randint(0, self.conv_size - 1)
 
             fig3 = self.plot_neuron_voltage(i1, i2, i3)
-            fig.show()
+            display.display(fig)
             if fig2 is not None:
-                fig2.show()
+                display.display(fig2)
             if fig3 is not None:
-                fig3.show()
+                display.display(fig3)
 
     def get_weights_XY(self):
         """
@@ -2903,6 +3034,46 @@ def plot_image(image, fig=None):
     else:
         fig.data[0].z = image
 
+
+def plot_STDP(nu_pre, nu_post, t_pre, t_post):
+    layout = go.Layout(
+        height=500, width = 800,
+        xaxis=dict(
+            zeroline=True, zerolinecolor='#0f1e31'
+            ),
+        yaxis=dict(
+            zeroline=True, zerolinecolor='#0f1e31'
+            ),
+        legend=dict(
+            font=dict(size=12, color='black'),
+            bgcolor="rgba(25,211,243,0.2)",
+            bordercolor="Black",
+            borderwidth=2
+            )
+        )
+    t_neg = np.linspace(-100, 0, 100)
+    t_pos = np.linspace(0, 100, 100)
+    dw_neg = -nu_post * np.exp(t_neg / t_post)
+    dw_pos = nu_pre * np.exp(-t_pos / t_pre)
+
+    fig = go.Figure(layout=layout)
+    fig.add_scatter(x=t_neg, y=dw_neg, line=dict(color='blue'),
+                    name='Negative update', line_shape='spline')
+    fig.add_scatter(x=t_pos, y=dw_pos, line=dict(color='red'),
+                    name='Positive update', line_shape='spline')
+    fig.layout.title.text = 'STDP'
+    fig.layout.xaxis.title.text = '$t_{post} - t_{pre}, 10^{-3} s$'
+    fig.layout.yaxis.title.text = '$\Delta w$'
+
+    fig.layout.legend.y = 1
+    fig.layout.legend.x = 0
+    fig.layout.margin.t = 50
+    fig.layout.margin.b = 20
+    fig.layout.margin.r = 20
+
+    fig = go.FigureWidget(fig)
+
+    return fig
 
 # TODO: check best 25 filters and 100 filters              1
 # TODO: clamp weights                                      2

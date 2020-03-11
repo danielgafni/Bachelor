@@ -415,6 +415,9 @@ def rename_network(name, new_name=None):
                 parameters["immutable_name"] = True
 
             os.rename(f"networks//{name}", f"networks//{new_name}")
+            if os.path.exists(f"activity//{name}"):
+                os.rename(f"activity//{name}", f"activity//{new_name}")
+
             with open(f"networks//{new_name}//parameters.json", "w") as file:
                 json.dump(parameters, file)
 
