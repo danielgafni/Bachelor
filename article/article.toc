@@ -1,0 +1,38 @@
+\boolfalse {citerequest}\boolfalse {citetracker}\boolfalse {pagetracker}\boolfalse {backtracker}\relax 
+\babel@toc {russian}{}
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {1}Введение}{2}{section.1}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {1.1}Мотивация}{3}{subsection.1.1}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Недостатки формальных нейронных сетей}{3}{section*.2}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {1.2}Постановка задачи}{3}{subsection.1.2}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {2}Спайковые нейронные сети}{3}{section.2}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {2.1}Преимущества спайковых нейронных сетей}{3}{subsection.2.1}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {2.2}Модели нейронов спайковой нейронной сети}{4}{subsection.2.2}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {2.3}Архитектуры спайковых нейронных сетей}{4}{subsection.2.3}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {2.4}Алгоритмы обучения спайковых нейронных сетей}{4}{subsection.2.4}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {2.5}Современные реализации спайковых нейронных}{4}{subsection.2.5}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {3}Моделирование обучения спайковой нерйронной сети с конкуренцией локальных рецептивных полей}{5}{section.3}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.1}Описание задачи классификации}{5}{subsection.3.1}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.2}Особенности архитектуры}{5}{subsection.3.2}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.3}Сравнение эффективности операции свертки и локального рецептивного поля}{6}{subsection.3.3}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.4}Обучение связей конкуренции спайковой нейронной сети}{8}{subsection.3.4}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.5}Выводы}{8}{subsection.3.5}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {4}Заключение}{8}{section.4}% 
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {5}Благодарности}{8}{section.5}% 

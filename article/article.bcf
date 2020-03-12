@@ -2129,9 +2129,10 @@
     <bcf:datasource type="file" datatype="bibtex">lit.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="2">MaxActiv2</bcf:citekey>
-    <bcf:citekey order="3">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="1">pmlr-v28-wan13</bcf:citekey>
+    <bcf:citekey order="2">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="3">MaxActiv2</bcf:citekey>
+    <bcf:citekey order="4">saunders2019locally</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
