@@ -73,10 +73,10 @@ class AbstractSNN:
         intensity=127.5,
         dt=1,
         c_l=False,
-        nu_pre=None,
-        nu_post=None,
-        t_pre=8.0,
-        t_post=20.0,
+        A_pos=None,
+        A_neg=None,
+        tau_pos=8.0,
+        tau_neg=20.0,
         weight_decay=None,
         type_="Abstract SNN",
         immutable_name=False,
@@ -98,10 +98,10 @@ class AbstractSNN:
         :param intensity: intensity to use in Poisson Distribution to emit X spikes
         :param dt: time step in milliseconds
         :param c_l: To train or not to train YY connections
-        :param nu_pre: A- parameter of STDP for Y neurons.
-        :param nu_post: A+ parameter of STDP for Y neurons.
-        :param t_pre: tau- parameter of STDP for Y neurons.
-        :param t_post: tau+ parameter of STDP for Y neurons.
+        :param A_pos: A- parameter of STDP for Y neurons.
+        :param A_neg: A+ parameter of STDP for Y neurons.
+        :param tau_pos: tau- parameter of STDP for Y neurons.
+        :param tau_neg: tau+ parameter of STDP for Y neurons.
         :param type_: Network type
         :param immutable_name: if True, then the network name will be `foldername`. If False, then the name will be
         generated from the network parameters.
@@ -118,8 +118,11 @@ class AbstractSNN:
         if c_w_min is None:
             self.c_w_min = -np.inf
         self.calibrated = False
-        self.accuracy = None
-        self.accuracy_method = None
+        self.score = {
+            "patch_voting": {"accuracy": None, "error": None, "n_iter": None},
+            "all_voting": {"accuracy": None, "error": None, "n_iter": None},
+            "spikes_first": {"accuracy": None, "error": None, "n_iter": None},
+        }
         self.conf_matrix = None
         self.time_max = time_max
         self.crop = crop
@@ -131,16 +134,16 @@ class AbstractSNN:
         self.c_l = c_l
         self.train_method = None
 
-        self.nu_pre = nu_pre
-        self.nu_post = nu_post
+        self.A_pos = A_pos
+        self.A_neg = A_neg
         self.weight_decay = weight_decay
 
         if not self.c_l:
-            self.nu_pre = None
-            self.nu_post = None
+            self.A_pos = None
+            self.A_neg = None
 
-        self.t_pre = t_pre
-        self.t_post = t_post
+        self.tau_pos = tau_pos
+        self.tau_neg = tau_neg
         self.immutable_name = immutable_name
         self.foldername = foldername
         self.loaded_from_disk = loaded_from_disk
@@ -177,10 +180,10 @@ class AbstractSNN:
             "intensity": self.intensity,
             "dt": self.dt,
             "c_l": self.c_l,
-            "nu_pre": self.nu_pre,
-            "nu_post": self.nu_post,
-            "t_pre": self.t_pre,
-            "t_post": self.t_post,
+            "A_pos": self.A_pos,
+            "A_neg": self.A_neg,
+            "tau_pos": self.tau_pos,
+            "tau_neg": self.tau_neg,
             "weight_decay": self.weight_decay,
             "train_method": self.train_method,
             "immutable_name": self.immutable_name,
@@ -242,6 +245,15 @@ class AbstractSNN:
             return best_patches_max.indices
         else:
             return None
+
+    @property
+    def accuracy(self):
+        best_accuracy = -1
+        for method in self.score.keys():
+            if self.score[method]["accuracy"] is not None:
+                if self.score[method]["accuracy"] > best_accuracy:
+                    best_accuracy = self.score[method]["accuracy"]
+        return best_accuracy
 
     def learning(self, learning_XY, learning_YY=None):
         """
@@ -704,60 +716,6 @@ class AbstractSNN:
         self.classifier = SGDClassifier(n_jobs=-1)
         self.classifier.fit(outputs, labels)
 
-    def calculate_accuracy_lc(self, n_iter=10000):
-        """
-        Calculate accuracy of the linear classifier.
-        :param n_iter: number of iterations
-        """
-        test_dataset = MNIST(
-            PoissonEncoder(time=self.time_max, dt=self.dt),
-            None,
-            ".//MNIST",
-            download=False,
-            train=False,
-            transform=transforms.Compose(
-                [
-                    transforms.CenterCrop(self.crop),
-                    transforms.ToTensor(),
-                    transforms.Lambda(lambda x: x * self.intensity),
-                ]
-            ),
-        )
-        random_choice = torch.randint(0, test_dataset.data.size(0), (n_iter,))
-        test_dataset.data = test_dataset.data[random_choice]
-        test_dataset.targets = test_dataset.targets[random_choice]
-        print("Calculating accuracy...")
-        self.network.reset_()
-
-        self.network.train(False)
-        test_dataloader = torch.utils.data.DataLoader(
-            test_dataset, batch_size=1, shuffle=True
-        )
-        x = []
-        y = []
-        print("Collecting activity data...")
-        for batch in tqdm(test_dataloader, ncols=ncols):
-            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
-            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
-
-            label = batch["label"].item()
-            x.append(
-                self.spikes["Y"]
-                .get("s")
-                .squeeze(1)
-                .view(self.time_max, -1)
-                .sum(0)
-                .numpy()
-            )
-            y.append(label)
-
-            score = self.classifier.score(x, y)
-            y_predict = self.classifier.predict(x)
-
-        self.conf_matrix = confusion_matrix(y, y_predict)
-        self.accuracy = score
-        # self.accuracy_method = method
-
     def votes_distribution(self, fig=None):
         """
         Plots mean votes for top classes.
@@ -807,13 +765,16 @@ class AbstractSNN:
                 array=stds, width=5, color="purple", visible=True,
             )
 
-    def calculate_accuracy(self, n_iter=1000, top_n=None, method="patch_voting"):
+    def calculate_accuracy(
+        self, n_iter=1000, top_n=None, method="patch_voting", to_print=True
+    ):
         """
         Calculate network accuracy.
         Accuracy is stored in `self.accuracy`, std in `self.error`.
         All network responses are stored in `self.conf_matrix`.
         :param n_iter: number of iterations
         :param top_n: how many labels can each neuron vote for
+        :param method: algorithm to determine class from spikes
         """
 
         found_activity = False
@@ -860,13 +821,14 @@ class AbstractSNN:
 
         scores = np.array(scores)
         error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
-        print(f"Accuracy: {scores.mean()} with std {round(error, 3)}")
+
+        if to_print:
+            print(f"Accuracy: {scores.mean()} with std {round(error, 3)}")
 
         self.conf_matrix = confusion_matrix(y, x)
-        self.accuracy = scores.mean()
-        self.accuracy_method = method
-        self.error = error
-        return None
+        self.score[method]["accuracy"] = scores.mean()
+        self.score[method]["error"] = error
+        self.score[method]["n_iter"] = n_iter
 
     def accuracy_distribution(self, fig=None):
         """
@@ -1852,7 +1814,7 @@ class AbstractSNN:
         else:
             self.voltages = None
 
-    def report(self, label=None, pdf=True, top_n=10, method='patch_voting'):
+    def report(self, label=None, pdf=True, top_n=10, method="patch_voting"):
         if label is None:
             label = random.randint(0, 9)
         set_true = False
@@ -1870,9 +1832,9 @@ class AbstractSNN:
                     transforms.CenterCrop(self.crop),
                     transforms.ToTensor(),
                     transforms.Lambda(lambda x: x * self.intensity),
-                    ]
-                ),
-            )
+                ]
+            ),
+        )
         self.network.reset_()
         self.network.train(False)
         label_mask = dataset.targets == label
@@ -1887,47 +1849,42 @@ class AbstractSNN:
 
         prediction = self.class_from_spikes(top_n=top_n, method=method)
 
-        if not os.path.exists(f'reports//{self.name}'):
-            os.makedirs(f'reports//{self.name}')
-        print(f'Accuracy: {self.accuracy}')
+        if not os.path.exists(f"reports//{self.name}"):
+            os.makedirs(f"reports//{self.name}")
+        print(f"Accuracy: {self.accuracy}")
         # XY weights
         f = self.plot_weights_XY()
         display.display(f)
-        f.write_image(f'reports//{self.name}//weights_XY.pdf')
+        f.write_image(f"reports//{self.name}//weights_XY.pdf")
 
         # STDP and competition distribution
         if self.c_l:
-            f = plot_STDP(self.nu_pre, self.nu_post, self.t_pre, self.t_post)
+            f = plot_STDP(self.A_pos, self.A_neg, self.tau_pos, self.tau_neg)
             display.display(f)
-            f.write_image(f'reports//{self.name}//competitive_STDP.pdf')
-
+            f.write_image(f"reports//{self.name}//competitive_STDP.pdf")
 
             w, f = self.competition_distribution()
             display.display(f)
-            f.write_image(f'reports//{self.name}//competitive_weights.pdf')
-
+            f.write_image(f"reports//{self.name}//competitive_weights.pdf")
 
         # Input image
         f = plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()))
-        f.layout.title.text = f'Actual: {label}<br>Predicted: {prediction[0].item()}'
+        f.layout.title.text = f"Actual: {label}<br>Predicted: {prediction[0].item()}"
         display.display(f)
-        f.write_image(f'reports//{self.name}//input_image.pdf')
-
+        f.write_image(f"reports//{self.name}//input_image.pdf")
 
         # Y spikes
         f = self.plot_best_spikes_Y()
         display.display(f)
-        f.write_image(f'reports//{self.name}//best_Y_spikes.pdf')
-
+        f.write_image(f"reports//{self.name}//best_Y_spikes.pdf")
 
         # Best neurons weights and voltages
         f1, f2 = self.plot_best_voters()
         display.display(f1)
         display.display(f2)
-        f1.write_image(f'reports//{self.name}//best_voters_weights.pdf')
+        f1.write_image(f"reports//{self.name}//best_voters_weights.pdf")
 
-        f2.write_image(f'reports//{self.name}//best_voters_voltages.pdf')
-
+        f2.write_image(f"reports//{self.name}//best_voters_voltages.pdf")
 
         # Random neuron voltage
         i1 = random.randint(0, self.n_filters - 1)
@@ -1940,49 +1897,65 @@ class AbstractSNN:
 
         f = self.plot_neuron_voltage(i1, i2, i3)
         display.display(f)
-        f.write_image(f'reports//{self.name}//random_neuron_voltage.pdf')
+        f.write_image(f"reports//{self.name}//random_neuron_voltage.pdf")
 
         self.record_voltages(set_true)
 
         if pdf:
             # Generate a pdf report
-            from pylatex import Document, Section, Subsection, Tabular, Math, TikZ, Axis, \
-                Plot, Figure, Matrix, Alignat
+            from pylatex import (
+                Document,
+                Section,
+                Subsection,
+                Tabular,
+                Math,
+                TikZ,
+                Axis,
+                Plot,
+                Figure,
+                Matrix,
+                Alignat,
+            )
             from pylatex.utils import verbatim
             import pathlib
-            path = str(pathlib.Path().absolute()) + f'//reports//{self.name}'
-            geometry_options = {"tmargin": "1.5cm", "bmargin": "1.5cm", "lmargin": "2cm", "rmargin": "1.5cm"}
+
+            path = str(pathlib.Path().absolute()) + f"//reports//{self.name}"
+            geometry_options = {
+                "tmargin": "1.5cm",
+                "bmargin": "1.5cm",
+                "lmargin": "2cm",
+                "rmargin": "1.5cm",
+            }
             doc = Document(geometry_options=geometry_options)
 
-
             # Write network parameters in the document
-            with doc.create(Section('Network parameters')):
+            with doc.create(Section("Network parameters")):
                 for key in self.parameters.keys():
-                    text = f'{key}: {self.parameters[key]}\n'
+                    text = f"{key}: {self.parameters[key]}\n"
                     doc.append(text)
 
-            with doc.create(Section('Results')):
-                doc.append('Accuracy: ' + str(self.accuracy))
+            with doc.create(Section("Results")):
+                doc.append("Accuracy: " + str(self.accuracy))
 
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//weights_XY.pdf')
+                pic.add_image(f"{path}//weights_XY.pdf")
                 # pic.add_caption('Weights')
             if self.c_l:
                 with doc.create(Figure()) as pic:
-                    pic.add_image(f'{path}//competitive_STDP.pdf')
+                    pic.add_image(f"{path}//competitive_STDP.pdf")
                 with doc.create(Figure()) as pic:
-                    pic.add_image(f'{path}//competitive_weights.pdf')
+                    pic.add_image(f"{path}//competitive_weights.pdf")
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//input_image.pdf')
+                pic.add_image(f"{path}//input_image.pdf")
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//best_Y_spikes.pdf')
+                pic.add_image(f"{path}//best_Y_spikes.pdf")
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//best_voters_weights.pdf')
+                pic.add_image(f"{path}//best_voters_weights.pdf")
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//best_voters_voltages.pdf')
+                pic.add_image(f"{path}//best_voters_voltages.pdf")
             with doc.create(Figure()) as pic:
-                pic.add_image(f'{path}//random_neuron_voltage.pdf')
-            doc.generate_pdf(f'{path}//report', clean_tex=True)
+                pic.add_image(f"{path}//random_neuron_voltage.pdf")
+            doc.generate_pdf(f"{path}//report", clean_tex=True)
 
     def save(self):
         """
@@ -1999,14 +1972,7 @@ class AbstractSNN:
             json.dump(self.parameters, file)
 
         with open(path + "//score.json", "w") as file:
-            json.dump(
-                {
-                    "accuracy": self.accuracy,
-                    "error": self.error,
-                    "accuracy_method": self.accuracy_method,
-                },
-                file,
-            )
+            json.dump(self.score, file)
 
         if not os.path.exists(r"networks/networks.db"):
             conn = sqlite3.connect(r"networks/networks.db")
@@ -2127,12 +2093,12 @@ class LC_SNN(AbstractSNN):
         n_filters=25,
         stride=4,
         intensity=127.5,
-        t_pre=20.,
-        t_post=20.,
+        tau_pos=20.0,
+        tau_neg=20.0,
         c_w_min=None,
         c_l=False,
-        nu_pre=None,
-        nu_post=None,
+        A_pos=None,
+        A_neg=None,
         weight_decay=None,
         immutable_name=False,
         foldername=None,
@@ -2149,12 +2115,12 @@ class LC_SNN(AbstractSNN):
         :param n_filters: number of filter for each patch
         :param stride: stride for Local Connection
         :param intensity: intensity to use in Poisson Distribution to emit X spikes
-        :param t_pre: tau- parameter of STDP Y neurons.
-        :param t_post: tau+ parameter of STDP Y neurons.
+        :param tau_pos: tau- parameter of STDP Y neurons.
+        :param tau_neg: tau+ parameter of STDP Y neurons.
         :param c_w_min: minimum value of competitive YY weights
         :param c_l: To train or not to train YY connections
-        :param nu_pre: A- parameter of STDP for Y neurons.
-        :param nu_post: A+ parameter of STDP for Y neurons.
+        :param A_pos: A- parameter of STDP for Y neurons.
+        :param A_neg: A+ parameter of STDP for Y neurons.
         :param immutable_name: if True, then the network name will be `foldername`. If False, then the name will be
         generated from the network parameters.
         :param foldername: Name to use with `immutable_name` = True
@@ -2170,11 +2136,11 @@ class LC_SNN(AbstractSNN):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
+            A_pos=A_pos,
+            A_neg=A_neg,
             weight_decay=weight_decay,
-            t_pre=t_pre,
-            t_post=t_post,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
             c_w_min=c_w_min,
             immutable_name=immutable_name,
             foldername=foldername,
@@ -2209,8 +2175,8 @@ class LC_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            tc_trace_pre=self.t_pre,
-            tc_trace_post=self.t_post,
+            tc_trace_pre=self.tau_pos,
+            tc_trace_post=self.tau_neg,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
@@ -2277,7 +2243,7 @@ class LC_SNN(AbstractSNN):
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
-                nu=[self.nu_pre, self.nu_post],
+                nu=[self.A_pos, self.A_neg],
                 weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
@@ -2320,16 +2286,16 @@ class LC_SNN(AbstractSNN):
             spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
         if method == "patch_voting":
-            try:
-                res = spikes * self.votes
-            except:
-                raise TypeError(
-                    "Votes and spikes shape does not match. The network must be recalibrated."
-                )
+            res = spikes * self.votes
             res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
-            res = spikes * self.votes.view([10] + list(spikes.shape))
+            res = spikes * self.votes
+            res = res.sum(axis=[1, 2, 3])
+
+        elif method == "spikes_first":
+            spikes = spikes.max(0, keepdim=True).values
+            res = spikes * self.votes
             res = res.sum(axis=[1, 2, 3])
 
         else:
@@ -2420,10 +2386,10 @@ class C_SNN(AbstractSNN):
         stride=4,
         intensity=127.5,
         c_l=False,
-        nu_pre=None,
-        nu_post=None,
-        t_pre=20.0,
-        t_post=20.0,
+        A_pos=None,
+        A_neg=None,
+        tau_pos=20.0,
+        tau_neg=20.0,
         weight_decay=None,
         n_iter=0,
         immutable_name=False,
@@ -2442,10 +2408,10 @@ class C_SNN(AbstractSNN):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
-            t_pre=t_pre,
-            t_post=t_post,
+            A_pos=A_pos,
+            A_neg=A_neg,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
             weight_decay=weight_decay,
             c_w_min=c_w_min,
             immutable_name=immutable_name,
@@ -2477,8 +2443,8 @@ class C_SNN(AbstractSNN):
             shape=(self.n_filters, conv_size, conv_size),
             traces=True,
             thres=thresh,
-            tc_trace_pre=self.t_pre,
-            tc_trace_post=self.t_post,
+            tc_trace_pre=self.tau_pos,
+            tc_trace_post=self.tau_neg,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
@@ -2524,7 +2490,7 @@ class C_SNN(AbstractSNN):
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
-                nu=[self.nu_pre, self.nu_post],
+                nu=[self.A_pos, self.A_neg],
                 weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
@@ -2566,7 +2532,7 @@ class C_SNN(AbstractSNN):
             except:
                 raise TypeError(
                     "Votes and spikes shape does not match. The network must be recalibrated."
-                    )
+                )
             res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
@@ -2576,7 +2542,7 @@ class C_SNN(AbstractSNN):
         else:
             raise NotImplementedError(
                 f"This voting method [{method}] is not implemented"
-                )
+            )
 
         if res.sum(0).item() == 0:
             self.label = torch.tensor(-1)
@@ -2633,12 +2599,12 @@ class FC_SNN(AbstractSNN):
         crop=20,
         n_filters=25,
         intensity=127.5,
-        t_pre=20.0,
-        t_post=20.0,
+        tau_pos=20.0,
+        tau_neg=20.0,
         n_iter=0,
         c_l=False,
-        nu_pre=None,
-        nu_post=None,
+        A_pos=None,
+        A_neg=None,
         weight_decay=None,
         immutable_name=False,
         foldername=None,
@@ -2653,11 +2619,11 @@ class FC_SNN(AbstractSNN):
             crop=crop,
             n_filters=n_filters,
             intensity=intensity,
-            t_pre=t_pre,
-            t_post=t_post,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
+            A_pos=A_pos,
+            A_neg=A_neg,
             weight_decay=weight_decay,
             immutable_name=immutable_name,
             foldername=foldername,
@@ -2691,8 +2657,8 @@ class FC_SNN(AbstractSNN):
             shape=(self.n_output,),
             traces=True,
             thres=thresh,
-            tc_trace_pre=self.t_pre,
-            tc_trace_post=self.t_post,
+            tc_trace_pre=self.tau_pos,
+            tc_trace_post=self.tau_neg,
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
@@ -2737,7 +2703,7 @@ class FC_SNN(AbstractSNN):
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
-                nu=[self.nu_pre, self.nu_post],
+                nu=[self.A_pos, self.A_neg],
                 weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
@@ -3007,22 +2973,22 @@ class FC_SNN(AbstractSNN):
             "intensity": self.intensity,
             "dt": self.dt,
             "c_l": self.c_l,
-            "nu_pre": self.nu_pre,
-            "nu_post": self.nu_post,
-            "t_pre": self.t_pre,
-            "t_post": self.t_post,
+            "A_pos": self.A_pos,
+            "A_neg": self.A_neg,
+            "tau_pos": self.tau_pos,
+            "tau_neg": self.tau_neg,
             "weight_decay": self.weight_decay,
             "immutable_name": self.immutable_name,
         }
         return parameters
 
 
-def best_avg_spikes(t_pre, t_post, nu_pre, nu_post):
+def best_avg_spikes(tau_pos, tau_neg, A_pos, A_neg):
     return (
         1
-        / (t_pre * t_post)
-        * (nu_post * t_post - nu_pre * t_pre)
-        / (nu_pre - nu_post)
+        / (tau_pos * tau_neg)
+        * (A_neg * tau_neg - A_pos * tau_pos)
+        / (A_pos - A_neg)
         * 250
     )
 
@@ -3043,35 +3009,42 @@ def plot_image(image, fig=None):
         fig.data[0].z = image
 
 
-def plot_STDP(nu_pre, nu_post, t_pre, t_post):
+def plot_STDP(A_pos, A_neg, tau_pos, tau_neg):
     layout = go.Layout(
-        height=500, width = 800,
-        xaxis=dict(
-            zeroline=True, zerolinecolor='#0f1e31'
-            ),
-        yaxis=dict(
-            zeroline=True, zerolinecolor='#0f1e31'
-            ),
+        height=500,
+        width=800,
+        xaxis=dict(zeroline=True, zerolinecolor="#0f1e31"),
+        yaxis=dict(zeroline=True, zerolinecolor="#0f1e31"),
         legend=dict(
-            font=dict(size=12, color='black'),
+            font=dict(size=12, color="black"),
             bgcolor="rgba(25,211,243,0.2)",
             bordercolor="Black",
-            borderwidth=2
-            )
-        )
+            borderwidth=2,
+        ),
+    )
     t_neg = np.linspace(-100, 0, 100)
     t_pos = np.linspace(0, 100, 100)
-    dw_neg = -nu_post * np.exp(t_neg / t_post)
-    dw_pos = nu_pre * np.exp(-t_pos / t_pre)
+    dw_neg = -A_neg * np.exp(t_neg / tau_neg)
+    dw_pos = A_pos * np.exp(-t_pos / tau_pos)
 
     fig = go.Figure(layout=layout)
-    fig.add_scatter(x=t_neg, y=dw_neg, line=dict(color='blue'),
-                    name='Negative update', line_shape='spline')
-    fig.add_scatter(x=t_pos, y=dw_pos, line=dict(color='red'),
-                    name='Positive update', line_shape='spline')
-    fig.layout.title.text = 'STDP'
-    fig.layout.xaxis.title.text = '$t_{post} - t_{pre}, 10^{-3} s$'
-    fig.layout.yaxis.title.text = '$\Delta w$'
+    fig.add_scatter(
+        x=t_neg,
+        y=dw_neg,
+        line=dict(color="blue"),
+        name="Negative update",
+        line_shape="spline",
+    )
+    fig.add_scatter(
+        x=t_pos,
+        y=dw_pos,
+        line=dict(color="red"),
+        name="Positive update",
+        line_shape="spline",
+    )
+    fig.layout.title.text = "STDP"
+    fig.layout.xaxis.title.text = "$t_{post} - t_{pre}, 10^{-3} s$"
+    fig.layout.yaxis.title.text = "$\Delta w$"
 
     fig.layout.legend.y = 1
     fig.layout.legend.x = 0
@@ -3082,6 +3055,7 @@ def plot_STDP(nu_pre, nu_post, t_pre, t_post):
     fig = go.FigureWidget(fig)
 
     return fig
+
 
 # TODO: check best 25 filters and 100 filters              1
 # TODO: clamp weights                                      2

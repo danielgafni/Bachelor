@@ -23,11 +23,19 @@ def view_network(name):
         try:
             with open(f"networks//{name}//parameters.json", "r") as file:
                 parameters = json.load(file)
-                with open(f"networks//{name}//score.json", "r") as file:
-                    score = json.load(file)
-                parameters["accuracy"] = score["accuracy"]
-                parameters["error"] = score["error"]
-                parameters["accuracy_method"] = score["accuracy_method"]
+            with open(f"networks//{name}//score.json", "r") as file:
+                score = json.load(file)
+            best_method = "patch_voting"
+            best_accuracy = 0
+            for method in score.keys():
+                if score[method]["accuracy"] is not None:
+                    if score[method]["accuracy"] > best_accuracy:
+                        best_method = method
+                        best_accuracy = score[method]["accuracy"]
+            parameters["accuracy"] = score[best_method]["accuracy"]
+            parameters["accuracy_method"] = best_method
+            parameters["error"] = score[best_method]["error"]
+            parameters["n_iter_accuracy"] = score[best_method]["n_iter"]
 
             return parameters
         except FileNotFoundError:
@@ -49,10 +57,10 @@ def view_database():
         "kernel_size",
         "stride",
         "c_l",
-        "t_pre",
-        "t_post",
-        "nu_pre",
-        "nu_post",
+        "tau_pos",
+        "tau_neg",
+        "A_pos",
+        "A_neg",
         "weight_decay",
         "mean_weight",
         "c_w",
@@ -191,10 +199,10 @@ def load_network(name):
             c_l = False
             if "c_l" in parameters.keys():
                 c_l = parameters["c_l"]
-            nu_pre = parameters["nu_pre"]
-            nu_post = parameters["nu_post"]
-            t_pre = parameters["t_pre"]
-            t_post = parameters["t_post"]
+            A_pos = parameters["A_pos"]
+            A_neg = parameters["A_neg"]
+            tau_pos = parameters["tau_pos"]
+            tau_neg = parameters["tau_neg"]
 
     except FileNotFoundError:
         print("Network folder is corrupted.")
@@ -212,11 +220,11 @@ def load_network(name):
             stride=stride,
             intensity=intensity,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
-            t_pre=t_pre,
-            t_post=t_post,
-            weight_decay=parameters['weight_decay'],
+            A_pos=A_pos,
+            A_neg=A_neg,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
+            weight_decay=parameters["weight_decay"],
             immutable_name=parameters["immutable_name"],
             foldername=name,
             loaded_from_disk=True,
@@ -229,11 +237,11 @@ def load_network(name):
             c_w=c_w,
             c_w_min=c_w_min,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
-            t_pre=t_pre,
-            t_post=t_post,
-            weight_decay=parameters['weight_decay'],
+            A_pos=A_pos,
+            A_neg=A_neg,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
+            weight_decay=parameters["weight_decay"],
             time_max=time_max,
             crop=crop,
             kernel_size=kernel_size,
@@ -252,11 +260,11 @@ def load_network(name):
             c_w=c_w,
             c_w_min=c_w_min,
             c_l=c_l,
-            nu_pre=nu_pre,
-            nu_post=nu_post,
-            t_pre=t_pre,
-            t_post=t_post,
-            weight_decay=parameters['weight_decay'],
+            A_pos=A_pos,
+            A_neg=A_neg,
+            tau_pos=tau_pos,
+            tau_neg=tau_neg,
+            weight_decay=parameters["weight_decay"],
             time_max=time_max,
             crop=crop,
             n_filters=n_filters,
@@ -289,9 +297,7 @@ def load_network(name):
         score = json.load(file)
 
     net.votes = votes
-    net.accuracy = score["accuracy"]
-    net.error = score["error"]
-    net.accuracy_method = score["accuracy_method"]
+    net.score = score
     net.conf_matrix = conf_matrix
 
     net.spikes = {}

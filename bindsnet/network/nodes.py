@@ -196,7 +196,6 @@ class Input(Nodes, AbstractInput):
         shape: Optional[Iterable[int]] = None,
         traces: bool = False,
         traces_additive: bool = False,
-        tc_trace: Union[float, torch.Tensor] = 20.0,
         tc_trace_pre: Union[float, torch.Tensor] = 20.0,
         tc_trace_post: Union[float, torch.Tensor] = 20.0,
         trace_scale: Union[float, torch.Tensor] = 1.0,
@@ -211,7 +210,8 @@ class Input(Nodes, AbstractInput):
         :param shape: The dimensionality of the layer.
         :param traces: Whether to record decaying spike traces.
         :param traces_additive: Whether to record spike traces additively.
-        :param tc_trace: Time constant of spike trace decay.
+        :param tc_trace_pre: Time constant of pre spike trace decay.
+        :param tc_trace_post: Time constant of post spike trace decay.
         :param trace_scale: Scaling factor for spike trace.
         :param sum_input: Whether to sum all inputs.
         """
@@ -220,7 +220,6 @@ class Input(Nodes, AbstractInput):
             shape=shape,
             traces=traces,
             traces_additive=traces_additive,
-            tc_trace=tc_trace,
             tc_trace_pre=tc_trace_pre,
             tc_trace_post=tc_trace_post,
             trace_scale=trace_scale,
