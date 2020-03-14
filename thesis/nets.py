@@ -727,7 +727,7 @@ class AbstractSNN:
                 f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
                 )
 
-        outputs = data["outputs"]
+        outputs = [output.flatten().numpy() for output in data["outputs"]]
         labels = data["labels"]
 
         print("Calibrating classifier...")
@@ -827,8 +827,8 @@ class AbstractSNN:
         ):
             prediction = self.class_from_spikes(
                 top_n=top_n, method=method, spikes=sum_spikes
-            )
-            x.append(prediction[0].item())
+            )[0].item()
+            x.append(prediction)
             y.append(label)
 
         scores = []
@@ -1269,7 +1269,7 @@ class AbstractSNN:
                 yaxis=go.layout.YAxis(
                     title_text="Neuron location",
                     tickmode="array",
-                    tickvals=active_spikes_indices,
+                    tickvals=list(range(len(active_spikes_indices))),
                     ticktext=active_spikes_indices,
                     zeroline=False,
                 ),
@@ -1726,28 +1726,6 @@ class AbstractSNN:
 
         return prediction[0]
 
-    def index_to_location(self, index):
-        c = 0
-        for i in range(self.n_filters):
-            for j in range(self.conv_size):
-                for k in range(self.conv_size):
-                    if c == index:
-                        return (i, j, k)
-                    else:
-                        c += 1
-        return None
-
-    def location_to_index(self, i, j, k):
-        c = 0
-        for i_ in range(self.n_filters):
-            for j_ in range(self.conv_size):
-                for k_ in range(self.conv_size):
-                    if i == i_ and j_ == j and k_ == k:
-                        return c
-                    else:
-                        c += 1
-        return None
-
     def feed_image(self, path, top_n=None, k=1, to_print=True, plot=False):
         """
         Inputs given image into the network, calculates network prediction.
@@ -1974,7 +1952,7 @@ class AbstractSNN:
                 pic.add_image(f"{path}//best_voters_voltages.pdf")
             with doc.create(Figure()) as pic:
                 pic.add_image(f"{path}//random_neuron_voltage.pdf")
-            doc.generate_pdf(f"{path}//report", clean_tex=True)
+            doc.generate_pdf(f"{path}//report", clean=True, clean_tex=True)
 
     def save(self):
         """
@@ -2319,7 +2297,7 @@ class LC_SNN(AbstractSNN):
                     res += spikes[filter_number, i, j] * self.votes[:, filter_number, i, j]
 
         elif method == "lc":
-            return self.classifier.predict(spikes)
+            return self.classifier.predict(spikes.flatten().numpy())
         else:
             raise NotImplementedError(
                 f"This voting method [{method}] is not implemented"
@@ -2389,6 +2367,57 @@ class LC_SNN(AbstractSNN):
             int(np.sqrt(np.prod(shape_YY))), int(np.sqrt(np.prod(shape_YY)))
         )
         return weights_YY
+
+    def plot_spikes_Y(self, fig_spikes=None):
+        """
+        Plots all Y spikes.
+        :return: plotly.graph_objs.Figure - Y spikes heatmap.
+        """
+        width = 1000
+        height = 800
+        spikes = (
+            self.spikes["Y"]
+                .get("s")
+                .squeeze(1)
+                .view(self.time_max, -1)
+                .type(torch.LongTensor)
+                .t()
+        )
+        active_spikes_indices = spikes.sum(1).nonzero().squeeze(1)
+        active_spikes_locations = [self.index_to_location(index) for index in spikes.sum(1).nonzero().squeeze(1)]
+        for location in active_spikes_locations:
+            location = f'Filter {location[0]},<br>patch {location[1], location[2]}'
+        if fig_spikes is None:
+            fig_spikes = go.FigureWidget()
+            fig_spikes.add_heatmap(
+                z=spikes[active_spikes_indices, :], colorscale="YlOrBr"
+                )
+            tickvals = list(range(spikes.size(0)))
+            fig_spikes.update_layout(
+                width=width,
+                height=height,
+                title=go.layout.Title(text="Y neurons spikes", xref="paper",),
+                xaxis=go.layout.XAxis(title_text="Time"),
+                yaxis=go.layout.YAxis(
+                    title_text="Neuron location",
+                    tickmode="array",
+                    tickvals=list(range(len(active_spikes_indices))),
+                    ticktext=active_spikes_locations,
+                    zeroline=False,
+                    ),
+                showlegend=False,
+                )
+            return fig_spikes
+        else:
+            fig_spikes.data[0].z = spikes[active_spikes_indices, :]
+
+    def location_to_index(self, location):
+        return location[0] * self.kernel_prod ** 2 + location[1] * self.kernel_prod + location[2]
+
+    def index_to_location(self, index):
+        return ([index // (self.kernel_prod ** 2),
+                 index % (self.kernel_prod ** 2) // self.kernel_prod,
+                 index % (self.kernel_prod ** 2) % self.kernel_prod])
 
 
 ########################################################################################################################
