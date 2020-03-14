@@ -28,6 +28,8 @@ def view_network(name):
             best_method = "patch_voting"
             best_accuracy = 0
             for method in score.keys():
+                if method == 'lc':
+                    continue
                 if score[method]["accuracy"] is not None:
                     if score[method]["accuracy"] > best_accuracy:
                         best_method = method

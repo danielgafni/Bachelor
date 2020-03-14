@@ -122,7 +122,9 @@ class AbstractSNN:
             "patch_voting": {"accuracy": None, "error": None, "n_iter": None},
             "all_voting": {"accuracy": None, "error": None, "n_iter": None},
             "spikes_first": {"accuracy": None, "error": None, "n_iter": None},
+            "lc": {"accuracy": None, "error": None, "n_iter": None}
         }
+        self.classifier = None
         self.conf_matrix = None
         self.time_max = time_max
         self.crop = crop
@@ -302,12 +304,13 @@ class AbstractSNN:
         )
         cnt = 0
         if plot:
-            fig_image = plot_image(np.zeros((self.crop, self.crop)))
-            display.display(fig_image)
             fig_weights_XY = self.plot_weights_XY()
             fig_spikes = self.plot_best_spikes_Y()
+            fig_image = plot_image(np.zeros((self.crop, self.crop)))
+
             display.display(fig_weights_XY)
             display.display(fig_spikes)
+            display.display(fig_image)
 
             fig1, fig2 = self.plot_best_voters()
             display.display(fig1)
@@ -338,13 +341,14 @@ class AbstractSNN:
 
             if plot:
                 if (t_now - t_start) / vis_interval > cnt:
-                    #  Plot input image
-                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
                     #  Plot XY weights
                     self.plot_weights_XY(fig=fig_weights_XY)
 
                     #  Plot best Y spikes
                     self.plot_best_spikes_Y(fig_spikes)
+
+                    #  Plot input image
+                    plot_image(np.flipud(batch["image"][0, 0, :, :].numpy()), fig_image)
 
                     #  Plot best Y neurons weights and voltages
                     self.plot_best_voters(fig1=fig1, fig2=fig2)
@@ -700,15 +704,30 @@ class AbstractSNN:
         if n_iter is None:
             n_iter = 5000
 
-        if not os.path.exists(
-            f"activity//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
-        ):
-            self.collect_activity_calibration(n_iter=n_iter)
+        found_activity = False
+        if not os.path.exists(f"activity//{self.name}//activity/"):
+            self.collect_activity_calibration(n_iter)
 
-        data = torch.load(
-            f"activity//{self.name}//activity_data-count={n_iter}-n_iter={self.n_iter}"
-        )
-        outputs = [output.sum(0).numpy() for output in data["outputs"]]
+        for name in os.listdir(f"activity//{self.name}//activity/"):
+            if self.network_state in name:
+                n_iter_saved = int(name.split("-")[-1])
+                if n_iter <= n_iter_saved:
+                    data = torch.load(f"activity//{self.name}//activity//{name}")
+                    data_outputs = data["outputs"]
+                    data_labels = data["labels"]
+                    data_outputs = data_outputs[:n_iter]
+                    data_labels = data_labels[:n_iter]
+                    data = {"outputs": data_outputs, "labels": data_labels}
+                    found_activity = True
+                    break
+
+        if not found_activity:
+            self.collect_activity_calibration(n_iter=n_iter)
+            data = torch.load(
+                f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
+                )
+
+        outputs = data["outputs"]
         labels = data["labels"]
 
         print("Calibrating classifier...")
@@ -2294,10 +2313,13 @@ class LC_SNN(AbstractSNN):
             res = res.sum(axis=[1, 2, 3])
 
         elif method == "spikes_first":
-            spikes = spikes.max(0, keepdim=True).values
-            res = spikes * self.votes
-            res = res.sum(axis=[1, 2, 3])
+            res = torch.zeros(10)
+            for i, row in enumerate(spikes.max(0).indices):
+                for j, filter_number in enumerate(row):
+                    res += spikes[filter_number, i, j] * self.votes[:, filter_number, i, j]
 
+        elif method == "lc":
+            return self.classifier.predict(spikes)
         else:
             raise NotImplementedError(
                 f"This voting method [{method}] is not implemented"
