@@ -1,3 +1,5 @@
+import pyperclip
+
 from .nets import LC_SNN, C_SNN, FC_SNN, AbstractSNN
 import os
 import torch
@@ -128,7 +130,7 @@ def plot_database(
             z=data["accuracy"],
             hovertext=data["name"],
             error_z=dict(
-                array=data["error"], visible=True, thickness=10, width=5, color="purple"
+                array=data["error"], visible=True, thickness=6, width=5, color='blue'
             ),
             mode="markers",
             marker=dict(
@@ -167,7 +169,15 @@ def plot_database(
         ),
     )
 
+    fig = go.FigureWidget(fig)
+    fig.data[0].on_click(click_point)
     return fig
+
+
+def click_point(trace, points):
+    text = list(trace.hovertext)
+    for i in points.point_inds:
+        pyperclip.copy(text[i])
 
 
 def load_network(name):

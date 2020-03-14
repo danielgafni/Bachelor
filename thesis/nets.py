@@ -55,6 +55,11 @@ if in_ipynb():
 else:
     ncols = 100
 
+
+accuracy_methods = [
+    'patch_voting', 'all_voting', 'spikes_first', 'lc'
+    ]
+
 ########################################################################################################################
 ######################################  ABSTRACT NETWORK  ##############################################################
 ########################################################################################################################
@@ -252,6 +257,8 @@ class AbstractSNN:
     def accuracy(self):
         best_accuracy = -1
         for method in self.score.keys():
+            if method == 'lc':
+                continue
             if self.score[method]["accuracy"] is not None:
                 if self.score[method]["accuracy"] > best_accuracy:
                     best_accuracy = self.score[method]["accuracy"]
@@ -268,7 +275,7 @@ class AbstractSNN:
         self.network.connections[("X", "Y")].learning = learning_XY
         self.network.connections[("Y", "Y")].learning = learning_YY
 
-    def train(self, n_iter=None, plot=False, vis_interval=30):
+    def train(self, n_iter=None, plot=False, vis_interval=30, shuffle=True, interval=None):
         """
         The main training function. Simultaneously trains XY and YY connection weights.
         If plot=True will visualize information about the network. Use in Jupyter Notebook.
@@ -277,7 +284,11 @@ class AbstractSNN:
         :param vis_interval: how often to update plots in seconds.
         """
         if n_iter is None:
-            n_iter = 5000
+            if interval is None:
+                raise TypeError('One of a ac and interval must be provided')
+        if n_iter is not None:
+            if interval is not None:
+                raise TypeError('Only one of n_iter and interval must be provided')
         encoded_dataset = MNIST(
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
@@ -294,13 +305,20 @@ class AbstractSNN:
         )
         train_dataset = encoded_dataset
         train_dataset.data = encoded_dataset.data[:50000, :, :]
-        random_choice = torch.randint(0, train_dataset.data.size(0), (n_iter,))
-        train_dataset.data = train_dataset.data[random_choice]
+        if n_iter is not None:
+            random_choice = torch.randint(0, train_dataset.data.size(0), (n_iter,))
+            train_dataset.data = train_dataset.data[random_choice]
+        if interval is not None:
+            train_dataset.data = train_dataset.data[interval[0]:interval[1]]
 
+        if n_iter is not None:
+            count = n_iter
+        else:
+            count = interval[1] - interval[0]
         self.network.train(True)
         print("Training network...")
         train_dataloader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=1, shuffle=True
+            train_dataset, batch_size=1, shuffle=shuffle
         )
         cnt = 0
         if plot:
@@ -330,12 +348,13 @@ class AbstractSNN:
 
         t_start = time.time()
         for speed_counter, batch in tqdm(
-            enumerate(train_dataloader), total=n_iter, ncols=ncols
+            enumerate(train_dataloader), total=count, ncols=ncols
         ):
             t_now = time.time()
 
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            self.n_iter += 1
             if self.mask_YY is not None and self.c_l:
                 self.network.connections[("Y", "Y")].w *= self.mask_YY
 
@@ -365,7 +384,6 @@ class AbstractSNN:
                     cnt += 1
 
             self.network.reset_()
-            self.n_iter += 1
 
         self.network.train(False)
         self.train_method = "basic"
@@ -693,8 +711,11 @@ class AbstractSNN:
             votes[label] += output
         for i in range(10):
             votes[i] /= len((np.array(labels) == i).nonzero()[0])
+
         self.votes = votes
         self.calibrated = True
+
+        self.calibrate_lc(n_iter=n_iter)
 
     def calibrate_lc(self, n_iter=None):
         """
@@ -785,7 +806,7 @@ class AbstractSNN:
             )
 
     def calculate_accuracy(
-        self, n_iter=1000, top_n=None, method="patch_voting", to_print=True
+        self, n_iter=1000, top_n=None, method="patch_voting", to_print=True, all=False
     ):
         """
         Calculate network accuracy.
@@ -795,7 +816,10 @@ class AbstractSNN:
         :param top_n: how many labels can each neuron vote for
         :param method: algorithm to determine class from spikes
         """
-
+        if all:
+            for method in accuracy_methods:
+                self.calculate_accuracy(n_iter=n_iter, method=method, to_print=to_print, all=False)
+            return None
         found_activity = False
         if not os.path.exists(f"activity//{self.name}//activity_test"):
             self.collect_activity_test(n_iter)
@@ -2297,7 +2321,7 @@ class LC_SNN(AbstractSNN):
                     res += spikes[filter_number, i, j] * self.votes[:, filter_number, i, j]
 
         elif method == "lc":
-            return self.classifier.predict(spikes.flatten().numpy())
+            return self.classifier.predict([spikes.flatten().numpy()])
         else:
             raise NotImplementedError(
                 f"This voting method [{method}] is not implemented"
@@ -2385,8 +2409,9 @@ class LC_SNN(AbstractSNN):
         )
         active_spikes_indices = spikes.sum(1).nonzero().squeeze(1)
         active_spikes_locations = [self.index_to_location(index) for index in spikes.sum(1).nonzero().squeeze(1)]
-        for location in active_spikes_locations:
-            location = f'Filter {location[0]},<br>patch {location[1], location[2]}'
+        for i, location in enumerate(active_spikes_locations):
+            active_spikes_locations[i] = f'Filter {location[0]},<br>patch ({location[1], location[2]})'
+
         if fig_spikes is None:
             fig_spikes = go.FigureWidget()
             fig_spikes.add_heatmap(
@@ -2411,13 +2436,26 @@ class LC_SNN(AbstractSNN):
         else:
             fig_spikes.data[0].z = spikes[active_spikes_indices, :]
 
+    def plot_votes(self):
+        fig = go.Figure(go.Heatmap(z=self.votes.view(10, -1), colorscale='YlOrBr'),
+                        layout_title_text='Votes',
+                        layout_xaxis_title_text='Y neuron index',
+                        layout_yaxis_title_text='Label',
+                        layout_yaxis_tickvals=list(range(10)),
+                        layout_yaxis_ticktext=list(range(10)),
+                        )
+        fig = go.FigureWidget(fig)
+        return fig
+
     def location_to_index(self, location):
-        return location[0] * self.kernel_prod ** 2 + location[1] * self.kernel_prod + location[2]
+        shape = self.network.connections[('Y', 'Y')].w.size(1)
+        return location[0] * shape ** 2 + location[1] * shape + location[2]
 
     def index_to_location(self, index):
-        return ([index // (self.kernel_prod ** 2),
-                 index % (self.kernel_prod ** 2) // self.kernel_prod,
-                 index % (self.kernel_prod ** 2) % self.kernel_prod])
+        shape = self.network.connections[('Y', 'Y')].w.size(1)
+        return ([index // (shape ** 2),
+                 index % (shape ** 2) // shape,
+                 index % (shape ** 2) % shape])
 
 
 ########################################################################################################################
