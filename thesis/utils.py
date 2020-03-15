@@ -102,7 +102,7 @@ def plot_database(
     :param kernel_size:
     :param stride:
     :param c_l:
-    :return:
+    :return: plot
     """
     data = view_database()
     data = data[data["network_type"] == network_type]
@@ -130,7 +130,7 @@ def plot_database(
             z=data["accuracy"],
             hovertext=data["name"],
             error_z=dict(
-                array=data["error"], visible=True, thickness=6, width=5, color='blue'
+                array=data["error"], visible=True, thickness=3, width=3, color='blue'
             ),
             mode="markers",
             marker=dict(
@@ -174,7 +174,7 @@ def plot_database(
     return fig
 
 
-def click_point(trace, points):
+def click_point(trace, points, selector):
     text = list(trace.hovertext)
     for i in points.point_inds:
         pyperclip.copy(text[i])
