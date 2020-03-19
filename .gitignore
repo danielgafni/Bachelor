@@ -215,3 +215,4 @@ dmypy.json
 
 # Saved network activity - big
 activity/
+reports/
