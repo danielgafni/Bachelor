@@ -34,7 +34,7 @@ I found an interesting way to get good accuracy after training YY. In my method 
 
 Their distribution:
 
-![competition distribution](overview/competition_distribution.png)
+![competition distribution](misc/comp_distr.svg)
 
 I'm also experimenting with simultaneous training of XY and YY connections. It also improves the accuracy, but my hypothesis right now is that sequential training gives better results.
 
@@ -52,7 +52,7 @@ Here are 100-filter Locally Connected weights after 5000 iterations of training:
 
 The overall accuracy of this network is 0.89. Here is the accuracy distribution between different labels:
 
-![Accuracy distribution](overview//acc_distribution.png)
+![Accuracy distribution](misc//acc_distr.svg)
 
 And here is the confusion matrix:
 
@@ -60,7 +60,7 @@ And here is the confusion matrix:
 
 Statistically calculated votes based on mean spiking activity of neurons for each label give us the following  distribution: 
 
-![Votes distribution](overview/votes_distribution.png)
+![Votes distribution](misc/votes_distr.svg)
 
 On the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
 

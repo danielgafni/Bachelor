@@ -771,7 +771,7 @@ class AbstractSNN:
             fig = go.Figure(
                 go.Scatter(
                     y=means,
-                    error_y=dict(array=stds, width=5, color="purple", visible=True,),
+                    error_y=dict(array=stds, width=5, visible=True,),
                     mode="markers",
                     marker_size=10,
                 )
