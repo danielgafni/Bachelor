@@ -129,7 +129,7 @@ view_database()
 
 Output:
 
-|      | name                                                     | accuracy | n_iter | mean_weight | n_filters |  c_w | crop | kernel_size | stride | time_max |  c_l |   dt |      error | intensity | kernel_prod | network_type | nu   | t_post | t_pre |
+|      | name                                                     | accuracy | n_iter | mean_weight | n_filters |  c_w | crop | kernel_size | stride | time_max |  c_l |   dt |      error | intensity | kernel_prod | network_type | nu   | tau_neg | tau_pos |
 | ---: | :------------------------------------------------------- | -------: | -----: | ----------: | --------: | ---: | ---: | ----------: | -----: | -------: | ---: | ---: | ---------: | --------: | ----------: | :----------- | :--- | -----: | ----: |
 |    0 | 001c890e9fea37e5e6a85530f89ae9871548f6bb22ce6be82d0eb74d |    0.832 |   5000 |        0.22 |       100 |  -60 |   20 |          12 |      4 |      250 |    0 |    1 | 0.00442011 |     127.5 |         144 | LC_SNN       |      |     20 |    20 |
 |    1 | 01d179e6813f1c54d8e97295259a257c5635f10ee22403b0b975c9ae |    0.869 |   5000 |        0.26 |       100 |  -50 |   20 |          12 |      4 |      250 |    0 |    1 | 0.00359991 |     127.5 |         144 | LC_SNN       |      |     20 |    20 |
