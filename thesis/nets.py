@@ -419,6 +419,7 @@ class AbstractSNN:
         train_dataset.data = train_dataset.data[random_choice]
 
         self.network.train(True)
+        self.network.connections[("Y", "Y")].w.fill_(self.c_w)
         print("Training network...")
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset, batch_size=1, shuffle=True
@@ -2258,7 +2259,7 @@ class LC_SNN(AbstractSNN):
                                 mask[fltr1, i, j, fltr2, i, j] = 1
             weight_decay = self.weight_decay
             if weight_decay == 0:
-                weight_decay = None
+                self.weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
@@ -2564,16 +2565,13 @@ class C_SNN(AbstractSNN):
                         for j in range(conv_size):
                             w[fltr1, i, j, fltr2, i, j] = self.c_w
         size = self.n_filters * conv_size ** 2
-        sparse_w = torch.sparse.FloatTensor(
-            w.view(size, size).nonzero().t(), w[w != 0].flatten(), (size, size)
-        )
 
         if not self.c_l:
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
             weight_decay = self.weight_decay
             if weight_decay == 0:
-                weight_decay = None
+                self.weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
@@ -2786,7 +2784,7 @@ class FC_SNN(AbstractSNN):
         else:
             weight_decay = self.weight_decay
             if weight_decay == 0:
-                weight_decay = None
+                self.weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,

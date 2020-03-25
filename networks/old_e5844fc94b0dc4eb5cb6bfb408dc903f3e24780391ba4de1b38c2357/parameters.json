@@ -1,0 +1,1 @@
+{"network_type": "LC_SNN", "mean_weight": 0.4, "n_iter": 5000, "c_w": -100.0, "c_w_min": -Infinity, "time_max": 250, "crop": 20, "kernel_size": 12, "kernel_prod": 144, "stride": 4, "n_filters": 25, "intensity": 127.5, "dt": 1, "c_l": false, "nu_pre": null, "nu_post": null, "t_pre": 20.0, "t_post": 20.0, "train_method": "basic", "immutable_name": true}

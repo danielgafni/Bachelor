@@ -27,19 +27,24 @@ def view_network(name):
                 parameters = json.load(file)
             with open(f"networks//{name}//score.json", "r") as file:
                 score = json.load(file)
-            best_method = "patch_voting"
-            best_accuracy = 0
-            for method in score.keys():
-                if method == 'lc':
-                    continue
-                if score[method]["accuracy"] is not None:
-                    if score[method]["accuracy"] > best_accuracy:
-                        best_method = method
-                        best_accuracy = score[method]["accuracy"]
-            parameters["accuracy"] = score[best_method]["accuracy"]
-            parameters["accuracy_method"] = best_method
-            parameters["error"] = score[best_method]["error"]
-            parameters["n_iter_accuracy"] = score[best_method]["n_iter"]
+            if 'old' not in name:
+                best_method = "patch_voting"
+                best_accuracy = 0
+                for method in score.keys():
+                    if method == 'lc':
+                        continue
+
+                    if score[method]["accuracy"] is not None:
+                        if score[method]["accuracy"] > best_accuracy:
+                            best_method = method
+                            best_accuracy = score[method]["accuracy"]
+                    parameters["accuracy"] = score[best_method]["accuracy"]
+                    parameters["accuracy_method"] = best_method
+                    parameters["error"] = score[best_method]["error"]
+                    parameters["n_iter_accuracy"] = score[best_method]["n_iter"]
+
+            else:
+                return None
 
             return parameters
         except FileNotFoundError:
@@ -348,6 +353,7 @@ def delete_network(name, sure=False):
         print("Are you sure you want to delete the network? [Y/N]")
         if input() == "Y":
             rmtree(f"networks//{name}")
+            rmtree(f"activity//{name}")
             conn = connect(r"networks/networks.db")
             crs = conn.cursor()
             crs.execute(f"DELETE FROM networks WHERE name = ?", (name,))
@@ -358,6 +364,7 @@ def delete_network(name, sure=False):
             print("Deletion canceled...")
     else:
         rmtree(f"networks//{name}")
+        rmtree(f"activity//{name}")
         conn = connect(r"networks/networks.db")
         crs = conn.cursor()
         crs.execute(f"DELETE FROM networks WHERE name = ?", (name,))
