@@ -19,6 +19,40 @@
 
 \refsection{0}
   \datalist[entry]{nty/global//global/global}
+    \entry{MaxActiv1}{article}{}
+      \name{author}{2}{}{%
+        {{hash=84626d9ac3b92aa73f3d4ffb5d530016}{%
+           family={Demin},
+           familyi={D\bibinitperiod},
+           given={Vyacheslav},
+           giveni={V\bibinitperiod}}}%
+        {{hash=7e0bdc994ad276fa1c459f7f36eaba2a}{%
+           family={Nekhaev},
+           familyi={N\bibinitperiod},
+           given={Dmitry},
+           giveni={D\bibinitperiod}}}%
+      }
+      \strng{namehash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \strng{fullhash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \strng{bibnamehash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \strng{authorbibnamehash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \strng{authornamehash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \strng{authorfullhash}{1478518cb3c7c6f48c37c5f890a9f142}
+      \field{sortinit}{D}
+      \field{sortinithash}{c438b3d5d027251ba63f5ed538d98af5}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Frontiers in Neuroinformatics}
+      \field{month}{11}
+      \field{title}{Recurrent Spiking Neural Network Learning Based on a Competitive Maximization of Neuronal Activity}
+      \field{volume}{12}
+      \field{year}{2018}
+      \field{pages}{79}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3389/fninf.2018.00079
+      \endverb
+    \endentry
     \entry{MaxActiv2}{inbook}{}
       \name{author}{2}{}{%
         {{hash=7e0bdc994ad276fa1c459f7f36eaba2a}{%
@@ -178,7 +212,6 @@
       \endverb
     \endentry
   \enddatalist
-  \missing{MaxActiv1}
 \endrefsection
 \endinput
 
