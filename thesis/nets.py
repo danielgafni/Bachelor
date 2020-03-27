@@ -1,4 +1,3 @@
-import datetime
 import math
 import hashlib
 import json
@@ -15,6 +14,7 @@ import torch
 from IPython import display, get_ipython
 from PIL import Image
 from plotly.subplots import make_subplots
+from _plotly_utils.colors.qualitative import Plotly as colors
 from sklearn.linear_model import SGDClassifier
 from sklearn.metrics import confusion_matrix
 from torchvision import transforms
@@ -1454,14 +1454,14 @@ class AbstractSNN:
                     subplot_voltage = go.Scatter(
                         x=list(range(self.time_max)),
                         y=voltage,
-                        line=dict(color="blue"),
+                        line=dict(color=colors[0]),
                         opacity=1,
                     )
                     subplot_spikes = go.Scatter(
                         x=spike_timings,
                         y=voltage[spike_timings],
                         mode="markers",
-                        marker=dict(color="red"),
+                        marker=dict(color=colors[1]),
                         opacity=1,
                     )
 
@@ -1579,13 +1579,13 @@ class AbstractSNN:
                     )
 
                 subplot_voltage = go.Scatter(
-                    x=list(range(self.time_max)), y=v, line=dict(color="blue")
+                    x=list(range(self.time_max)), y=v, line=dict(color=colors[0]), mode='lines'
                 )
                 subplot_spikes = go.Scatter(
                     x=spike_timings,
                     y=v[spike_timings],
                     mode="markers",
-                    marker=dict(color="red"),
+                    marker=dict(color=colors[1]),
                 )
 
                 fig = go.Figure()
@@ -2910,14 +2910,14 @@ class FC_SNN(AbstractSNN):
             voltage_plot = go.Scatter(
                 x=list(range(self.time_max)),
                 y=voltage,
-                line=dict(color="blue"),
+                line=dict(color=colors[0]),
                 opacity=1,
             )
             spike_plot = go.Scatter(
                 x=spike_timings,
                 y=voltage[spike_timings],
                 mode="markers",
-                marker=dict(color="red"),
+                marker=dict(color=colors[1]),
                 opacity=1,
             )
 
@@ -3118,14 +3118,14 @@ def plot_STDP(A_pos, A_neg, tau_pos, tau_neg):
     fig.add_scatter(
         x=t_neg,
         y=dw_neg,
-        line=dict(color="blue"),
+        line=dict(color=colors[0]),
         name="Negative update",
         line_shape="spline",
     )
     fig.add_scatter(
         x=t_pos,
         y=dw_pos,
-        line=dict(color="red"),
+        line=dict(color=colors[1]),
         name="Positive update",
         line_shape="spline",
     )
