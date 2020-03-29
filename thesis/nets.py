@@ -148,7 +148,10 @@ class AbstractSNN:
         if not self.c_l:
             self.A_pos = None
             self.A_neg = None
-
+            self.weight_decay = None
+        else:
+            if self.weight_decay is None:
+                self.weight_decay = 0
         self.tau_pos = tau_pos
         self.tau_neg = tau_neg
         self.immutable_name = immutable_name
@@ -2258,15 +2261,15 @@ class LC_SNN(AbstractSNN):
                                 w[fltr1, i, j, fltr2, i, j] = random.random() * self.c_w
                                 mask[fltr1, i, j, fltr2, i, j] = 1
             weight_decay = self.weight_decay
-            if weight_decay == 0:
-                self.weight_decay = None
+            if self.weight_decay == 0:
+                weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
                 nu=[self.A_pos, self.A_neg],
-                weight_decay=self.weight_decay,
+                weight_decay=weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
             )
@@ -2570,15 +2573,16 @@ class C_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
             weight_decay = self.weight_decay
-            if weight_decay == 0:
-                self.weight_decay = None
+            if self.weight_decay is None:
+                weight_decay = 0
+                self.weight_decay = 0
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
                 w=w,
                 update_rule=PostPre,
                 nu=[self.A_pos, self.A_neg],
-                weight_decay=self.weight_decay,
+                weight_decay=weight_decay,
                 wmin=self.c_w_min,
                 wmax=0,
             )
@@ -2783,8 +2787,8 @@ class FC_SNN(AbstractSNN):
             self.connection_YY = Connection(self.output_layer, self.output_layer, w=w)
         else:
             weight_decay = self.weight_decay
-            if weight_decay == 0:
-                self.weight_decay = None
+            if self.weight_decay == 0:
+                weight_decay = None
             self.connection_YY = Connection(
                 self.output_layer,
                 self.output_layer,
