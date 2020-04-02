@@ -56,10 +56,6 @@ else:
     ncols = 100
 
 
-accuracy_methods = [
-    'patch_voting', 'all_voting', 'spikes_first', 'lc'
-    ]
-
 ########################################################################################################################
 ######################################  ABSTRACT NETWORK  ##############################################################
 ########################################################################################################################
@@ -158,7 +154,6 @@ class AbstractSNN:
         self.foldername = foldername
         self.loaded_from_disk = loaded_from_disk
         self.mask_YY = None
-        self.error = None
         self.create_network()
         # for c in self.network.connections:
         #     self.network.connections[c].learning = True
@@ -267,6 +262,19 @@ class AbstractSNN:
                     best_accuracy = self.score[method]["accuracy"]
         return best_accuracy
 
+    @property
+    def error(self):
+        best_accuracy = -1
+        best_method = None
+        for method in self.score.keys():
+            if method == 'lc':
+                continue
+            if self.score[method]["accuracy"] is not None:
+                if self.score[method]["accuracy"] > best_accuracy:
+                    best_accuracy = self.score[method]["accuracy"]
+                    best_method = method
+        return self.score[best_method]['error']
+
     def learning(self, learning_XY, learning_YY=None):
         """
         Controls if XY and YY connections are mutable or not.
@@ -285,6 +293,7 @@ class AbstractSNN:
         :param n_iter: number of training iterations
         :param plot: True - to plot info, False - no plotting.
         :param vis_interval: how often to update plots in seconds.
+        :param interval: interval [n_start, n_stop] of training examples to pass
         """
         if n_iter is None:
             if interval is None:
@@ -672,12 +681,13 @@ class AbstractSNN:
             data, f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
         )
 
-    def calibrate(self, n_iter=None):
+    def calibrate(self, n_iter=None, lc=True):
         """
         Calculate network `self.votes` based on spiking activity.
         Each neuron has a vote for each label. The votes are equal to mean amount of spikes.
         If activity was previously recorded and the weights didn't change since then, saved activity will be used.
         :param n_iter: number of iterations
+        :param lc: if to calibrate linear classifier too
         """
         print("Calibrating network...")
         if n_iter is None:
@@ -719,7 +729,8 @@ class AbstractSNN:
         self.votes = votes
         self.calibrated = True
 
-        self.calibrate_lc(n_iter=n_iter)
+        if lc:
+            self.calibrate_lc(n_iter=n_iter)
 
     def calibrate_lc(self, n_iter=None):
         """
@@ -765,17 +776,15 @@ class AbstractSNN:
         Plots mean votes for top classes.
         :return: plotly.graph_objs.Figure - distribution of votes
         """
-        means = self.votes.sort(0, descending=True).values.mean(
-            axis=list(range(1, len(self.votes.shape)))
-        )
-        stds = self.votes.sort(0, descending=True).values.std(
-            axis=list(range(1, len(self.votes.shape)))
-        )
+        values = self.votes.sort(0, descending=True).values
+        y = values.mean(axis=list(range(1, len(self.votes.shape))))
+        error_y = values.max(1).values.max(1).values.max(1).values - y
+        errorminus_y = y - values.min(1).values.min(1).values.min(1).values
         if fig is None:
             fig = go.Figure(
                 go.Scatter(
-                    y=means,
-                    error_y=dict(array=stds, width=5, visible=True,),
+                    x=list(range(1, 11)), y=y,
+                    error_y=dict(type='data', array=error_y, arrayminus=errorminus_y, width=5, visible=True),
                     mode="markers",
                     marker_size=10,
                 )
@@ -783,14 +792,14 @@ class AbstractSNN:
             fig.update_layout(
                 width=800,
                 height=400,
-                title=go.layout.Title(text="Votes Distribution", xref="paper"),
+                title_text="Votes Distribution",
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(
                     title_text="Top class",
                     tickmode="array",
-                    tickvals=list(range(10)),
+                    tickvals=list(range(1, 11)),
                     ticktext=list(range(1, 11)),
-                    zeroline=False,
+                    # zeroline=False,
                 ),
                 yaxis=go.layout.YAxis(title_text="Mean Vote", zeroline=False),
             )
@@ -804,24 +813,26 @@ class AbstractSNN:
             fig = go.FigureWidget(fig)
             return fig
         else:
-            fig.data[0].y = means
+            fig.data[0].y = y
             fig.data[0].error_y = dict(
-                array=stds, width=5, color="purple", visible=True,
+                type='data', array=error_y, arrayminus=errorminus_y, width=5, color="purple", visible=True,
             )
 
     def calculate_accuracy(
-        self, n_iter=1000, top_n=None, method="patch_voting", to_print=True, all=False
+        self, n_iter=1000, top_n=None, method="patch_voting", to_print=True, all=True
     ):
         """
         Calculate network accuracy.
-        Accuracy is stored in `self.accuracy`, std in `self.error`.
+        Everything is stored in `self.score`.
         All network responses are stored in `self.conf_matrix`.
         :param n_iter: number of iterations
         :param top_n: how many labels can each neuron vote for
         :param method: algorithm to determine class from spikes
+        :param to_print: if to print the result
+        :param all: if to calculate accuracy with all existing methods
         """
         if all:
-            for method in accuracy_methods:
+            for method in self.accuracy_methods:
                 self.calculate_accuracy(n_iter=n_iter, method=method, to_print=to_print, all=False)
             return None
         found_activity = False
@@ -870,7 +881,7 @@ class AbstractSNN:
         error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
 
         if to_print:
-            print(f"Accuracy: {scores.mean()} with std {round(error, 3)}")
+            print(f"Accuracy with {method}: {scores.mean()} with std {round(error, 3)}")
 
         self.conf_matrix = confusion_matrix(y, x)
         self.score[method]["accuracy"] = scores.mean()
@@ -1195,10 +1206,10 @@ class AbstractSNN:
         self.weights_XY = self.get_weights_XY()
         if fig is None:
             fig = go.FigureWidget()
-            fig.add_heatmap(z=self.weights_XY, colorscale="YlOrBr")
+            fig.add_heatmap(z=self.weights_XY, colorscale="YlOrBr", colorbar_title='Weight')
             fig.update_layout(
                 width=800,
-                height=800,
+                height=750,
                 title=go.layout.Title(text="Weights XY", xref="paper"),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(
@@ -1209,7 +1220,7 @@ class AbstractSNN:
                     )
                     + self.weights_XY.shape[0] / self.output_shape / 2,
                     ticktext=[str(i) for i in range(self.output_shape + 1)],
-                    zeroline=False,
+                    zeroline=False, scaleanchor='x', scaleratio=1
                 ),
                 yaxis=go.layout.YAxis(
                     title_text="Neuron Index",
@@ -1219,7 +1230,7 @@ class AbstractSNN:
                     )
                     + self.weights_XY.shape[0] / self.output_shape / 2,
                     ticktext=[str(i) for i in range(self.output_shape + 1)],
-                    zeroline=False,
+                    zeroline=False, scaleanchor='x', scaleratio=1
                 ),
             )
             return fig
@@ -1235,11 +1246,11 @@ class AbstractSNN:
         self.weights_YY = self.get_weights_YY()
         if fig_weights_YY is None:
             fig_weights_YY = go.FigureWidget()
-            fig_weights_YY.add_heatmap(z=self.weights_YY, colorscale="YlOrBr")
+            fig_weights_YY.add_heatmap(z=self.weights_YY, colorscale="YlOrBr", colorbar_title='Weight')
 
             fig_weights_YY.update_layout(
                 width=800,
-                height=800,
+                height=750,
                 title=go.layout.Title(text="Weights YY", xref="paper"),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(
@@ -1250,7 +1261,7 @@ class AbstractSNN:
                     )
                     + self.weights_YY.shape[0] / self.n_filters / 2,
                     ticktext=[str(i) for i in range(self.n_filters + 1)],
-                    zeroline=False,
+                    zeroline=False, scaleanchor='x', scaleratio=1, constrain="domain"
                 ),
                 yaxis=go.layout.YAxis(
                     title_text="Neuron Index",
@@ -1260,12 +1271,27 @@ class AbstractSNN:
                     )
                     + self.weights_YY.shape[1] / self.n_filters / 2,
                     ticktext=[str(i) for i in range(self.n_filters + 1)],
-                    zeroline=False,
+                    zeroline=False, scaleanchor='x', scaleratio=1, constrain="domain"
                 ),
             )
             return fig_weights_YY
         else:
             fig_weights_YY.data[0].z = self.weights_YY
+
+    def plot_votes(self, fig=None):
+        if fig is None:
+            fig = go.Figure(go.Heatmap(z=self.votes.view(10, -1), colorscale='YlOrBr', colorbar_title='Vote'),
+                            layout_title_text='Votes',
+                            layout_xaxis_title_text='Y neuron index',
+                            layout_yaxis_title_text='Label',
+                            layout_yaxis_tickvals=list(range(10)),
+                            layout_yaxis_ticktext=list(range(10)),
+                            )
+            fig = go.FigureWidget(fig)
+            return go.FigureWidget(fig)
+        else:
+            fig.data[0].z = self.votes.view(10, -1)
+        return fig
 
     def plot_spikes_Y(self, fig_spikes=None):
         """
@@ -1396,15 +1422,15 @@ class AbstractSNN:
                 ].view(k1, k2)
 
                 fig1.add_trace(
-                    go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorscale="YlOrBr",),
+                    go.Heatmap(z=filter_.flip(0), zmin=0, zmax=1, colorbar_title='Weight',
+                               coloraxis='coloraxis'),
                     row=patch_number // self.conv_size + 1,
                     col=patch_number % self.conv_size + 1,
                 )
 
-            fig1.update_layout(
-                height=800,
-                width=800,
-                title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0),
+            fig1.update_layout(coloraxis=dict(colorscale='YlOrBr'), coloraxis_colorbar_title='Weight',
+                               height=800, width=800,
+                               title=go.layout.Title(text="Best Y neurons weights", xref="paper", x=0)
             )
             fig1 = go.FigureWidget(fig1)
         else:
@@ -1458,25 +1484,27 @@ class AbstractSNN:
                         x=list(range(self.time_max)),
                         y=voltage,
                         line=dict(color=colors[0]),
-                        opacity=1,
+                        opacity=1, legendgroup='Voltage'
                     )
                     subplot_spikes = go.Scatter(
                         x=spike_timings,
                         y=voltage[spike_timings],
                         mode="markers",
                         marker=dict(color=colors[1]),
-                        opacity=1,
+                        opacity=1, legendgroup='Spikes'
                     )
 
                     fig2.add_trace(
                         subplot_voltage,
                         row=patch_number // self.conv_size + 1,
                         col=patch_number % self.conv_size + 1,
+
                     )
                     fig2.add_trace(
                         subplot_spikes,
                         row=patch_number // self.conv_size + 1,
                         col=patch_number % self.conv_size + 1,
+
                     )
 
                 for row in range(self.conv_size):
@@ -1485,9 +1513,8 @@ class AbstractSNN:
                         fig2.update_yaxes(
                             title_text="Voltage", row=row + 1, col=col + 1
                         )
-                fig2.update_layout(
+                fig2.update_layout(showlegend=False,
                     title_text="Best Y neurons voltages",
-                    showlegend=False,
                     height=1000,
                     width=1000,
                 )
@@ -2108,6 +2135,10 @@ class AbstractSNN:
 
 
 class LC_SNN(AbstractSNN):
+    accuracy_methods = [
+        'patch_voting', 'all_voting', 'spikes_first', 'lc'
+        ]
+
     def __init__(
         self,
         mean_weight=0.4,
@@ -2440,17 +2471,6 @@ class LC_SNN(AbstractSNN):
         else:
             fig_spikes.data[0].z = spikes[active_spikes_indices, :]
 
-    def plot_votes(self):
-        fig = go.Figure(go.Heatmap(z=self.votes.view(10, -1), colorscale='YlOrBr'),
-                        layout_title_text='Votes',
-                        layout_xaxis_title_text='Y neuron index',
-                        layout_yaxis_title_text='Label',
-                        layout_yaxis_tickvals=list(range(10)),
-                        layout_yaxis_ticktext=list(range(10)),
-                        )
-        fig = go.FigureWidget(fig)
-        return fig
-
     def location_to_index(self, location):
         shape = self.network.connections[('Y', 'Y')].w.size(1)
         return location[0] * shape ** 2 + location[1] * shape + location[2]
@@ -2468,6 +2488,10 @@ class LC_SNN(AbstractSNN):
 
 
 class C_SNN(AbstractSNN):
+    accuracy_methods = [
+        'patch_voting', 'all_voting', 'lc'
+        ]
+
     def __init__(
         self,
         mean_weight=0.4,
@@ -2618,17 +2642,15 @@ class C_SNN(AbstractSNN):
             spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
         if method == "patch_voting":
-            try:
-                res = spikes * self.votes
-            except:
-                raise TypeError(
-                    "Votes and spikes shape does not match. The network must be recalibrated."
-                )
+            res = spikes * self.votes
             res = res.max(1).values.sum(axis=[1, 2])
 
         elif method == "all_voting":
             res = spikes * self.votes.view([10] + list(spikes.shape))
             res = res.sum(axis=[1, 2, 3])
+
+        elif method == "lc":
+            return self.classifier.predict([spikes.flatten().numpy()])
 
         else:
             raise NotImplementedError(
@@ -2682,6 +2704,10 @@ class C_SNN(AbstractSNN):
 
 
 class FC_SNN(AbstractSNN):
+    accuracy_methods = [
+        'patch_voting', 'all_voting', 'lc'
+        ]
+
     def __init__(
         self,
         mean_weight=0.4,
@@ -3043,7 +3069,7 @@ class FC_SNN(AbstractSNN):
                 ),
                 margin={"l": 20, "r": 20, "b": 20, "t": 40, "pad": 4},
                 xaxis=go.layout.XAxis(title_text="Weight",),
-                yaxis=go.layout.YAxis(title_text="Quantity", zeroline=False,),
+                yaxis=go.layout.YAxis(title_text="N", zeroline=False,),
             )
             fig = go.FigureWidget(fig)
             return w_comp, fig
@@ -3093,6 +3119,8 @@ def plot_image(image, fig=None):
             width=width,
             height=height,
             title=go.layout.Title(text="Image", xref="paper", x=0),
+            xaxis=dict(scaleanchor='x', scaleratio=1, constrain="domain"),
+            yaxis=dict(scaleanchor='x', scaleratio=1, constrain="domain")
         )
         fig = go.FigureWidget(fig)
         return fig
@@ -3104,13 +3132,13 @@ def plot_STDP(A_pos, A_neg, tau_pos, tau_neg):
     layout = go.Layout(
         height=500,
         width=800,
-        xaxis=dict(zeroline=True, zerolinecolor="#0f1e31"),
-        yaxis=dict(zeroline=True, zerolinecolor="#0f1e31"),
+        xaxis=dict(zeroline=True, zerolinecolor="#002c75"),
+        yaxis=dict(zeroline=True, zerolinecolor="#002c75"),
         legend=dict(
             font=dict(size=12, color="black"),
-            bgcolor="rgba(25,211,243,0.2)",
+            bgcolor="rgba(25,211,243,0.5)",
             bordercolor="Black",
-            borderwidth=2,
+            borderwidth=1,
         ),
     )
     t_neg = np.linspace(-100, 0, 100)

@@ -21,20 +21,40 @@
 \defcounter {refsection}{0}\relax 
 \contentsline {subsection}{\numberline {2.4}Алгоритмы обучения спайковых нейронных сетей}{6}{subsection.2.4}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {2.5}Современные реализации спайковых нейронных}{6}{subsection.2.5}%
+\contentsline {subsubsection}{\numberline {2.4.1}STDP}{6}{subsubsection.2.4.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {3}Моделирование обучения спайковой нейронной сети с конкуренцией локальных рецептивных полей}{7}{section.3}%
+\contentsline {subsection}{\numberline {2.5}Современные реализации спайковых нейронных сетей}{7}{subsection.2.5}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.1}Описание задачи классификации}{7}{subsection.3.1}%
+\contentsline {section}{\numberline {3}Моделирование обучения спайковой нейронной сети с конкуренцией локальных рецептивных полей}{8}{section.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.2}Особенности архитектуры}{7}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.1}Описание задачи классификации}{8}{subsection.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.3}Сравнение эффективности операции свертки и локального рецептивного поля}{8}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.2}Особенности архитектуры}{8}{subsection.3.2}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.4}Обучение связей конкуренции спайковой нейронной сети}{10}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.3}Обучение связей $XY$}{9}{subsection.3.3}%
 \defcounter {refsection}{0}\relax 
-\contentsline {subsection}{\numberline {3.5}Выводы}{10}{subsection.3.5}%
+\contentsline {subsubsection}{\numberline {3.3.1}Интерпретация активности спайковой нейронной сети}{10}{subsubsection.3.3.1}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {4}Заключение}{11}{section.4}%
+\contentsline {paragraph}{Калибровка голосов}{10}{section*.8}%
 \defcounter {refsection}{0}\relax 
-\contentsline {section}{\numberline {5}Благодарности}{12}{section.5}%
+\contentsline {paragraph}{Общее голосование}{11}{section*.10}%
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Голосование патчей}{11}{section*.11}%
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Отбор по спайкам}{11}{section*.12}%
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Линейный классификатор}{11}{section*.13}%
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Оценка алгоритма интерпретации}{11}{section*.14}%
+\defcounter {refsection}{0}\relax 
+\contentsline {paragraph}{Сравнение алгоритмов интерпретации активности сети}{12}{section*.15}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.4}Сравнение эффективности операции свертки и локального рецептивного поля}{12}{subsection.3.4}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.5}Обучение связей $YY$ (конкуренции)}{13}{subsection.3.5}%
+\defcounter {refsection}{0}\relax 
+\contentsline {subsection}{\numberline {3.6}Выводы}{14}{subsection.3.6}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {4}Заключение}{15}{section.4}%
+\defcounter {refsection}{0}\relax 
+\contentsline {section}{\numberline {5}Благодарности}{16}{section.5}%
