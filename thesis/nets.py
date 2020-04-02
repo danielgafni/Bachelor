@@ -613,11 +613,11 @@ class AbstractSNN:
         calibration_dataloader = torch.utils.data.DataLoader(
             calibratation_dataset, batch_size=1, shuffle=True
         )
-
-        print("Collecting activity data...")
-
         labels = []
         outputs = []
+
+        self.network.reset_()
+        print("Collecting activity data...")
 
         for batch in tqdm(calibration_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
@@ -667,6 +667,7 @@ class AbstractSNN:
 
         labels = []
         outputs = []
+        self.network.reset_()
         print("Collecting activity data...")
         for batch in tqdm(test_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
