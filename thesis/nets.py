@@ -289,10 +289,11 @@ class AbstractSNN:
     def train(self, n_iter=None, plot=False, vis_interval=30, shuffle=True, interval=None):
         """
         The main training function. Simultaneously trains XY and YY connection weights.
-        If plot=True will visualize information about the network. Use in Jupyter Notebook.
+        If plot=True will visualize information about the network. Use in Jupyter.
         :param n_iter: number of training iterations
         :param plot: True - to plot info, False - no plotting.
         :param vis_interval: how often to update plots in seconds.
+        :param shuffle: if to shuffle training data
         :param interval: interval [n_start, n_stop] of training examples to pass
         """
         if n_iter is None:
@@ -395,8 +396,7 @@ class AbstractSNN:
                         self.competition_distribution(fig=fig_competition_distribtion)
                     cnt += 1
 
-            self.network.reset_()
-
+        self.network.reset_()
         self.network.train(False)
         self.train_method = "basic"
 
@@ -832,44 +832,97 @@ class AbstractSNN:
         :param to_print: if to print the result
         :param all: if to calculate accuracy with all existing methods
         """
-        if all:
-            for method in self.accuracy_methods:
-                self.calculate_accuracy(n_iter=n_iter, method=method, to_print=to_print, all=False)
-            return None
-        found_activity = False
-        if not os.path.exists(f"activity//{self.name}//activity_test"):
-            self.collect_activity_test(n_iter)
+        # if all:
+        #     for method in self.accuracy_methods:
+        #         self.calculate_accuracy(n_iter=n_iter, method=method, to_print=to_print, all=False)
+        #     return None
+        # found_activity = False
+        # if not os.path.exists(f"activity//{self.name}//activity_test"):
+        #     self.collect_activity_test(n_iter)
+        #
+        # for name in os.listdir(f"activity//{self.name}//activity_test"):
+        #     if self.network_state in name:
+        #         n_iter_saved = int(name.split("-")[-1])
+        #         if n_iter <= n_iter_saved:
+        #             data = torch.load(f"activity//{self.name}//activity_test//{name}")
+        #             data_outputs = data["outputs"]
+        #             data_labels = data["labels"]
+        #             data_outputs = data_outputs[:n_iter]
+        #             data_labels = data_labels[:n_iter]
+        #             data = {"outputs": data_outputs, "labels": data_labels}
+        #             found_activity = True
+        #             break
+        #
+        # if not found_activity:
+        #     self.collect_activity_test(n_iter=n_iter)
+        #     data = torch.load(
+        #         f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
+        #     )
+        #
+        # x = []
+        # y = []
+        # print("Calculating predictions...")
+        # for sum_spikes, label in tqdm(
+        #     (zip(data["outputs"], data["labels"])), ncols=ncols, total=n_iter
+        # ):
+        #     prediction = self.class_from_spikes(
+        #         top_n=top_n, method=method, spikes=sum_spikes
+        #     )[0].item()
+        #     x.append(prediction)
+        #     y.append(label)
+        #
+        # scores = []
+        # for i in range(len(x)):
+        #     if y[i] == x[i]:
+        #         scores.append(1)
+        #     else:
+        #         scores.append(0)
+        #
+        # scores = np.array(scores)
+        # error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
+        #
+        # if to_print:
+        #     print(f"Accuracy with {method}: {scores.mean()} with std {round(error, 3)}")
+        #
+        # self.conf_matrix = confusion_matrix(y, x)
+        # self.score[method]["accuracy"] = scores.mean()
+        # self.score[method]["error"] = error
+        # self.score[method]["n_iter"] = n_iter
 
-        for name in os.listdir(f"activity//{self.name}//activity_test"):
-            if self.network_state in name:
-                n_iter_saved = int(name.split("-")[-1])
-                if n_iter <= n_iter_saved:
-                    data = torch.load(f"activity//{self.name}//activity_test//{name}")
-                    data_outputs = data["outputs"]
-                    data_labels = data["labels"]
-                    data_outputs = data_outputs[:n_iter]
-                    data_labels = data_labels[:n_iter]
-                    data = {"outputs": data_outputs, "labels": data_labels}
-                    found_activity = True
-                    break
-
-        if not found_activity:
-            self.collect_activity_test(n_iter=n_iter)
-            data = torch.load(
-                f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
+        test_dataset = MNIST(
+            PoissonEncoder(time=self.time_max, dt=self.dt),
+            None,
+            ".//MNIST",
+            download=False,
+            train=False,
+            transform=transforms.Compose([
+                transforms.CenterCrop(self.crop),
+                transforms.ToTensor(),
+                transforms.Lambda(lambda x: x * self.intensity)
+                ])
             )
-
+        self.network.reset_()
+        if top_n is None:
+            top_n = 10
+        if not self.calibrated:
+            print('The network is not calibrated!')
+            return None
+        self.network.train(False)
+        test_dataloader = torch.utils.data.DataLoader(
+            test_dataset, batch_size=1, shuffle=True)
         x = []
         y = []
-        print("Calculating predictions...")
-        for sum_spikes, label in tqdm(
-            (zip(data["outputs"], data["labels"])), ncols=ncols, total=n_iter
-        ):
-            prediction = self.class_from_spikes(
-                top_n=top_n, method=method, spikes=sum_spikes
-            )[0].item()
-            x.append(prediction)
+        for i, batch in tqdm(list(zip(range(n_iter), test_dataloader)), ncols=100):
+            inpts = {"X": batch["encoded_image"].transpose(0, 1)}
+            self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
+            # self._spikes = {
+            #     "Y": self.spikes["Y"].get("s").view(self.time_max, -1),
+            #     }
+            label = batch['label'].item()
+            prediction = self.class_from_spikes(top_n=top_n, method=method)
+            x.append(prediction[0].item())
             y.append(label)
+            self.network.reset_()
 
         scores = []
         for i in range(len(x)):
@@ -880,7 +933,6 @@ class AbstractSNN:
 
         scores = np.array(scores)
         error = np.sqrt(scores.mean() * (1 - scores.mean()) / n_iter)
-
         if to_print:
             print(f"Accuracy with {method}: {scores.mean()} with std {round(error, 3)}")
 
