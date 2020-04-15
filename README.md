@@ -92,17 +92,15 @@ As the figures above show, Locally Connected networks can achieve around 14% bet
 
 * Compare to a network with trainable competition weights. Right now I'm searching for good training parameters.
 
+# Installation
+
+To reproduce my results download this repository and install all required packages with [conda](https://www.anaconda.com/distribution/). You can change the name of the environment in the first line of the `environment.yml` file. The default name is bachelor_danielgafni.
+
+```shell
+conda env create -f environment.yml
+```
+
 # Usage
-
-To reproduce my results download this repository and install all required packages.
-
-Install PyTorch with Anaconda with the command from the [official website](https://pytorch.org/).
-
-Then run
-
-```
-pip install -r requirements.txt
-```
 
 All my code is located in the **thesis** directory.
 
@@ -114,7 +112,12 @@ An example Jupyter Notebook can be found in the repository.
 
 Run the following code in Jupyter Notebook. The notebook must be located at the root of the project.
 
-## Basic imports
+```
+activate bachelor_danielgafni
+jupyter notebook
+```
+
+##  Basic imports
 
 ```python
 from thesis.nets import *
