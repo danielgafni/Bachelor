@@ -1,0 +1,1 @@
+{"patch_voting": {"accuracy": 0.6884, "error": 0.0046314731997497294, "n_iter": 10000}, "all_voting": {"accuracy": 0.7001, "error": 0.004582139129271393, "n_iter": 10000}, "spikes_first": {"accuracy": 0.7063, "error": 0.004554561559579583, "n_iter": 10000}, "lc": {"accuracy": 0.8517, "error": 0.0035539711591401524, "n_iter": 10000}}
