@@ -27,11 +27,11 @@ def view_network(name):
                 parameters = json.load(file)
             with open(f"networks//{name}//score.json", "r") as file:
                 score = json.load(file)
-            if 'old' not in name:
+            if "old" not in name:
                 best_method = "patch_voting"
                 best_accuracy = 0
                 for method in score.keys():
-                    if method == 'lc':
+                    if method == "lc":
                         continue
 
                     if score[method]["accuracy"] is not None:
@@ -135,7 +135,7 @@ def plot_database(
             z=data["accuracy"],
             hovertext=data["name"],
             error_z=dict(
-                array=data["error"], visible=True, thickness=3, width=3, color='blue'
+                array=data["error"], visible=True, thickness=3, width=3, color="blue"
             ),
             mode="markers",
             marker=dict(
@@ -304,18 +304,23 @@ def load_network(name):
     for c in loaded_network.connections:
         net.network.connections[c].w.data = loaded_network.connections[c].w.data
 
+    votes = None
     if os.path.exists(path + "//votes"):
         votes = torch.load(path + "//votes")
         net.calibrated = True
     conf_matrix = None
     if os.path.exists(path + "//confusion_matrix"):
         conf_matrix = torch.load(path + "//confusion_matrix")
+    classifier = None
+    if os.path.exists(path + "//classifier"):
+        classifier = torch.load(path + "//classifier")
     with open(f"networks//{name}//score.json", "r") as file:
         score = json.load(file)
 
     net.votes = votes
     net.score = score
     net.conf_matrix = conf_matrix
+    net.classifier = classifier
 
     net.spikes = {}
     net.spikes["Y"] = Monitor(
