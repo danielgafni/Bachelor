@@ -27,11 +27,11 @@ def view_network(name):
                 parameters = json.load(file)
             with open(f"networks//{name}//score.json", "r") as file:
                 score = json.load(file)
-            if 'old' not in name:
+            if "old" not in name:
                 best_method = "patch_voting"
                 best_accuracy = 0
                 for method in score.keys():
-                    if method == 'lc':
+                    if method == "lc":
                         continue
 
                     if score[method]["accuracy"] is not None:
@@ -135,7 +135,7 @@ def plot_database(
             z=data["accuracy"],
             hovertext=data["name"],
             error_z=dict(
-                array=data["error"], visible=True, thickness=3, width=3, color='blue'
+                array=data["error"], visible=True, thickness=3, width=3, color="blue"
             ),
             mode="markers",
             marker=dict(
