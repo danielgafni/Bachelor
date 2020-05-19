@@ -633,7 +633,6 @@ class AbstractSNN:
 
         self.network.reset_()
         print("Collecting activity data...")
-
         for batch in tqdm(calibration_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -1084,8 +1083,9 @@ class AbstractSNN:
 
                 display.clear_output(wait=True)
                 print(f"Calculating accuracy for label {label}...")
+                test_iter = iter(test_dataloader)
                 for i in tqdm(range(n_iter), ncols=ncols):
-                    batch = next(iter(test_dataloader))
+                    batch = next(test_iter)
 
                     inpts = {"X": batch["encoded_image"].transpose(0, 1)}
                     self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -1692,7 +1692,7 @@ class AbstractSNN:
                 )
                 subplot_spikes = go.Scatter(
                     x=spike_timings,
-                    y=v[spike_timings],
+                    y=[-65 for _ in spike_timings],
                     mode="markers",
                     marker=dict(color=colors[1]),
                 )
@@ -2320,6 +2320,7 @@ class LC_SNN(AbstractSNN):
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
+            refrac=refrac
         )
 
         self.kernel_prod = self.kernel_size ** 2
@@ -2541,7 +2542,7 @@ class LC_SNN(AbstractSNN):
                 for k in range(shape_filters):
                     for l in range(shape_filters):
                         value = (w[l%shape_filters + shape_filters*k, j, i, n, j, i].item() + w[n, j, i, l%shape_filters + shape_filters*k, j, i].item()) / 2
-                        color = f'RGBA(0,0,255,{abs(round(value / max_value, 2))})'
+                        color = f'RGBA(0,0,255,{abs(round(0.1 + 0.7 * value / max_value, 2))})'
                         fig.add_scatter(
                             x=[i * k_ * shape_filters + k_ * (i_ + 0.5) - 0.5, i * k_ * shape_filters + k_ * k + k_/2 - 0.5],
                             y=[j * k_ * shape_filters + k_ * (j_ + 0.5) - 0.5, j * k_ * shape_filters + k_ * l + k_/2 - 0.5],
