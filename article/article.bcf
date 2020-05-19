@@ -2182,10 +2182,17 @@
     <bcf:datasource type="file" datatype="bibtex">lit.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">pmlr-v28-wan13</bcf:citekey>
-    <bcf:citekey order="2">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="3">MaxActiv2</bcf:citekey>
-    <bcf:citekey order="4">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="1">hardware1</bcf:citekey>
+    <bcf:citekey order="2">hardware2</bcf:citekey>
+    <bcf:citekey order="3">pmlr-v28-wan13</bcf:citekey>
+    <bcf:citekey order="4">ManyParams</bcf:citekey>
+    <bcf:citekey order="5">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="6">MaxActiv2</bcf:citekey>
+    <bcf:citekey order="7">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="8">hardware1</bcf:citekey>
+    <bcf:citekey order="9">hardware2</bcf:citekey>
+    <bcf:citekey order="10">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="11">STDP</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
