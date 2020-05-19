@@ -275,6 +275,16 @@ class AbstractSNN:
                     best_method = method
         return self.score[best_method]["error"]
 
+    @property
+    def n_parameters(self):
+        """
+        :return: overall weights quantity
+        """
+        n = 0
+        for c in self.network.connections:
+            n += np.prod(self.network.connections[c].w.size())
+        return n
+
     def learning(self, learning_XY, learning_YY=None):
         """
         Controls if XY and YY connections are mutable or not.
@@ -355,7 +365,8 @@ class AbstractSNN:
                 random_index = random.randint(0, self.n_output - 1)
             random_figure = self.plot_neuron_voltage(random_index)
             random_figure.layout.title.text = f"Random Y neuron voltage"
-            display.display(random_figure)
+            if self.voltages:
+                display.display(random_figure)
 
             if self.c_l:
                 #  Plot competitive weights distribution
@@ -1959,9 +1970,9 @@ class AbstractSNN:
                     transforms.CenterCrop(self.crop),
                     transforms.ToTensor(),
                     transforms.Lambda(lambda x: x * self.intensity),
-                ]
-            ),
-        )
+                    ]
+                ),
+            )
         self.network.reset_()
         self.network.train(False)
         label_mask = dataset.targets == label
@@ -2508,6 +2519,37 @@ class LC_SNN(AbstractSNN):
         )
         return weights_XY
 
+    def draw_competitions(self, n):
+        """
+        Draw competition weights between neurons on n an all other channels
+        """
+        w = self.network.connections[('Y', 'Y')].w
+        max_value = torch.abs(w).max().item()
+
+        fig = self.plot_weights_XY()
+        fig.layout.showlegend=False
+        k_ = self.kernel_size
+
+        shape = self.network.connections[("Y", "Y")].w.size(1)
+        shape_filters = int(self.n_filters ** 0.5)
+
+        i_ = n % shape_filters
+        j_ = n // shape_filters
+
+        for i in range(shape):
+            for j in range(shape):
+                for k in range(shape_filters):
+                    for l in range(shape_filters):
+                        value = (w[l%shape_filters + shape_filters*k, j, i, n, j, i].item() + w[n, j, i, l%shape_filters + shape_filters*k, j, i].item()) / 2
+                        color = f'RGBA(0,0,255,{abs(round(value / max_value, 2))})'
+                        fig.add_scatter(
+                            x=[i * k_ * shape_filters + k_ * (i_ + 0.5) - 0.5, i * k_ * shape_filters + k_ * k + k_/2 - 0.5],
+                            y=[j * k_ * shape_filters + k_ * (j_ + 0.5) - 0.5, j * k_ * shape_filters + k_ * l + k_/2 - 0.5],
+                            line=dict(color=color, width=4), mode='lines'
+                            )
+
+        return fig
+
     def get_weights_YY(self):
         """
         Get YY weights in a proper shape to plot them later.
@@ -2676,8 +2718,8 @@ class C_SNN(AbstractSNN):
             wmax=self.wmax,
         )
 
-        w = self.connection_XY.w.view(self.input_layer.n, self.output_layer.n)
-        w *= norm / self.connection_XY.w.sum(0).view(1, -1)
+        # w = self.connection_XY.w.view(self.input_layer.n, self.output_layer.n)
+        # w *= norm / self.connection_XY.w.sum(0).view(1, -1)
 
         # competitive connections
         w = torch.zeros(
@@ -2806,25 +2848,25 @@ class FC_SNN(AbstractSNN):
     accuracy_methods = ["patch_voting", "all_voting", "lc"]
 
     def __init__(
-        self,
-        mean_weight=0.4,
-        c_w=-100.0,
-        time_max=250,
-        crop=20,
-        n_filters=25,
-        intensity=127.5,
-        tau_pos=20.0,
-        tau_neg=20.0,
-        n_iter=0,
-        c_l=False,
-        A_pos=None,
-        A_neg=None,
-        weight_decay=None,
-        immutable_name=False,
-        foldername=None,
-        loaded_from_disk=False,
-        c_w_min=None,
-    ):
+            self,
+            mean_weight=0.4,
+            c_w=-100.0,
+            time_max=250,
+            crop=20,
+            n_filters=25,
+            intensity=127.5,
+            tau_pos=20.0,
+            tau_neg=20.0,
+            n_iter=0,
+            c_l=False,
+            A_pos=None,
+            A_neg=None,
+            weight_decay=None,
+            immutable_name=False,
+            foldername=None,
+            loaded_from_disk=False,
+            c_w_min=None,
+            ):
 
         super().__init__(
             mean_weight=mean_weight,
@@ -3278,8 +3320,3 @@ def plot_STDP(A_pos, A_neg, tau_pos, tau_neg):
     fig = go.FigureWidget(fig)
 
     return fig
-
-
-# TODO: check best 25 filters and 100 filters              1
-# TODO: clamp weights                                      2
-# TODO: C_SNN kernel_size=8 finish gridsearch              3
