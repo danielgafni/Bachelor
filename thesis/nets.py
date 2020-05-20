@@ -2520,12 +2520,14 @@ class LC_SNN(AbstractSNN):
         )
         return weights_XY
 
-    def draw_competitions(self, n):
+    def draw_competitions(self, n, max_comp=None):
         """
         Draw competition weights between neurons on n an all other channels
         """
         w = self.network.connections[('Y', 'Y')].w
-        max_value = torch.abs(w).max().item()
+
+        if max_comp is None:
+            max_comp = torch.abs(w).max().item()
 
         fig = self.plot_weights_XY()
         fig.layout.showlegend=False
@@ -2542,7 +2544,7 @@ class LC_SNN(AbstractSNN):
                 for k in range(shape_filters):
                     for l in range(shape_filters):
                         value = (w[l%shape_filters + shape_filters*k, j, i, n, j, i].item() + w[n, j, i, l%shape_filters + shape_filters*k, j, i].item()) / 2
-                        color = f'RGBA(0,0,255,{abs(round(0.1 + 0.7 * value / max_value, 2))})'
+                        color = f'RGBA(0,0,255,{0.1 + 0.9 * abs(round(value / max_comp, 2))})'
                         fig.add_scatter(
                             x=[i * k_ * shape_filters + k_ * (i_ + 0.5) - 0.5, i * k_ * shape_filters + k_ * k + k_/2 - 0.5],
                             y=[j * k_ * shape_filters + k_ * (j_ + 0.5) - 0.5, j * k_ * shape_filters + k_ * l + k_/2 - 0.5],
