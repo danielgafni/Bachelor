@@ -2183,16 +2183,18 @@
   </bcf:bibdata>
   <bcf:section number="0">
     <bcf:citekey order="1">hardware1</bcf:citekey>
-    <bcf:citekey order="2">hardware2</bcf:citekey>
-    <bcf:citekey order="3">pmlr-v28-wan13</bcf:citekey>
-    <bcf:citekey order="4">ManyParams</bcf:citekey>
-    <bcf:citekey order="5">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="6">MaxActiv2</bcf:citekey>
-    <bcf:citekey order="7">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="8">hardware1</bcf:citekey>
-    <bcf:citekey order="9">hardware2</bcf:citekey>
-    <bcf:citekey order="10">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="11">STDP</bcf:citekey>
+    <bcf:citekey order="1">hardware2</bcf:citekey>
+    <bcf:citekey order="2">pmlr-v28-wan13</bcf:citekey>
+    <bcf:citekey order="3">ManyParams</bcf:citekey>
+    <bcf:citekey order="4">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="4">MaxActiv2</bcf:citekey>
+    <bcf:citekey order="4">hardware_survey</bcf:citekey>
+    <bcf:citekey order="5">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="6">hardware1</bcf:citekey>
+    <bcf:citekey order="6">hardware2</bcf:citekey>
+    <bcf:citekey order="7">neuronmodels</bcf:citekey>
+    <bcf:citekey order="8">STDP</bcf:citekey>
+    <bcf:citekey order="9">saunders2019locally</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
