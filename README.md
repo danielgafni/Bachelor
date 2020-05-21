@@ -1,3 +1,7 @@
+```
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+```
+
 # My bachelor's thesis:
 
 ### Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields
