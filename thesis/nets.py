@@ -1970,9 +1970,9 @@ class AbstractSNN:
                     transforms.CenterCrop(self.crop),
                     transforms.ToTensor(),
                     transforms.Lambda(lambda x: x * self.intensity),
-                    ]
-                ),
-            )
+                ]
+            ),
+        )
         self.network.reset_()
         self.network.train(False)
         label_mask = dataset.targets == label
@@ -2320,7 +2320,7 @@ class LC_SNN(AbstractSNN):
             tc_decay=tc_decay,
             theta_plus=0.05,
             tc_theta_decay=1e6,
-            refrac=refrac
+            refrac=refrac,
         )
 
         self.kernel_prod = self.kernel_size ** 2
@@ -2524,13 +2524,13 @@ class LC_SNN(AbstractSNN):
         """
         Draw competition weights between neurons on n an all other channels
         """
-        w = self.network.connections[('Y', 'Y')].w
+        w = self.network.connections[("Y", "Y")].w
 
         if max_comp is None:
             max_comp = torch.abs(w).max().item()
 
         fig = self.plot_weights_XY()
-        fig.layout.showlegend=False
+        fig.layout.showlegend = False
         k_ = self.kernel_size
 
         shape = self.network.connections[("Y", "Y")].w.size(1)
@@ -2543,13 +2543,27 @@ class LC_SNN(AbstractSNN):
             for j in range(shape):
                 for k in range(shape_filters):
                     for l in range(shape_filters):
-                        value = (w[l%shape_filters + shape_filters*k, j, i, n, j, i].item() + w[n, j, i, l%shape_filters + shape_filters*k, j, i].item()) / 2
-                        color = f'RGBA(0,0,255,{0.1 + 0.9 * abs(round(value / max_comp, 2))})'
+                        value = (
+                            w[
+                                l % shape_filters + shape_filters * k, j, i, n, j, i
+                            ].item()
+                            + w[
+                                n, j, i, l % shape_filters + shape_filters * k, j, i
+                            ].item()
+                        ) / 2
+                        color = f"RGBA(0,0,255,{0.1 + 0.9 * abs(round(value / max_comp, 2))})"
                         fig.add_scatter(
-                            x=[i * k_ * shape_filters + k_ * (i_ + 0.5) - 0.5, i * k_ * shape_filters + k_ * k + k_/2 - 0.5],
-                            y=[j * k_ * shape_filters + k_ * (j_ + 0.5) - 0.5, j * k_ * shape_filters + k_ * l + k_/2 - 0.5],
-                            line=dict(color=color, width=4), mode='lines'
-                            )
+                            x=[
+                                i * k_ * shape_filters + k_ * (i_ + 0.5) - 0.5,
+                                i * k_ * shape_filters + k_ * k + k_ / 2 - 0.5,
+                            ],
+                            y=[
+                                j * k_ * shape_filters + k_ * (j_ + 0.5) - 0.5,
+                                j * k_ * shape_filters + k_ * l + k_ / 2 - 0.5,
+                            ],
+                            line=dict(color=color, width=4),
+                            mode="lines",
+                        )
 
         return fig
 
@@ -2851,25 +2865,25 @@ class FC_SNN(AbstractSNN):
     accuracy_methods = ["patch_voting", "all_voting", "lc"]
 
     def __init__(
-            self,
-            mean_weight=0.4,
-            c_w=-100.0,
-            time_max=250,
-            crop=20,
-            n_filters=25,
-            intensity=127.5,
-            tau_pos=20.0,
-            tau_neg=20.0,
-            n_iter=0,
-            c_l=False,
-            A_pos=None,
-            A_neg=None,
-            weight_decay=None,
-            immutable_name=False,
-            foldername=None,
-            loaded_from_disk=False,
-            c_w_min=None,
-            ):
+        self,
+        mean_weight=0.4,
+        c_w=-100.0,
+        time_max=250,
+        crop=20,
+        n_filters=25,
+        intensity=127.5,
+        tau_pos=20.0,
+        tau_neg=20.0,
+        n_iter=0,
+        c_l=False,
+        A_pos=None,
+        A_neg=None,
+        weight_decay=None,
+        immutable_name=False,
+        foldername=None,
+        loaded_from_disk=False,
+        c_w_min=None,
+    ):
 
         super().__init__(
             mean_weight=mean_weight,
