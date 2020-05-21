@@ -2194,7 +2194,17 @@
     <bcf:citekey order="6">hardware2</bcf:citekey>
     <bcf:citekey order="7">neuronmodels</bcf:citekey>
     <bcf:citekey order="8">STDP</bcf:citekey>
-    <bcf:citekey order="9">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="9">TrueNorth</bcf:citekey>
+    <bcf:citekey order="10">SpiNNaker</bcf:citekey>
+    <bcf:citekey order="11">Loihi</bcf:citekey>
+    <bcf:citekey order="12">Akida</bcf:citekey>
+    <bcf:citekey order="13">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="14">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="15">mnist1</bcf:citekey>
+    <bcf:citekey order="16">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="17">conv1</bcf:citekey>
+    <bcf:citekey order="18">conv2</bcf:citekey>
+    <bcf:citekey order="19">conv3</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="nty">
