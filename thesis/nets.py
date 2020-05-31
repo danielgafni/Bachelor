@@ -215,10 +215,11 @@ class AbstractSNN:
         Hash of network weights.
         :return: returns hash of network weights.
         """
-        state = (
-            self.name + str(self.get_weights_XY()) + str(self.get_weights_YY())
-        ).encode("utf8")
-        return hashlib.sha224(state).hexdigest()
+        hash = hashlib.md5()
+        hash.update(self.name.encode('utf8'))
+        hash.update(self.get_weights_XY().numpy())
+        hash.update(self.get_weights_YY().numpy())
+        return hash.hexdigest()
 
     @property
     def best_voters(self):
@@ -632,7 +633,7 @@ class AbstractSNN:
         outputs = []
 
         self.network.reset_()
-        print("Collecting activity data...")
+        print("Collecting calibration activity data...")
         for batch in tqdm(calibration_dataloader, ncols=ncols):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -687,6 +688,7 @@ class AbstractSNN:
         outputs = []
         labels = []
         self.network.reset_()
+        print('Collecting test activity data...')
         for batch in tqdm(test_dataloader):
             inpts = {"X": batch["encoded_image"].transpose(0, 1)}
             self.network.run(inpts=inpts, time=self.time_max, input_time_dim=1)
@@ -884,7 +886,7 @@ class AbstractSNN:
                 )
             return None
 
-        if not os.path.exists(f"activity//{self.name}//activity_test/"):
+        if not os.path.exists(f"activity//{self.name}//activity"):
             self.collect_activity_calibration(n_iter)
 
         found_activity = False
