@@ -51,14 +51,20 @@
     </requires>
     <requires type="static">
       <file>blx-dm.def</file>
+      <file>biblatex-gost.dbx</file>
+      <file>gost-numeric.dbx</file>
       <file>blx-compat.def</file>
       <file>biblatex.def</file>
-      <file>standard.bbx</file>
-      <file>numeric.bbx</file>
-      <file>numeric.cbx</file>
+      <file>biblatex-gost.def</file>
+      <file>gost-standard.bbx</file>
+      <file>gost-numeric.bbx</file>
+      <file>numeric-comp.cbx</file>
+      <file>gost-numeric.cbx</file>
       <file>biblatex.cfg</file>
       <file>russian.lbx</file>
+      <file>russian-gost.lbx</file>
       <file>english.lbx</file>
+      <file>english-gost.lbx</file>
     </requires>
   </internal>
   <external package="biblatex" priority="5" active="0">
