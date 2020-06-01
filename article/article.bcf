@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<bcf:controlfile version="3.6" bltxversion="3.13a" xmlns:bcf="https://sourceforge.net/projects/biblatex">
+<bcf:controlfile version="3.7" bltxversion="3.14" xmlns:bcf="https://sourceforge.net/projects/biblatex">
   <!-- BIBER OPTIONS -->
   <bcf:options component="biber" type="global">
     <bcf:option type="singlevalued">
@@ -163,7 +163,7 @@
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>sortingtemplatename</bcf:key>
-      <bcf:value>nty</bcf:value>
+      <bcf:value>none</bcf:value>
     </bcf:option>
     <bcf:option type="singlevalued">
       <bcf:key>sortsets</bcf:key>
@@ -1969,17 +1969,15 @@
   <bcf:sortingnamekeytemplate name="global">
     <bcf:keypart order="1">
       <bcf:part type="namepart" order="1" use="1">prefix</bcf:part>
+      <bcf:part type="namepart" order="2">family</bcf:part>
     </bcf:keypart>
     <bcf:keypart order="2">
-      <bcf:part type="namepart" order="1">family</bcf:part>
-    </bcf:keypart>
-    <bcf:keypart order="3">
       <bcf:part type="namepart" order="1">given</bcf:part>
     </bcf:keypart>
-    <bcf:keypart order="4">
+    <bcf:keypart order="3">
       <bcf:part type="namepart" order="1">suffix</bcf:part>
     </bcf:keypart>
-    <bcf:keypart order="5">
+    <bcf:keypart order="4">
       <bcf:part type="namepart" order="1" use="0">prefix</bcf:part>
     </bcf:keypart>
   </bcf:sortingnamekeytemplate>
@@ -2020,6 +2018,7 @@
       <bcf:constant type="list" name="gender">sf,sm,sn,pf,pm,pn,pp</bcf:constant>
       <bcf:constant type="list" name="nameparts">family,given,prefix,suffix</bcf:constant>
       <bcf:constant type="list" name="optiondatatypes">boolean,integer,string,xml</bcf:constant>
+      <bcf:constant type="list" name="multiscriptforms">default,transliteration,transcription,translation</bcf:constant>
     </bcf:constants>
     <bcf:entrytypes>
       <bcf:entrytype>article</bcf:entrytype>
@@ -3255,6 +3254,60 @@
       <bcf:field>prioritycountry</bcf:field>
       <bcf:field>authorcountry </bcf:field>
     </bcf:entryfields>
+    <bcf:multiscriptfields>
+      <bcf:field>abstract</bcf:field>
+      <bcf:field>addendum</bcf:field>
+      <bcf:field>afterword</bcf:field>
+      <bcf:field>annotator</bcf:field>
+      <bcf:field>author</bcf:field>
+      <bcf:field>bookauthor</bcf:field>
+      <bcf:field>booksubtitle</bcf:field>
+      <bcf:field>booktitle</bcf:field>
+      <bcf:field>booktitleaddon</bcf:field>
+      <bcf:field>chapter</bcf:field>
+      <bcf:field>commentator</bcf:field>
+      <bcf:field>editor</bcf:field>
+      <bcf:field>editora</bcf:field>
+      <bcf:field>editorb</bcf:field>
+      <bcf:field>editorc</bcf:field>
+      <bcf:field>foreword</bcf:field>
+      <bcf:field>holder</bcf:field>
+      <bcf:field>institution</bcf:field>
+      <bcf:field>introduction</bcf:field>
+      <bcf:field>issuesubtitle</bcf:field>
+      <bcf:field>issuetitle</bcf:field>
+      <bcf:field>journalsubtitle</bcf:field>
+      <bcf:field>journaltitle</bcf:field>
+      <bcf:field>location</bcf:field>
+      <bcf:field>mainsubtitle</bcf:field>
+      <bcf:field>maintitle</bcf:field>
+      <bcf:field>maintitleaddon</bcf:field>
+      <bcf:field>nameaddon</bcf:field>
+      <bcf:field>note</bcf:field>
+      <bcf:field>organization</bcf:field>
+      <bcf:field>origlanguage</bcf:field>
+      <bcf:field>origlocation</bcf:field>
+      <bcf:field>origpublisher</bcf:field>
+      <bcf:field>origtitle</bcf:field>
+      <bcf:field>part</bcf:field>
+      <bcf:field>publisher</bcf:field>
+      <bcf:field>relatedstring</bcf:field>
+      <bcf:field>series</bcf:field>
+      <bcf:field>shortauthor</bcf:field>
+      <bcf:field>shorteditor</bcf:field>
+      <bcf:field>shorthand</bcf:field>
+      <bcf:field>shortjournal</bcf:field>
+      <bcf:field>shortseries</bcf:field>
+      <bcf:field>shorttitle</bcf:field>
+      <bcf:field>sortname</bcf:field>
+      <bcf:field>sortshorthand</bcf:field>
+      <bcf:field>sorttitle</bcf:field>
+      <bcf:field>subtitle</bcf:field>
+      <bcf:field>title</bcf:field>
+      <bcf:field>titleaddon</bcf:field>
+      <bcf:field>translator</bcf:field>
+      <bcf:field>venue</bcf:field>
+    </bcf:multiscriptfields>
     <bcf:constraints>
       <bcf:entrytype>article</bcf:entrytype>
       <bcf:entrytype>book</bcf:entrytype>
@@ -3471,80 +3524,60 @@
     <bcf:datasource type="file" datatype="bibtex">lit.bib</bcf:datasource>
   </bcf:bibdata>
   <bcf:section number="0">
-    <bcf:citekey order="1">hardware1</bcf:citekey>
-    <bcf:citekey order="2">pmlr-v28-wan13</bcf:citekey>
-    <bcf:citekey order="3">ManyParams</bcf:citekey>
-    <bcf:citekey order="4">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="4">MaxActiv2</bcf:citekey>
-    <bcf:citekey order="4">hardware_survey</bcf:citekey>
-    <bcf:citekey order="5">MNIST</bcf:citekey>
-    <bcf:citekey order="6">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="7">hardware1</bcf:citekey>
-    <bcf:citekey order="7">hardware2</bcf:citekey>
-    <bcf:citekey order="8">neuronmodels</bcf:citekey>
-    <bcf:citekey order="9">STDP</bcf:citekey>
-    <bcf:citekey order="10">TrueNorth</bcf:citekey>
-    <bcf:citekey order="11">SpiNNaker</bcf:citekey>
-    <bcf:citekey order="12">Loihi</bcf:citekey>
-    <bcf:citekey order="13">Akida</bcf:citekey>
-    <bcf:citekey order="14">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="15">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="16">mnist2</bcf:citekey>
-    <bcf:citekey order="17">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="18">conv1</bcf:citekey>
-    <bcf:citekey order="19">conv2</bcf:citekey>
-    <bcf:citekey order="20">conv3</bcf:citekey>
+    <bcf:citekey order="1">STDP</bcf:citekey>
+    <bcf:citekey order="2">Khan_2020</bcf:citekey>
+    <bcf:citekey order="3">Khan_2020</bcf:citekey>
+    <bcf:citekey order="4">Khan_2020</bcf:citekey>
+    <bcf:citekey order="5">hardware1</bcf:citekey>
+    <bcf:citekey order="6">Lee_2020</bcf:citekey>
+    <bcf:citekey order="6">backprop_spiking</bcf:citekey>
+    <bcf:citekey order="7">STDP</bcf:citekey>
+    <bcf:citekey order="8">pmlr-v28-wan13</bcf:citekey>
+    <bcf:citekey order="8">Khan_2020</bcf:citekey>
+    <bcf:citekey order="9">Edwards2015GrowingPF</bcf:citekey>
+    <bcf:citekey order="10">ManyParams</bcf:citekey>
+    <bcf:citekey order="10">Khan_2020</bcf:citekey>
+    <bcf:citekey order="11">STDP</bcf:citekey>
+    <bcf:citekey order="11">pehlevan2019spiking</bcf:citekey>
+    <bcf:citekey order="11">Baldi_2016</bcf:citekey>
+    <bcf:citekey order="12">hardware1</bcf:citekey>
+    <bcf:citekey order="12">hardware2</bcf:citekey>
+    <bcf:citekey order="13">Khan_2020</bcf:citekey>
+    <bcf:citekey order="14">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="14">MaxActiv2</bcf:citekey>
+    <bcf:citekey order="15">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="15">MaxActiv2</bcf:citekey>
+    <bcf:citekey order="15">hardware_survey</bcf:citekey>
+    <bcf:citekey order="16">MNIST</bcf:citekey>
+    <bcf:citekey order="17">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="18">neuronmodels</bcf:citekey>
+    <bcf:citekey order="19">STDP</bcf:citekey>
+    <bcf:citekey order="20">TrueNorth</bcf:citekey>
+    <bcf:citekey order="21">SpiNNaker</bcf:citekey>
+    <bcf:citekey order="22">Loihi</bcf:citekey>
+    <bcf:citekey order="23">Akida</bcf:citekey>
+    <bcf:citekey order="24">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="25">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="26">mnist2</bcf:citekey>
+    <bcf:citekey order="27">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="28">conv1</bcf:citekey>
+    <bcf:citekey order="29">conv2</bcf:citekey>
+    <bcf:citekey order="30">conv3</bcf:citekey>
+    <bcf:citekey order="31">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="32">mnist2</bcf:citekey>
+    <bcf:citekey order="33">mnist2</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
-  <bcf:sortingtemplate name="nty">
+  <bcf:sortingtemplate name="none">
     <bcf:sort order="1">
-      <bcf:sortitem order="1">presort</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="2" final="1">
-      <bcf:sortitem order="1">sortkey</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="3">
-      <bcf:sortitem order="1">heading</bcf:sortitem>
-      <bcf:sortitem order="2">sortname</bcf:sortitem>
-      <bcf:sortitem order="3">author</bcf:sortitem>
-      <bcf:sortitem order="4">editor</bcf:sortitem>
-      <bcf:sortitem order="5">translator</bcf:sortitem>
-      <bcf:sortitem order="6">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="7">maintitle</bcf:sortitem>
-      <bcf:sortitem order="8">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="4">
-      <bcf:sortitem order="1">sorttitle</bcf:sortitem>
-      <bcf:sortitem order="2">maintitle</bcf:sortitem>
-      <bcf:sortitem order="3">title</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="5">
-      <bcf:sortitem order="1">sortyear</bcf:sortitem>
-      <bcf:sortitem order="2">year</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="6">
-      <bcf:sortitem order="1">sortvolume</bcf:sortitem>
-      <bcf:sortitem order="2" pad_side="left" pad_width="4" pad_char="0">volume</bcf:sortitem>
-      <bcf:sortitem literal="1" order="3">0000</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="7">
-      <bcf:sortitem order="1" pad_side="left" pad_width="4" pad_char="0">book</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0000</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="8">
-      <bcf:sortitem order="1" pad_side="left" pad_width="4" pad_char="0">part</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0000</bcf:sortitem>
-    </bcf:sort>
-    <bcf:sort order="9">
-      <bcf:sortitem order="1" pad_side="left" pad_width="4" pad_char="0">issue</bcf:sortitem>
-      <bcf:sortitem literal="1" order="2">0000</bcf:sortitem>
+      <bcf:sortitem order="1">citeorder</bcf:sortitem>
     </bcf:sort>
   </bcf:sortingtemplate>
   <!-- DATALISTS -->
   <bcf:datalist section="0"
-                name="nty/global//global/global"
+                name="none/global//global/global"
                 type="entry"
-                sortingtemplatename="nty"
+                sortingtemplatename="none"
                 sortingnamekeytemplatename="global"
                 labelprefix=""
                 uniquenametemplatename="global"
