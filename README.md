@@ -4,6 +4,8 @@
 
 ### Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields
 
+The thesis in Russian is located at `article/article.pdf`.
+
 # Overview
 
 I work with unsupervised learning on MNIST of Spiking Neural Networks.
