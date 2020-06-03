@@ -3011,41 +3011,31 @@ class FC_SNN(AbstractSNN):
             top_n = 10
 
         if spikes is None:
-            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0)
+            spikes = self.spikes["Y"].get("s").sum(0).squeeze(0).float()
 
-        args = self.votes.argsort(axis=0, descending=True)[0:top_n, :]
-        top_n_votes = torch.zeros(self.votes.shape)
-        for i, top_i in enumerate(args):
-            for j, label in enumerate(top_i):
-                top_n_votes[label, j] = self.votes[label, j]
-        w = self.network.connections[("X", "Y")].w
-        k1, k2 = self.kernel_size, self.kernel_size
-        c1, c2 = self.conv_size, self.conv_size
-        c1sqrt, c2sqrt = int(math.ceil(math.sqrt(c1))), int(math.ceil(math.sqrt(c2)))
-        locations = self.network.connections[("X", "Y")].locations
+        if method == "patch_voting":
+            res = spikes * self.votes
+            res = res.max(1).values
 
-        best_neurons = []
-        votes = torch.zeros(10, self.conv_size ** 2)
-        sum_spikes = torch.zeros(self.conv_size ** 2)
-        for patch_number, filter_number in zip(
-            list(range(self.conv_size ** 2)), self.best_voters.indices
-        ):
-            neuron_num = (
-                filter_number * self.conv_size ** 2
-                + (patch_number // c2sqrt) * c2sqrt
-                + (patch_number % c2sqrt)
-            )
-            filter_ = w[locations[:, patch_number], neuron_num].view(k1, k2)
-            vote = top_n_votes[:, neuron_num]
-            votes[:, patch_number] = vote
-            sum_spikes[patch_number] = spikes.view(self.n_filters, self.conv_size ** 2)[
-                filter_number, patch_number
-            ]
-            best_neurons.append(filter_)
-        res = votes @ sum_spikes
-        res = res.argsort(descending=True)
-        self.label = res[0]
-        return res
+        elif method == "all_voting":
+            res = spikes * self.votes.view([10] + list(spikes.shape))
+            res = res.sum(axis=1)
+
+        elif method == "lc":
+            return self.classifier.predict([spikes.flatten().numpy()])
+
+        else:
+            raise NotImplementedError(
+                f"This voting method [{method}] is not implemented"
+                )
+
+        if res.sum(0).item() == 0:
+            self.label = torch.tensor(-1)
+            return torch.zeros(10).fill_(-1).type(torch.LongTensor)
+        else:
+            res = res.argsort(descending=True)
+            self.label = res[0]
+            return res
 
     def plot_best_voters(self, fig1=None, fig2=None):
         """
