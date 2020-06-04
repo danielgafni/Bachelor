@@ -3560,14 +3560,15 @@
     <bcf:citekey order="25">Akida</bcf:citekey>
     <bcf:citekey order="26">saunders2019locally</bcf:citekey>
     <bcf:citekey order="27">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="28">mnist2</bcf:citekey>
-    <bcf:citekey order="29">MaxActiv1</bcf:citekey>
-    <bcf:citekey order="30">conv1</bcf:citekey>
-    <bcf:citekey order="31">conv2</bcf:citekey>
-    <bcf:citekey order="32">conv3</bcf:citekey>
-    <bcf:citekey order="33">saunders2019locally</bcf:citekey>
-    <bcf:citekey order="34">mnist2</bcf:citekey>
+    <bcf:citekey order="28">saunders2019locally</bcf:citekey>
+    <bcf:citekey order="29">mnist2</bcf:citekey>
+    <bcf:citekey order="30">MaxActiv1</bcf:citekey>
+    <bcf:citekey order="31">conv1</bcf:citekey>
+    <bcf:citekey order="32">conv2</bcf:citekey>
+    <bcf:citekey order="33">conv3</bcf:citekey>
+    <bcf:citekey order="34">saunders2019locally</bcf:citekey>
     <bcf:citekey order="35">mnist2</bcf:citekey>
+    <bcf:citekey order="36">mnist2</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="none">
