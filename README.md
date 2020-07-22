@@ -1,100 +1,50 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-# My bachelor's thesis:
+# Bachelor's thesis
 
-### Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields
+**Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields**
 
-The thesis in Russian is located at `article/article.pdf`.
+The text in Russian is located at `article/article.pdf`.
 
-# Overview
+# Short overview
 
-I work with unsupervised learning on MNIST of Spiking Neural Networks.
+The main topic of this work is unsupervised learning of Spiking Neural Networks. We are using the standard MNIST images classification problem. All the modeling is made with the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library.
 
-I've reproduced the results of this [paper](https://arxiv.org/abs/1904.06269) using the [bindsnet](https://github.com/Hananel-Hazan/bindsnet) library. It is important to read the paper for further understanding.
-
-I have two goals:
+It is important to read this [paper](https://arxiv.org/abs/1904.06269), because we are working on improving the competitive connections from said paper. Therefore, we have two goals:
 
 * Comparison of Locally Connected networks to Convolution and Fully Connected networks (with similar  number of parameters)
-* Finding an efficient way of training inhibitor (competitive) connections and finding out if they positively affect the accuracy.
+* Finding an efficient way of training inhibitor (competitive) connections; studying their influence on the overall accuracy.
 
-Currently I have trained 25- and 100-filter Locally Connected networks. The networks have two layers: X - input, Y - output (hidden layer). The Y neurons with the same receptive fields have competitive (inhibitor) connections between them. These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this work, but I also compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Mean values are presented, n = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters.
+The networks in this work have an input layer (**X**) and one hidden layer (**Y**). **XY** connections architecture is either convolution or locally connected (we also test the fully connected architecture for a baseline). The network has **N** channels - equal groups of convolution or locally connected neurons. **Y** neurons with the same receptive fields also have competitive (inhibitor) connections between them.  
 
-| type    | n\_filters | kernel\_size | accuracy | std    |
-| ------- | ---------- | ------------ | -------- | ------ |
-| LC\_SNN | 100        | 12           | 0.8752   | 0.0090 |
-| LC\_SNN | 100        | 8            | 0.8285   | 0.0021 |
-| LC\_SNN | 25         | 12           | 0.7939   | 0.0038 |
-| LC\_SNN | 25         | 8            | 0.7360   | 0.0103 |
-| C\_SNN  | 100        | 8            | 0.7736   | 0.0188 |
-| C\_SNN  | 25         | 12           | 0.6577   | 0.0067 |
-| C\_SNN  | 25         | 8            | 0.5807   | 0.0117 |
-| FC\_SNN | 100        | 20           | 0.734    | 0.0866 |
+![LCSNN](misc/LCSNN.svg)
 
-I'm currently experimenting with training of YY inhibitory connection. I have some positive results, they will be here soon. 
+These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this study, but we compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Mean values are presented, **N** = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters. **Method 1** is the best voting algorithm, **method 2** is a linear classifier trained on **Y** neurons activity.
 
-I found an interesting way to get good accuracy after training YY. In my method I first lock the YY connection (to some value like -100) and only train XY. Then I clear YY weights, make them zeros, lock XY weights and train YY (the lowest are clamped to some value). The resulting weights look something like this:
+| N    | **Architecture** | **Channels** | **Kernel** | **Parameters** | **Neurons** | **Accuracy with method 1** | **Accuracy with method 2** |
+| ---- | ---------------- | ------------ | ---------- | -------------- | ----------- | -------------------------- | -------------------------- |
+| 1    | LCSNN            | 1000         | 12         | 10287000       | 9000        | 92.3 ± 0.7                 | 95.1 ± 0.5                 |
+| 2    | LCSNN            | 100          | 12         | 218700         | 900         | 87.5 ± 0.9                 | 91.5 ± 0.6                 |
+| 3    | LCSNN            | 100          | 8          | 260800         | 1600        | 82.9 ± 0.6                 | 88.1 ± 0.7                 |
+| 4    | **LCSNN***       | 25           | 12         | 37800          | 225         | 82.3 ± 1.0                 | 82.3 ± 0.6                 |
+| 5    | LCSNN            | 25           | 12         | 37800          | 225         | 80.1 ± 1.0                 | 85.5 ± 0.8                 |
+| 6    | LCSNN            | 25           | 8          | 35200          | 400         | 73.6 ± 1.0                 | 80.3 ± 0.7                 |
+| 7    | CSNN             | 169          | 12         | 255672         | 1521        | 79.2 ± 1.6                 | 85.7 ± 1.4                 |
+| 8    | CSNN             | 81           | 12         | 58464          | 729         | 77.2 ± 1.7                 | 83.1 ± 1.2                 |
+| 9    | CSNN             | 100          | 8          | 158464         | 1600        | 77.4 ± 1.9                 | 82.1 ± 1.3                 |
+| 10   | CSNN             | 25           | 12         | 5544           | 225         | 65.8 ± 0.7                 | 77.1 ± 0.6                 |
+| 11   | CSNN             | 25           | 8          | 9664           | 400         | 63.1 ± 1.2                 | 75.8 ± 0.5                 |
+| 12   | FCSNN            | 100          | 20         | 449100         | 100         | 81.4 ± 0.9                 | 82.1 ± 0.8                 |
 
-![competitive weights](overview/weights_YY_cl.png)
+**\*** network with trained competition connections
 
-Their distribution:
+The table above shows that:
 
-![competition distribution](misc/comp_distr.svg)
+​	1) Locally Connected networks perform better than Convolution networks (for this specific task)
 
-I'm also experimenting with simultaneous training of XY and YY connections. It also improves the accuracy, but my hypothesis right now is that sequential training gives better results.
+​	2) Training the competition connections can increase accuracy (rows 4 and 5)
 
-**Right now I managed to get 1.5% better accuracy when simultaneously training XY and YY connections.**
-
-The networks below don't have their weights YY trained.
-
-Locally Connected networks don't need a lot of training examples:
-
-![Accuracy against number of training iterations](misc/acc-n_iter.svg)
-
-Here are 100-filter Locally Connected weights after 5000 iterations of training:
-
-![Weights XY](overview/weights_XY.png)
-
-The overall accuracy of this network is 0.89. Here is the accuracy distribution between different labels:
-
-![Accuracy distribution](misc//acc_distr.svg)
-
-And here is the confusion matrix:
-
-![Confusion matrix](overview/confusion_matrix.png)
-
-Statistically calculated votes based on mean spiking activity of neurons for each label give us the following  distribution: 
-
-![Votes distribution](misc/votes_distr.svg)
-
-On the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
-
-In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time.
-
-![accuracy-top_n](overview/accuracy-top_n.png)
-
-Here are the results of a gridsearch for Locally Connected networks with 100 filters performed over mean weight per Y neuron and competitive weight parameters:
-
-![gridsearch results](overview/gridsearch-LC_SNN.png)
-
-and [interactive 3D plot](overview/gridsearch-LC_SNN.html) (download the file and open in your browser)
-
-The results for 25 filters (Locally Connected network):
-
-![gridsearch results 25](overview/gridsearch-LC_SNN-25.png)
-
-and [interactive 3D plot](overview/gridsearch-LC_SNN-25.html) 
-
-And the results of gridsearch for 25 filters Convolution Networks:
-
-![gridsearch results](overview/gridsearch-C_SNN.png)
-
-and [interactive 3D plot](overview/gridsearch-C_SNN.html)
-
-As the figures above show, Locally Connected networks can achieve around 14% better accuracy than Convolution Networks with the same number of filters. 
-
-# Work to do
-
-* Compare to a network with trainable competition weights. Right now I'm searching for good training parameters.
+A more accurate English text will be available soon as I'm working on the paper. The Russian version is located at `article/article.pdf`.
 
 # Installation
 
@@ -235,6 +185,50 @@ delete_network(net.name)
 
 Delete `networks/networks.db` and run `thesis.utils.clean_database()`
 
-## Dash Application
+# Some text from an older readme version
 
-I've also made a simple Plotly Dash application which can be used to observe the training process of a network. I'm not updating it very often, so it might be broken at the moment, if so I'll fix it after all the important work is done.
+The following text is here just for some nice illustrations.
+
+Locally Connected networks don't need a lot of training examples:
+
+![Accuracy against number of training iterations](misc/LCSNN_learning_rate.svg)
+
+Here are 100-filter Locally Connected weights after 5000 iterations of training:
+
+![Weights XY](overview/weights_XY.png)
+
+The overall accuracy of this network is 0.89. Here is the accuracy distribution between different labels:
+
+![Accuracy distribution](misc//acc_distr.svg)
+
+And here is the confusion matrix:
+
+![Confusion matrix](overview/confusion_matrix.png)
+
+Statistically calculated votes based on mean spiking activity of neurons for each label give us the following  distribution: 
+
+![Votes distribution](misc/votes_distr.svg)
+
+On the figure above 1, ..., 10 means "best class for the neuron", "second best class for the neuron", .. , "worst class for the neuron".
+
+In the paper I'm reproducing only the top3 classes are used in the voting mechanism. I am using all top10 classes, which a bit improves the accuracy and doesn't take much more time.
+
+![accuracy-top_n](overview/accuracy-top_n.png)
+
+Here are the results of a gridsearch for Locally Connected networks with 100 filters performed over mean weight per Y neuron and competitive weight parameters:
+
+![gridsearch results](overview/gridsearch-LC_SNN.png)
+
+and [interactive 3D plot](overview/gridsearch-LC_SNN.html) (download the file and open in your browser)
+
+The results for 25 filters (Locally Connected network):
+
+![gridsearch results 25](overview/gridsearch-LC_SNN-25.png)
+
+and [interactive 3D plot](overview/gridsearch-LC_SNN-25.html) 
+
+And the results of gridsearch for 25 filters Convolution Networks:
+
+![gridsearch results](overview/gridsearch-C_SNN.png)
+
+and [interactive 3D plot](overview/gridsearch-C_SNN.html)
