@@ -4,7 +4,7 @@
 
 **Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields**
 
-The text in Russian is located at `article/article.pdf`.
+The text in Russian is located at `article/thesis.pdf`.
 
 # Short overview
 
@@ -13,13 +13,16 @@ The main topic of this work is unsupervised learning of Spiking Neural Networks.
 It is important to read this [paper](https://arxiv.org/abs/1904.06269), because we are working on improving the competitive connections from said paper. Therefore, we have two goals:
 
 * Comparison of Locally Connected networks to Convolution and Fully Connected networks (with similar  number of parameters)
+
 * Finding an efficient way of training inhibitor (competitive) connections; studying their influence on the overall accuracy.
+
+   *Note that we don't have a goal of achieving maximum accuracy for this task.*
 
 The networks in this work have an input layer (**X**) and one hidden layer (**Y**). **XY** connections architecture is either convolution or locally connected (we also test the fully connected architecture for a baseline). The network has **N** channels - equal groups of convolution or locally connected neurons. **Y** neurons with the same receptive fields also have competitive (inhibitor) connections between them.  
 
 ![LCSNN](misc/LCSNN.svg)
 
-These connections are defined as a constant negative weight, but can be trained later. Training of these competitive connections to improve accuracy is the main goal of this study, but we compare Locally Connected networks with Convolution networks and Fully Connected networks. Lower are the results of this comparison. Mean values are presented, **N** = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters. **Method 1** is the best voting algorithm, **method 2** is a linear classifier trained on **Y** neurons activity.
+These connections are defined as a constant negative weight, but can be trained later. Lower are the results of the comparison between different network architectures. Mean values are presented, N = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters. **Method 1** is the best voting algorithm, **method 2** is a linear classifier trained on **Y** neurons activity.
 
 | N    | **Architecture** | **Channels** | **Kernel** | **Parameters** | **Neurons** | **Accuracy with method 1** | **Accuracy with method 2** |
 | ---- | ---------------- | ------------ | ---------- | -------------- | ----------- | -------------------------- | -------------------------- |
@@ -102,7 +105,7 @@ Copy the name of a network you want to load.
 net = load_network('01d179e6813f1c54d8e97295259a257c5635f10ee22403b0b975c9ae')
 ```
 
-Network loaded. Now you can check it's behavior:
+Network loaded. Now you can check its behavior:
 
 ```python
 net.feed_label(4, plot=True)
