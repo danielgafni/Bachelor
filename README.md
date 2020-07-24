@@ -24,6 +24,8 @@ The networks in this work have an input layer (**X**) and one hidden layer (**Y*
 
 These connections are defined as a constant negative weight, but can be trained later. Lower are the results of the comparison between different network architectures. Mean values are presented, N = 5. Some of the lower accuracies might be for networks with sub-optimal hyperparameters. **Method 1** is the best voting algorithm, **method 2** is a linear classifier trained on **Y** neurons activity.
 
+LCSNN = Locally Connected Spiking Neural Network, CSNN = Convolution Spiking Neural Network, FCSNN = Fully Connected Spiking Neural Network
+
 | N    | **Architecture** | **Channels** | **Kernel** | **Parameters** | **Neurons** | **Accuracy with method 1** | **Accuracy with method 2** |
 | ---- | ---------------- | ------------ | ---------- | -------------- | ----------- | -------------------------- | -------------------------- |
 | 1    | LCSNN            | 1000         | 12         | 10287000       | 9000        | 92.3 ± 0.7                 | 95.1 ± 0.5                 |
