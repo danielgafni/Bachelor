@@ -298,7 +298,7 @@ class AbstractSNN:
         self.network.connections[("Y", "Y")].learning = learning_YY
 
     def train(
-        self, n_iter=None, plot=False, vis_interval=30, shuffle=True, interval=None
+        self, n_iter=None, plot=False, vis_interval=30, shuffle=True, interval=None, download=False
     ):
         """
         The main training function. Simultaneously trains XY and YY connection weights.
@@ -319,7 +319,7 @@ class AbstractSNN:
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
-            download=False,
+            download=download,
             train=True,
             transform=transforms.Compose(
                 [
@@ -596,7 +596,7 @@ class AbstractSNN:
         """
         pass
 
-    def collect_activity_calibration(self, n_iter=None, shuffle=True):
+    def collect_activity_calibration(self, n_iter=None, shuffle=True, download=False):
         """
         Collect network spiking activity on calibartion dataset and save it to disk. Sum of spikes for each neuron are being recorded.
         :param n_iter: number of iterations
@@ -608,7 +608,7 @@ class AbstractSNN:
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
-            download=False,
+            download=download,
             train=True,
             transform=transforms.Compose(
                 [
@@ -650,7 +650,7 @@ class AbstractSNN:
             data, f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
         )
 
-    def collect_activity_test(self, n_iter=None, shuffle=True):
+    def collect_activity_test(self, n_iter=None, shuffle=True, download=False):
         """
         Collect network spiking activity on test dataset and save it to disk. Sum of spikes for each neuron are being recorded.
         :param n_iter: number of iterations
@@ -664,7 +664,7 @@ class AbstractSNN:
             PoissonEncoder(time=self.time_max, dt=self.dt),
             None,
             ".//MNIST",
-            download=False,
+            download=download,
             train=False,
             transform=transforms.Compose(
                 [
@@ -706,7 +706,7 @@ class AbstractSNN:
             data, f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
         )
 
-    def calibrate(self, n_iter=None, lc=True, shuffle=True):
+    def calibrate(self, n_iter=None, lc=True, shuffle=True, download=False):
         """
         Calculate network `self.votes` based on spiking activity.
         Each neuron has a vote for each label. The votes are equal to mean amount of spikes.
@@ -736,7 +736,7 @@ class AbstractSNN:
             pass
 
         if not found_activity:
-            self.collect_activity_calibration(n_iter=n_iter, shuffle=shuffle)
+            self.collect_activity_calibration(n_iter=n_iter, shuffle=shuffle, download=download)
             data = torch.load(
                 f"activity//{self.name}//activity//{self.network_state}-{n_iter}"
             )
@@ -864,6 +864,7 @@ class AbstractSNN:
         to_print=True,
         all=False,
         shuffle=True,
+        download=False
     ):
         """
         Calculate network accuracy.
@@ -887,7 +888,7 @@ class AbstractSNN:
             return None
 
         if not os.path.exists(f"activity//{self.name}//activity"):
-            self.collect_activity_calibration(n_iter)
+            self.collect_activity_calibration(n_iter, download=download)
 
         found_activity = False
         try:
@@ -909,7 +910,7 @@ class AbstractSNN:
             pass
 
         if not found_activity:
-            self.collect_activity_test(n_iter=n_iter, shuffle=shuffle)
+            self.collect_activity_test(n_iter=n_iter, shuffle=shuffle, download=download)
             data = torch.load(
                 f"activity//{self.name}//activity_test//{self.network_state}-{n_iter}"
             )

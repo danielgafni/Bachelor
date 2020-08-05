@@ -1,4 +1,4 @@
-name: bachelor_danielgafni
+name: bachelor
 channels:
   - pytorch
   - plotly
@@ -122,7 +122,7 @@ dependencies:
   - setuptools=46.1.3=py38h32f6830_0
   - six=1.14.0=py_1
   - sqlite=3.30.1=hfa6e2cd_0
-  - tensorboardx=2.0=py_0
+    - tensorboardx=2.0=py_0
   - terminado=0.8.3=py38h32f6830_1
   - testpath=0.4.4=py_0
   - tk=8.6.10=hfa6e2cd_0
@@ -148,5 +148,6 @@ dependencies:
   - pip:
     - pyqt5-sip==4.19.18
     - pyqtwebengine==5.12.1
+    - spaceopt
 prefix: D:\Programs\Anaconda3\envs\bachelor
 
