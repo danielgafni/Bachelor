@@ -1,0 +1,26 @@
+name: bachelor
+channels:
+  - pytorch
+  - plotly
+  - conda-forge
+  - ravelbio
+  - defaults
+dependencies:
+  - pip
+  - numpy
+  - pandas
+  - scikit-learn
+  - matplotlib
+  - tqdm
+  - pytorch
+  - torchvision
+  - plotly
+  - gym
+  - jupyterlab
+  - ffmpeg
+  - opencv
+  - pyperclip
+  - awscli
+  - cosmos-wfm
+  - pip:
+      - tensorboardX
