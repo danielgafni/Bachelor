@@ -119,7 +119,7 @@ if __name__ == '__main__':
         np.save(f"optimize_awsbatch/parameters/{args.id}-new.npy", new_population)
         print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{args.id}-new.npy"}')
 
-    if args.mode == 'selection':
+    elif args.mode == 'selection':
         df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
 
         population_new_path = f"optimize_awsbatch/parameters/{id}-new.npy"
@@ -162,3 +162,6 @@ if __name__ == '__main__':
 
         np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", population)
         print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
+
+    else:
+        raise NotImplementedError(f"Wrong mode: {args.mode}")
