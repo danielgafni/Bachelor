@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
         new_population = df.population
         np.save(f"optimize_awsbatch/parameters/{args.id}-new.npy", new_population)
-        print(f'New population generated. Path\n{f"optimize_awsbatch/parameters/{args.id}-new.npy"}')
+        print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{args.id}-new.npy"}')
 
     if args.mode == 'selection':
         df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
@@ -128,8 +128,18 @@ if __name__ == '__main__':
                         f"{population_new_path}", "--recursive"])
         population_new = np.load(population_new_path)
 
+        scores_new_path = f"optimize_awsbatch/scores/{id}-new"
+        subprocess.run(["aws", "s3", "cp",
+                        f"s3://danielgafni-personal/bachelor/scores/{id}-new", f"{scores_new_path}", "--recursive"])
+
         scores_old_path = f"optimize_awsbatch/scores/{id}"
-        scores_old = np.load(scores_old_path)
+        scores_old = np.empty(len(population_new))
+        for i in range(len(population_new)):
+            with open(scores_old_path + f"/{i}.json", "r") as file:
+                score = json.load(file)
+                scores_old[i] = score["accuracy"]["patch_voting"]
+        np.save(f"{scores_old_path}.npy", scores_old)
+        subprocess.run(["rm", "-r", scores_old_path])
 
         scores_new_path = f"optimize_awsbatch/scores/{id}-new"
         subprocess.run(["aws", "s3", "cp",
@@ -140,7 +150,7 @@ if __name__ == '__main__':
                 score = json.load(file)
                 scores_new[i] = score["accuracy"]["patch_voting"]
         np.save(f"{scores_new_path}.npy", scores_new)
-        os.remove(scores_new_path)
+        subprocess.run(["rm", "-r", scores_new_path])
 
         df.old_scores = scores_old
         df.old_population = population_old
@@ -151,4 +161,4 @@ if __name__ == '__main__':
         population = df.population
 
         np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", population)
-        print(f'New population generated. Path\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
+        print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
