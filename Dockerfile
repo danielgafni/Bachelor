@@ -14,4 +14,4 @@ RUN apt install -y libgl1-mesa-glx awscli
 
 COPY bindsnet bindsnet/
 COPY thesis thesis/
-COPY optimize-awsbatch/evaluate.py .
+COPY optimize_awsbatch/evaluate.py .

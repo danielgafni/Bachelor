@@ -12,7 +12,7 @@ from cosmos.api import Cosmos
 def evaluate(parameters, out_s3_uri, train, calibrate, test, sleep):
     parameters_bash = json.dumps(parameters).replace('"', "'")
     return f"""
-    python evaluate.py --parameters \"{parameters_bash}\" --train {train} --calibrate {calibrate} --test {test} --id {id}
+    python evaluate.py --parameters \"{parameters_bash}\" --train {train} --calibrate {calibrate} --test {test}
     aws s3 cp score.json {out_s3_uri}
     
     sleep {sleep}
