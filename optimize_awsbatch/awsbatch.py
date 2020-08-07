@@ -132,7 +132,7 @@ def main():
             tau_neg=par[3],
             A_pos=par[4],
             A_neg=par[5],
-            weight_devay=par[6],
+            weight_decay=par[6],
             n_filters=25,
             time_max=250,
             crop=20,
