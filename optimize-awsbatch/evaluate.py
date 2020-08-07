@@ -62,13 +62,10 @@ def main():
         raise NotImplementedError
     net.train(args.train, download=True)
     net.calibrate(args.calibrate)
-    net.calculate_accuracy(args.test)
+    net.calculate_accuracy(args.test, all=True)
 
     with open("score.json", "w") as file:
         json.dump(net.score, file)
-
-    with open("name.txt", "w") as file:
-        file.write(f"{net.name}.json")
 
 
 if __name__ == "__main__":

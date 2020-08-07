@@ -4,18 +4,16 @@ import subprocess as sp
 import sys
 import json
 import hashlib
+import numpy as np
 
 from cosmos.api import Cosmos
 
 
 def evaluate(parameters, out_s3_uri, train, calibrate, test, sleep):
     parameters_bash = json.dumps(parameters).replace('"', "'")
-    out_s3_uri = out_s3_uri.split('=')[0]
     return f"""
-    python evaluate.py --parameters \"{parameters_bash}\" --train {train} --calibrate {calibrate} --test {test}
-    NAME=$(cat name.txt)
-    echo {out_s3_uri}/$NAME
-    aws s3 cp score.json {out_s3_uri}/$NAME
+    python evaluate.py --parameters \"{parameters_bash}\" --train {train} --calibrate {calibrate} --test {test} --id {id}
+    aws s3 cp score.json {out_s3_uri}
     
     sleep {sleep}
     """
@@ -124,15 +122,33 @@ def main():
     # os.chdir("analysis_output/ex1")
     workflow = cosmos.start(f"Evaluate_{args.id}", restart=True, skip_confirm=True)
 
-    with open(f"optimize_awsbatch/parameters_to_evaluate-{args.id}.json", "r") as file:
-        parameters_to_evaluate = json.load(file)
+    parameters = np.load(f"optimize_awsbatch/parameters/{args.id}.npy")
 
-    for i, parameters in enumerate(parameters_to_evaluate):
+    for i, par in enumerate(parameters):
+        parameters = dict(
+            mean_weight=par[0],
+            c_w=par[1],
+            tau_pos=par[2],
+            tau_neg=par[3],
+            A_pos=par[4],
+            A_neg=par[5],
+            weight_devay=par[6],
+            n_filters=25,
+            time_max=250,
+            crop=20,
+            kernel_size=16,
+            stride=4,
+            intensity=127.5,
+            c_w_min=None,
+            c_l=True,
+            network_type="LC_SNN",
+
+        )
         workflow.add_task(
             func=evaluate,
             params=dict(
                 parameters=parameters,
-                out_s3_uri=f"{args.out_s3_uri}/scores/{args.id}={i}",
+                out_s3_uri=f"{args.out_s3_uri}/scores/{args.id}/{i}.json",
                 sleep=args.sleep,
                 train=args.train,
                 calibrate=args.calibrate,
