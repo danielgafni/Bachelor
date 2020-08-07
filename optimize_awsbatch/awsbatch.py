@@ -81,14 +81,14 @@ def parse_args():
         "--calibrate",
         type=int,
         help="number of calibration iterations",
-        default=False,
+        default=10000,
         required=False,
     )
     p.add_argument(
         "--test",
         type=int,
         help="number of test iterations",
-        default=5000,
+        default=10000,
         required=False,
     )
 
