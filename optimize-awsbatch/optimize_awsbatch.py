@@ -124,7 +124,7 @@ def main():
     # os.chdir("analysis_output/ex1")
     workflow = cosmos.start(f"Evaluate_{args.id}", restart=True, skip_confirm=True)
 
-    with open(f"parameters_to_evaluate-{args.id}.json", "r") as file:
+    with open(f"optimize_awsbatch/parameters_to_evaluate-{args.id}.json", "r") as file:
         parameters_to_evaluate = json.load(file)
 
     for i, parameters in enumerate(parameters_to_evaluate):

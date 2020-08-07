@@ -28,7 +28,7 @@ search_space = dict(
 
 space = SpaceOpt(search_space=search_space, target_name='accuracy', objective='min')
 
-parameters_to_evaluate = space.get_random(num_spoints=10)
+parameters_to_evaluate = space.get_random(num_spoints=3)
 for i in range(len(parameters_to_evaluate)):
     parameters_to_evaluate[i]["c_w_min"] = None
     parameters_to_evaluate[i]["c_l"] = True
@@ -38,5 +38,5 @@ for i in range(len(parameters_to_evaluate)):
     parameters_to_evaluate[i]["n_iter"] = 0
     parameters_to_evaluate[i]["network_type"] = "LC_SNN"
 
-with open('../parameters_to_evaluate-0.json', 'w') as file:
+with open('parameters_to_evaluate-test.json', 'w') as file:
     json.dump(parameters_to_evaluate, file)
