@@ -1,6 +1,5 @@
 import argparse
 import json
-import sys
 
 from thesis.nets import LC_SNN
 
