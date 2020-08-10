@@ -122,17 +122,17 @@ if __name__ == '__main__':
     elif args.mode == 'selection':
         df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
 
-        population_new_path = f"optimize_awsbatch/parameters/{id}-new.npy"
+        population_new_path = f"optimize_awsbatch/parameters/{args.id}-new.npy"
         subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/parameters/{id}.npy",
+                        f"s3://danielgafni-personal/bachelor/parameters/{args.id}.npy",
                         f"{population_new_path}", "--recursive"])
         population_new = np.load(population_new_path)
 
-        scores_new_path = f"optimize_awsbatch/scores/{id}-new"
+        scores_new_path = f"optimize_awsbatch/scores/{args.id}-new"
         subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/scores/{id}-new", f"{scores_new_path}", "--recursive"])
+                        f"s3://danielgafni-personal/bachelor/scores/{args.id}-new", f"{scores_new_path}", "--recursive"])
 
-        scores_old_path = f"optimize_awsbatch/scores/{id}"
+        scores_old_path = f"optimize_awsbatch/scores/{args.id}"
         scores_old = np.empty(len(population_new))
         for i in range(len(population_new)):
             with open(scores_old_path + f"/{i}.json", "r") as file:
@@ -141,9 +141,9 @@ if __name__ == '__main__':
         np.save(f"{scores_old_path}.npy", scores_old)
         subprocess.run(["rm", "-r", scores_old_path])
 
-        scores_new_path = f"optimize_awsbatch/scores/{id}-new"
+        scores_new_path = f"optimize_awsbatch/scores/{args.id}-new"
         subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/scores/{id}-new", f"{scores_new_path}", "--recursive"])
+                        f"s3://danielgafni-personal/bachelor/scores/{args.id}-new", f"{scores_new_path}", "--recursive"])
         scores_new = np.empty(len(population_new))
         for i in range(len(population_new)):
             with open(scores_new_path+f"/{i}.json", "r") as file:
