@@ -148,7 +148,7 @@ if __name__ == '__main__':
         for i in range(len(population_new)):
             with open(scores_new_path+f"/{i}.json", "r") as file:
                 score = json.load(file)
-                scores_new[i] = score["accuracy"]["patch_voting"]
+                scores_new[i] = score["patch_voting"]["accuracy"]
         np.save(f"{scores_new_path}.npy", scores_new)
         subprocess.run(["rm", "-r", scores_new_path])
 
