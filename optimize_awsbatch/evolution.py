@@ -132,14 +132,8 @@ if __name__ == '__main__':
         subprocess.run(["aws", "s3", "cp",
                         f"s3://danielgafni-personal/bachelor/scores/{args.id}-new", f"{scores_new_path}", "--recursive"])
 
-        scores_old_path = f"optimize_awsbatch/scores/{args.id}"
-        scores_old = np.empty(len(population_new))
-        for i in range(len(population_new)):
-            with open(scores_old_path + f"/{i}.json", "r") as file:
-                score = json.load(file)
-                scores_old[i] = score["patch_voting"]["accuracy"]
-        np.save(f"{scores_old_path}.npy", scores_old)
-        subprocess.run(["rm", "-r", scores_old_path])
+        scores_old_path = f"optimize_awsbatch/scores/{args.id}.npy"
+        scores_old = np.load(scores_old_path)
 
         scores_new_path = f"optimize_awsbatch/scores/{args.id}-new"
         subprocess.run(["aws", "s3", "cp",
@@ -153,6 +147,7 @@ if __name__ == '__main__':
         subprocess.run(["rm", "-r", scores_new_path])
 
         df.old_scores = scores_old
+        df.scores = scores_new
         df.old_population = population_old
         df.population = population_new
 
