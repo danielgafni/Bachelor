@@ -103,69 +103,46 @@ BOUNDS = [(0.2, 0.7), (-200., 0.), (2., 20.), (2., 20.), (-2., 0.), (-2., 0.), (
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser()
-    p.add_argument('--mode', type=str, required=True)
     p.add_argument('--id', type=str, required=True)
-
     args = p.parse_args()
 
     population_old_path = f"optimize_awsbatch/parameters/{args.id}.npy"
     population_old = np.load(population_old_path)
 
-    if args.mode == 'generate':
-        df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
-        df.new_generation()
+    df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
 
-        new_population = df.population
-        np.save(f"optimize_awsbatch/parameters/{args.id}-new.npy", new_population)
-        print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{args.id}-new.npy"}')
+    population = np.load(f"optimize_awsbatch/parameters/{args.id}.npy")
+    scores = np.load(f"optimize_awsbatch/scores/{args.id}.npy")
+    population_mutated = np.load(f"optimize_awsbatch/parameters/{args.id}_.npy")
+    scores_mutated_path = f"optimize_awsbatch/scores/{args.id}_"
+    subprocess.run(["aws", "s3", "cp",
+                    f"s3://danielgafni-personal/bachelor/scores/{args.id}", f"{scores_mutated_path}", "--recursive"])
+    scores_mutated = np.empty(len(population_mutated))
+    for i in range(len(population_mutated)):
+        with open(scores_mutated_path+f"/{i}.json", "r") as file:
+            score = json.load(file)
+            scores_mutated[i] = score["patch_voting"]["accuracy"]
+    np.save(f"{scores_mutated_path}.npy", scores_mutated)
+    subprocess.run(["rm", "-r", scores_mutated_path])
 
-    elif args.mode == 'selection':
-        df = DifferentialEvolution(func=None, bounds=BOUNDS, population=population_old)
+    df.old_scores = scores
+    df.scores = scores_mutated
+    df.old_population = population
+    df.population = population_mutated
 
-        population_new_path = f"optimize_awsbatch/parameters/{args.id}-new.npy"
-        subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/parameters/{args.id}.npy",
-                        f"{population_new_path}", "--recursive"])
-        population_new = np.load(population_new_path)
+    df.selection()
 
-        scores_new_path = f"optimize_awsbatch/scores/{args.id}-new"
-        subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/scores/{args.id}-new", f"{scores_new_path}", "--recursive"])
+    best_population = df.population
+    best_scores = df.scores
 
-        scores_old_path = f"optimize_awsbatch/scores/{args.id}"
-        subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/scores/{args.id}", f"{scores_old_path}",
-                        "--recursive"])
-        scores_old = np.empty(len(population_new))
-        for i in range(len(population_new)):
-            with open(scores_old_path + f"/{i}.json", "r") as file:
-                score = json.load(file)
-                scores_old[i] = score["patch_voting"]["accuracy"]
-        np.save(f"{scores_old_path}.npy", scores_old)
-        subprocess.run(["rm", "-r", scores_old_path])
+    np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", best_population)
+    np.save(f"optimize_awsbatch/scores/{int(args.id) + 1}.npy", best_scores)
 
-        scores_new_path = f"optimize_awsbatch/scores/{args.id}-new"
-        subprocess.run(["aws", "s3", "cp",
-                        f"s3://danielgafni-personal/bachelor/scores/{args.id}-new", f"{scores_new_path}", "--recursive"])
-        scores_new = np.empty(len(population_new))
-        for i in range(len(population_new)):
-            with open(scores_new_path+f"/{i}.json", "r") as file:
-                score = json.load(file)
-                scores_new[i] = score["patch_voting"]["accuracy"]
-        np.save(f"{scores_new_path}.npy", scores_new)
-        subprocess.run(["rm", "-r", scores_new_path])
+    df.new_generation()
+    print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
 
-        df.old_scores = scores_old
-        df.scores = scores_new
-        df.old_population = population_old
-        df.population = population_new
+    new_population = df.population
 
-        df.selection()
-
-        population = df.population
-
-        np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", population)
-        print(f'New population generated. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
-
-    else:
-        raise NotImplementedError(f"Wrong mode: {args.mode}")
+    np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", new_population)
+    print(
+        f'Population mutated. New population saved. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy"}')
