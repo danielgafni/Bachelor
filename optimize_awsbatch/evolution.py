@@ -52,6 +52,8 @@ class DifferentialEvolution:
             genes_to_mutate = np.random.binomial(1, self.rec, size=self.n).astype(np.bool)
             self.population[i][genes_to_mutate] = mutated_vector[genes_to_mutate]
 
+        self.scores = None
+
     def evaluate(self):
         self.old_scores = self.scores.copy()
         for i, vector in enumerate(self.population):
