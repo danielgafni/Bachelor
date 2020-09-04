@@ -148,6 +148,6 @@ if __name__ == '__main__':
 
     new_population = df.population
 
-    np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}.npy", new_population)
+    np.save(f"optimize_awsbatch/parameters/{int(args.id) + 1}_.npy", new_population)
     print(
         f'Population mutated. New population saved. Path:\n{f"optimize_awsbatch/parameters/{int(args.id) + 1}_.npy"}')
