@@ -58,9 +58,12 @@ class DifferentialEvolution:
             self.scores[i] = self.func(vector)
 
     def selection(self):
-        losers = self.scores > self.old_scores
+        losers = self.scores < self.old_scores
         self.population[losers] = self.old_population[losers]
         self.scores[losers] = self.old_scores[losers]
+
+        self.old_population = None
+        self.old_scores = None
 
     def step(self):
         self.new_generation()
