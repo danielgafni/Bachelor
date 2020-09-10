@@ -120,12 +120,12 @@ def main():
 
     # sp.check_call("mkdir -p analysis_output/ex1", shell=True)
     # os.chdir("analysis_output/ex1")
-    workflow = cosmos.start(f"Evaluate_{args.id}", restart=True, skip_confirm=True)
+    workflow = cosmos.start(f"Evaluate_{args.id}-87", restart=True, skip_confirm=True)
 
     parameters = np.load(f"optimize_awsbatch/parameters/{args.id}.npy")
 
     for i, par in enumerate(parameters):
-        parameters_ = dict(
+        parameters = dict(
             mean_weight=par[0],
             c_w=par[1],
             tau_pos=par[2],
@@ -144,22 +144,23 @@ def main():
             network_type="LC_SNN",
 
         )
-        workflow.add_task(
-            func=evaluate,
-            params=dict(
-                parameters=parameters_,
-                out_s3_uri=f"{args.out_s3_uri}/scores/{args.id}/{i}.json",
-                sleep=args.sleep,
-                train=args.train,
-                calibrate=args.calibrate,
-                test=args.test
-            ),
-            uid=str(i),
-            time_req=None,
-            max_attempts=args.max_attempts,
-            core_req=args.core_req,
-            mem_req=args.mem_req,
-        )
+        if i == 87:
+            workflow.add_task(
+                func=evaluate,
+                params=dict(
+                    parameters=parameters,
+                    out_s3_uri=f"{args.out_s3_uri}/scores/{args.id}/{i}.json",
+                    sleep=args.sleep,
+                    train=args.train,
+                    calibrate=args.calibrate,
+                    test=args.test
+                ),
+                uid=str(i),
+                time_req=None,
+                max_attempts=args.max_attempts,
+                core_req=args.core_req,
+                mem_req=args.mem_req,
+            )
     workflow.run()
 
     sys.exit(0 if workflow.successful else 1)
