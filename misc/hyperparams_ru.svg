@@ -8,7 +8,7 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   inkscape:version="0.92.4 (5da689c313, 2019-01-14)"
    sodipodi:docname="hyperparams_ru.svg"
    id="svg699"
    version="1.1"
@@ -25,21 +25,22 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
   <sodipodi:namedview
-     inkscape:current-layer="g697"
-     inkscape:window-maximized="1"
-     inkscape:window-y="0"
-     inkscape:window-x="82"
-     inkscape:cy="230.95368"
-     inkscape:cx="738.17613"
-     inkscape:zoom="1.3635376"
+     inkscape:current-layer="svg699"
+     inkscape:window-maximized="0"
+     inkscape:window-y="-8"
+     inkscape:window-x="54"
+     inkscape:cy="346.84726"
+     inkscape:cx="204.37678"
+     inkscape:zoom="1.9283334"
      showgrid="false"
      id="namedview701"
-     inkscape:window-height="1056"
-     inkscape:window-width="2478"
+     inkscape:window-height="1057"
+     inkscape:window-width="1249"
      inkscape:pageshadow="2"
      inkscape:pageopacity="0"
      guidetolerance="10"
@@ -506,12 +507,10 @@
              class="axis-heading">
             <text
                id="text165"
-               style="font-size:21.33333333px;font-family:'Open Sans', verdana, arial, sans-serif;white-space:pre;fill:#242424;fill-opacity:1;"
-               transform="translate(0,-28)"
-               y="0"
-               x="0"
-               text-anchor="middle"
-               class="axis-title">средний вес нормировки</text>
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-28"
+               x="34"
+               class="axis-title">вес нормировки</text>
           </g>
           <g
              id="g177"
@@ -991,12 +990,13 @@
              class="axis-heading">
             <text
                id="text315"
-               style="font-size:21.33333333px;font-family:'Open Sans', verdana, arial, sans-serif;white-space:pre;fill:#242424;fill-opacity:1;"
-               transform="translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
-               class="axis-title">tau +</text>
+               class="axis-title">  τ<tspan
+   style="font-size:64.99999762%;baseline-shift:sub"
+   id="tspan1160">-</tspan>
+ </text>
           </g>
           <g
              id="g327"
@@ -1284,12 +1284,13 @@
              class="axis-heading">
             <text
                id="text405"
-               style="font-size:21.33333333px;font-family:'Open Sans', verdana, arial, sans-serif;white-space:pre;fill:#242424;fill-opacity:1;"
-               transform="translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
-               class="axis-title">tau -</text>
+               class="axis-title">  τ<tspan
+   style="font-size:64.99999762%;baseline-shift:sub"
+   id="tspan1162">+</tspan>
+ </text>
           </g>
           <g
              id="g417"
@@ -1477,12 +1478,13 @@
              class="axis-heading">
             <text
                id="text465"
-               style="cursor:ew-resize;user-select:none;pointer-events:auto;font-family:'Open Sans', verdana, arial, sans-serif;font-size:21.33333333px;fill:rgb(36, 36, 36);fill-opacity:1;white-space:pre;"
-               transform="rotate(0)translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
-               class="axis-title">A +</text>
+               class="axis-title">A<tspan
+   style="font-size:64.99999762%;baseline-shift:sub"
+   id="tspan1164">+</tspan>
+</text>
           </g>
           <g
              id="g477"
@@ -1670,12 +1672,13 @@
              class="axis-heading">
             <text
                id="text525"
-               style="cursor:ew-resize;user-select:none;pointer-events:auto;font-family:'Open Sans', verdana, arial, sans-serif;font-size:21.33333333px;fill:rgb(36, 36, 36);fill-opacity:1;white-space:pre;"
-               transform="rotate(0)translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
-               class="axis-title">A -</text>
+               class="axis-title">A<tspan
+   style="font-size:64.99999762%;baseline-shift:sub"
+   id="tspan1166">-</tspan>
+</text>
           </g>
           <g
              id="g537"
@@ -1883,12 +1886,10 @@
              class="axis-heading">
             <text
                id="text591"
-               style="font-size:21.33333333px;font-family:'Open Sans', verdana, arial, sans-serif;white-space:pre;fill:#242424;fill-opacity:1;"
-               transform="translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
-               class="axis-title">снижение веса</text>
+               class="axis-title">угасание веса</text>
           </g>
           <g
              id="g603"
@@ -2136,11 +2137,9 @@
              class="axis-heading">
             <text
                id="text669"
-               style="font-size:21.33333333px;font-family:'Open Sans', verdana, arial, sans-serif;white-space:pre;fill:#242424;fill-opacity:1;"
-               transform="translate(0,-28)"
-               y="0"
+               style="font-size:21.33333397px;font-family:'Open Sans', verdana, arial, sans-serif;text-anchor:middle;white-space:pre;fill:#242424;fill-opacity:1"
+               y="-32"
                x="0"
-               text-anchor="middle"
                class="axis-title">точность</text>
           </g>
           <g
