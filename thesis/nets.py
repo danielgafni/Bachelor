@@ -84,6 +84,7 @@ class AbstractSNN:
         foldername=None,
         loaded_from_disk=False,
         c_w_min=None,
+        c_w_max=None,
         n_iter=0,
     ):
 
@@ -108,6 +109,7 @@ class AbstractSNN:
         generated from the network parameters.
         :param foldername: Name to use with `immutable_name` = True
         :param c_w_min: minimum value of competitive YY weights
+        :param c_w_max: maximum value of competitive YY weights
         :param n_iter: number of complete training iterations.
         """
         self.n_iter_counter = 0
@@ -116,8 +118,11 @@ class AbstractSNN:
         self.mean_weight = mean_weight
         self.c_w = c_w
         self.c_w_min = c_w_min
+        self.c_w_max = c_w_max
         if c_w_min is None:
             self.c_w_min = -np.inf
+        if c_w_max is None:
+            self.c_w_max = 0
         self.calibrated = False
         self.score = {
             "patch_voting": {"accuracy": None, "error": None, "n_iter": None},
@@ -176,6 +181,7 @@ class AbstractSNN:
             "n_iter": self.n_iter,
             "c_w": self.c_w,
             "c_w_min": self.c_w_min,
+            "c_w_max": self.c_w_max,
             "time_max": self.time_max,
             "crop": self.crop,
             "kernel_size": self.kernel_size,
@@ -2239,6 +2245,7 @@ class LC_SNN(AbstractSNN):
         tau_pos=20.0,
         tau_neg=20.0,
         c_w_min=None,
+        c_w_max=None,
         c_l=False,
         A_pos=None,
         A_neg=None,
@@ -2261,6 +2268,7 @@ class LC_SNN(AbstractSNN):
         :param tau_pos: tau- parameter of STDP Y neurons.
         :param tau_neg: tau+ parameter of STDP Y neurons.
         :param c_w_min: minimum value of competitive YY weights
+        :param c_w_max: maximum value of competitive YY weights
         :param c_l: To train or not to train YY connections
         :param A_pos: A- parameter of STDP for Y neurons.
         :param A_neg: A+ parameter of STDP for Y neurons.
@@ -2285,6 +2293,7 @@ class LC_SNN(AbstractSNN):
             tau_pos=tau_pos,
             tau_neg=tau_neg,
             c_w_min=c_w_min,
+            c_w_max=c_w_max,
             immutable_name=immutable_name,
             foldername=foldername,
             loaded_from_disk=loaded_from_disk,
@@ -2393,7 +2402,7 @@ class LC_SNN(AbstractSNN):
                 nu=[self.A_pos, self.A_neg],
                 weight_decay=weight_decay,
                 wmin=self.c_w_min,
-                wmax=0,
+                wmax=self.c_w_max,
             )
         self.mask_YY = mask
 
@@ -2671,6 +2680,7 @@ class C_SNN(AbstractSNN):
         foldername=None,
         loaded_from_disk=False,
         c_w_min=None,
+        c_w_max=None
     ):
 
         super().__init__(
@@ -2689,6 +2699,7 @@ class C_SNN(AbstractSNN):
             tau_neg=tau_neg,
             weight_decay=weight_decay,
             c_w_min=c_w_min,
+            c_w_max=c_w_max,
             immutable_name=immutable_name,
             foldername=foldername,
             loaded_from_disk=loaded_from_disk,
@@ -2769,7 +2780,7 @@ class C_SNN(AbstractSNN):
                 nu=[self.A_pos, self.A_neg],
                 weight_decay=weight_decay,
                 wmin=self.c_w_min,
-                wmax=0,
+                wmax=self.c_w_max,
             )
 
         self.network.add_layer(self.input_layer, name="X")
@@ -2886,6 +2897,7 @@ class FC_SNN(AbstractSNN):
         foldername=None,
         loaded_from_disk=False,
         c_w_min=None,
+        c_w_max=None
     ):
 
         super().__init__(
@@ -2906,6 +2918,7 @@ class FC_SNN(AbstractSNN):
             loaded_from_disk=loaded_from_disk,
             n_iter=n_iter,
             c_w_min=c_w_min,
+            c_w_max=c_w_max,
             type_="FC_SNN",
         )
 
@@ -2985,7 +2998,7 @@ class FC_SNN(AbstractSNN):
                 nu=[self.A_pos, self.A_neg],
                 weight_decay=self.weight_decay,
                 wmin=self.c_w_min,
-                wmax=0,
+                wmax=self.c_w_max,
             )
 
         self.network.add_layer(self.input_layer, name="X")
@@ -3240,6 +3253,7 @@ class FC_SNN(AbstractSNN):
             "n_iter": self.n_iter,
             "c_w": self.c_w,
             "c_w_min": self.c_w_min,
+            "c_w_max": self.c_w_max,
             "time_max": self.time_max,
             "crop": self.crop,
             "n_filters": self.n_filters,
