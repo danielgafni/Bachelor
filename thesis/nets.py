@@ -1933,7 +1933,7 @@ class AbstractSNN:
     def reset(self, sure=False):
         """
         Reset network weights.
-        This will make XY weights random again and competition weights in YY will becode `self.c_w`.
+        This will make XY weights random again and competition weights in YY will become `self.c_w`.
         :param sure:
         """
         if not sure:

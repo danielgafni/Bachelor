@@ -24,9 +24,17 @@ def view_network(name):
     else:
         try:
             with open(f"networks//{name}//parameters.json", "r") as file:
-                parameters = json.load(file)
+                try:
+                    parameters = json.load(file)
+                except Exception as e:
+                    print(e)
+                    raise FileNotFoundError
             with open(f"networks//{name}//score.json", "r") as file:
-                score = json.load(file)
+                try:
+                    score = json.load(file)
+                except Exception as e:
+                    print(e)
+                    raise FileNotFoundError
             if "old" not in name:
                 best_method = "patch_voting"
                 best_accuracy = 0
