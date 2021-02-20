@@ -242,19 +242,20 @@ The linear classifier surpasses the LCSNN- and CSNN-based voting algorithms in a
 \caption{Comparison of learning curves of different architectures of SNNs with competition: (\ref{LCSNN_learning_curve}) LCSNN, (\ref{CSNN_learning_curve}) CSNN, (\ref{FCSNN_learning_curve}) FCSNN. The results are evaluated with different algorithms for the interpretation of activity. The \textbf{preselections by spikes} algorithm was only checked for LCSNN, because it achieves practically same results as \textbf{patch voting}. Standard deviations are plotted as errors. The networks have 100 channels (for a FCSNN the channel consists of a single neuron), the convolution kernel for LCSNN is 12, and for CSNN it is 8.}
 \end{figure}
 
-\subsection{Сравнение эффективности операции свертки и локального рецептивного поля}
+\subsection{Comparison of convolution and local connections effectiveness}
 Были проведены эксперименты по измерению точности сетей с различными архитектурами. Для сверточных и полносвязных сетей вводились аналогичные LCSNN связи конкуренции. Из-за высоких вычислительных нагрузок не ставилось задачи по нахождению параметров, обеспечивающих максимальную точность для каждой архитектуры. Эти параметры были подобраны приблизительно, однако, судя по результатам отдельных отладочных экспериментов, величина расхождения с оптимальными значениями не превышает 1-2\%. Заметим, что при использовании линейного классификатора в качестве алгоритма интерпретации удалось достигнуть 95\% точности для локально соединенной сети из 1000 каналов с размером ядра 12.
 
+Experiments were carried out to measure the accuracy of networks with different architectures. For convolutional and fully connected networks,  competition connections similar to LCSNN were introduced. Note that using a linear classifier as an interpretation algorithm, it was possible to achieve 95\% accuracy for a locally connected network of 1000 channels with kernel size of 12.
 
 \begin{table}
- \caption{Результаты сравнения различных архитектур спайковых нейронных сетей. Для каждой конфигурации точность измерялась $N=5$ раз. В таблице указаны среднее арифметическое значение точности и его стандартное отклонение. <<Ядро>> соответсвует числу $k$ в размере свертки $k\times k$.}
+ \caption{Comparison of different architectures. For each configuration, the accuracy was measured $ N = 5 $ times. The table shows the arithmetic mean of the accuracy and its standard deviation. The <<kernel>> corresponds to the number $ k $ in the size of the convolution $ k \times k $.}
 \begin{center}
 \begin{adjustwidth}{-1cm}{}
 \begin{tabular}{|l|l|l|l|l|l|p{2.2cm}|p{2.2cm}|}
 \hline
-&\multicolumn{5}{c|}{Конфигурация} & \multicolumn{2}{c|}{Точность, \%}\\
+&\multicolumn{5}{c|}{Conviguration} & \multicolumn{2}{c|}{Accuracy, \%}\\
 \hline
-N & Архитектура & Каналы & Ядро & Параметры & $Y$ нейроны & {Метод \footnotemark[1]} & {Метод \footnotemark[2]} \\
+N & Architecture & Channels & Kernel & Parameters & $Y$ neurons & {Method \footnotemark[1]} & {Method \footnotemark[2]} \\
 \hline\hline
 {\textbf{1}} & {\textbf{LCSNN}} & {\textbf{1000}} & {\textbf{12}} & {\textbf{10287000}} & {\textbf{9000}} & {$\mathbf{92.3 \pm 0.7}$} & {$\mathbf{95.1 \pm 0.5}$}\\
 \hline
@@ -286,64 +287,69 @@ N & Архитектура & Каналы & Ядро & Параметры & $Y$ 
  \label{results}
 \end{table}
 
-\footnotetext[1]{Лучший алгоритм голосования}
-\footnotetext[2]{Линейный классификатор}
-\footnotetext[3]{Сеть с обучением связей конкуренции}
-
-Видно (№2 и №7 в таблице \ref{results}), что локально соединенная сеть превосходит сверточную сеть по точности даже при чуть превышающем числе параметров последней. Также, можно заметить, что не следует использовать слишком малый размер ядра свертки. Это приводит к выучиванию менее существенных признаков. Действительно, в традиционном машинном обучении на основе ИНН используются либо неглубокие сети с большими ядрами свертки, либо глубокие модели, но, наоборот, с маленькими ядрами свертки.
+\footnotetext[1]{Best voting algorithm}
+\footnotetext[2]{Linear classifier}
+\footnotetext[3]{Network with trainable competition connections}
 
 Следует отметить, что SNN могут достигать значительно больших точностей распознавания на MNIST. Для этого можно использовать: (i) cети с существенно большим числом весовых параметров (например, с увеличенным числом каналов); (ii) более глубокие сети (с большим количеством слоев); (iii) более эффективные на сегодня алгоритмы обучения (например, обучение с учителем или с использованием контрастивной функции потерь \cite{contrastive_loss}). В то же время, достижение максимально возможной точности не являлось целью настоящего исследования, адресованного, в первую очередь, сравнению различных архитектур SNN.
 
+It can be seen (№2 and №7 in the \ref{results} table) that the locally connected network surpasses the convolutional network in accuracy even if the number of parameters of the latter is slightly larger. Also, having too small convolution kernel size leads to lower network accuracy, because it leads to learning of less essential features. Indeed, in traditional deep learning based, either shallow networks with large convolution kernels are used, or deep networks with small convolution kernels.
+
+It should be noted that SNNs can achieve significantly higher recognition accuracy on MNIST. It can be achieved by: (i) networks with a significantly larger number of parameters (for example, with an increased number of channels); (ii) deeper networks; (iii) more efficient learning algorithms (for example, supervised learning or using the contrastive loss function \cite{contrastive_loss}). At the same time, achieving the highest possible accuracy was not the goal of this study, which is primarily aimed at comparing various SNN architectures.
+
 \begin{table}
- \caption{Результаты других исследований спайковых нейронных сетей. Во всех используется датасет MNIST.}
+ \caption{Results from other studies of spiking neural networks with MNIST.}
 \begin{center}
 \begin{tabular}{|l|p{4cm}|p{7cm}|l|l|}
 \hline
-Статья & Архитектура & Обучение & Точность, \% \\
+Paper & Architecture & Training & Accuracy, \% \\
 \hline\hline
-{Эта работа} & {Локальная + конкуренция} & {Без учителя} & {$95.1 \pm 0.5$}\\
+{This study} & {Local + competition} & {Unsupervised} & {$95.1 \pm 0.5$}\\
 \hline\hline
-{\cite{saunders2019locally}} & {Локальная + конкуренция} & {Без учителя} & {$95.07 \pm 0.63$}\\
+{\cite{saunders2019locally}} & {Local + competition} & {Unsupervised} & {$95.07 \pm 0.63$}\\
 \hline
-{\cite{mnist2}} & {Полносвязная + конкуренция} & {Без учителя} & {95}\\
+{\cite{mnist2}} & {Fully connected + competition} & {Unsupervised} & {95}\\
 \hline
-{\cite{MaxActiv1}} & {Полносвязная + конкуренция} & {С учителем / с частичным привлечением учителя} & {95.4 / 72.1}\\
+{\cite{MaxActiv1}} & {Fully connected + competition} & {Supervised / Semi-supervised} & {95.4 / 72.1}\\
 \hline
-{\cite{conv1}} & {Сверточная} & {С частичным привлечением учителя} & {$96.95 \pm 0.08$}\\
+{\cite{conv1}} & {Convolutional} & {Semi-supervised} & {$96.95 \pm 0.08$}\\
 \hline
-{\cite{conv2}} & {Сверточная} & {С частичным привлечением учителя} & {$99.28 \pm 0.10$}\\
+{\cite{conv2}} & {Convolutional} & {Semi-supervised} & {$99.28 \pm 0.10$}\\
 \hline
-{\cite{conv3}} & {Сверточная} & {С частичным привлечением учителя} & {$97.20 \pm 0.07$}\\
+{\cite{conv3}} & {Convolutional} & {Semi-supervised} & {$97.20 \pm 0.07$}\\
 \hline
 \end{tabular}
 \end{center}
 \end{table}
 
-Результат, полученный в настоящей работе, практически соответствует результату из \cite{saunders2019locally}. Заметим, что при помощи признаков, обученных без учителя достигаются результаты, лишь немногим уступающие результатам, полученным при помощи обучения с учителем. При этом лучшая локально соединенная сеть с конкуренцией локальных рецептивных полей из этой работы имеет $10^7$ связей (из них связей прямого распространения --- $1 \cdot 10^6$, связей конкуренции --- $9 \cdot 10^6$), по сравнению с $4.6 \cdot 10^7$ (из них связей прямого распространения --- $0.5 \cdot 10^7$, связей конкуренции --- $4.1 \cdot 10^7$) у полносвязной сети с конкуренцией из \cite{mnist2}. К тому же, обучение сети из \cite{mnist2} велось в течение $1 \cdot 10^6$ итераций, тогда как в этой работе число итераций обучения не превосходит 5000.
-
 \section{Обучение связей конкуренции}
-Ингибирующие связи $YY$ существенно влияют на обучение связей прямого распространения сигнала $XY$. Большие по модулю значения весов конкуренции способствуют большей вариативности и специализации в обучении $Y$ нейронов, так как для каждого рецептивного поля одновременно активными не могут быть нейроны, имеющие схожие веса $XY$ (Рис. \ref{fig:high_comp}). Наоборот, малые по модулю веса конкуренции не позволяют нейронам эффективно специализироваться (Рис. \ref{fig:high_comp}).
+The result obtained in this work are comparable to the result of \cite{saunders2019locally}. Note that the results achieved with unsupervised training are only slightly inferior to the results achived by supervised training. Note, that our best locally connected network with trainable competitions had $ 10^7 $ parameters (of which $ 1 \cdot 10^6 $ are forward connections and $ 9 \cdot 10^6 $ competition connections), which is less than $ 4.6 \cdot 10^7 $ (of which $ 0.5 \cdot 10^7 $ forward conenctions and $ 4.1 \cdot 10^7 $ compettition connections) for a fully connected network with competition from \cite{mnist2}. In addition, the network from \cite{mnist2} was trained for $ 1 \cdot 10^6 $ iterations, while in this study the number of training iterations did not exceed 5000. 
+
+\section {Competition connections training}
+Competition connections $YY$ greatly affect the training of forward connections $XY$. Large absolute values of competition weights contibute to greater variability and specialization in training $Y$ neurons, as for each receptive field similar weights $XY$ neoruns are simultaneously active (Fig. \ref{fig:high_comp}). On the contrary, competition weights of small absolute values do not allow neurons to specialize effectively (Fig. \ref{fig:high_comp}). 
 
 \begin{figure}
 \centering
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_good_ru.pdf}
-    \caption{Высоко специализированные веса, вес конкуренции равен --100.}
+    \caption{Highly specialized neurons, compeition weights equal --100}
     \label{fig:high_comp}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_bad_ru.pdf}
-    \caption{Слабо специализированные веса,\\ вес конкуренции равен --10.}
+    \caption{Poorly specialized neurons, compeition weights equal --10}
     \label{fig:low_comp}
 \end{subfigure}
-\caption{Влияние конкуренции на обучение связей $XY$.}
+\caption{The effect of competition on $ XY $ connections training.}
 \label{competition-training-importance}
 \end{figure}
 
-Все SNN, о которых шла речь в настоящей работе до этого момента, имели фиксированные веса конкуренции. В связи с этим, возникает вопрос, как влияет на точность сети обучение весов конкуренции. Для ответа на поставленный вопрос с целью обновления связей $YY$ было выбрано правило anti-STDP (правило, противоположное по знакам $A_{+}$ и $A_{-}$ в стандартном STDP). При варьировании значений параметров этого правила были получены различные распределения весов конкуренции. Начальные значения весов конкуренции задавались из равномерного распределения от 0 до некоторого числа, которое в дальнешем будем называть начальным весом конкуренции. Эксперименты проводились с LCSNN.
+All SNNs discussed in this paper up to this point had fixed competition. In this regard, the question arised of how the trianing of competition weights affects the accuracy of the network.
+
+To answer this question, in order to update the $ YY $ connections, the anti-STDP rule was chosen (the rule opposite in the signs of $ A_{+} $ and $ A_{-} $ to standard STDP). For different values of the parameters of this rule, different distributions of competition weights were obtained. The initial values of the weights were set from a uniform distibution from 0 to a certain negative values. Experiments were carried out with LCSNN networks.
 
 \begin{table}
- \caption{Параметры anti-STDP}
+ \caption{anti-STDP parameters}
 \begin{center}
 \begin{tabular}{|l|l|l|l|l|}
 \hline
@@ -365,115 +371,117 @@ N & Архитектура & Каналы & Ядро & Параметры & $Y$ 
 \centering
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_worst_ru.pdf}
-    \caption{Очень слабая конкуренция}
+    \caption{Weakest competition}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_medium_bad_ru.pdf}
-    \caption{Слабая конкуренция}
+    \caption{Weak competition}
 \end{subfigure}
 \\
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_medium_good_ru.pdf}
-    \caption{Средняя конкуренция} 
+    \caption{Medium competition} 
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_best_ru.pdf}
-    \caption{Сильная конкуренция}
+    \caption{Strong competition}
     \label{fig:best_competition}
 \end{subfigure}
-\caption{Различные распределения весов конкуренции}
+\caption{Different competition weights distributions}
 \label{fig:competition_distributions}
 \end{figure}
 
-Видно, что точность сети повышается при смещении распределения весов конкуренции в сторону больших по модулю отрицательных значений. Заметим опять, что целью являлось не нахождение параметров сети, обеспечивающих максимальную точность, а исследование влияния способности обучения конкуренции на точность сети с заданной конфигурацией остальных параметров.
+It can be seen that the accuracy of the network increases when the distribution of competition weights is shifted towards larger negative values. Note again that the goal was not to find the parameters that provide maximum accuracy, but to study the influence of competition training on the accuracy of the network with a given configuration of the remaining parameters.
 
-Примечательно, что не все связи $YY$ получают большие по модулю значения (Рис. \ref{fig:best_competition}). Это объясняется тем, что нейроны, специализирующиеся на существенно разных признаках, не нуждаются в конкуренции, так как они не проявляют высокую активность одновременно.
+It is noteworthy that not all $ YY $ connections end up with a large value (Fig. \ref{fig:best_competition}). This is due to the fact that neurons specializing in substantially different features do not need competition, since they do not exhibit high activity at the same time.
 
 \begin{figure}
 \centering
 \begin{subfigure}{0.45\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_on_XY_worst_ru.pdf}
-    \caption{Очень слабая конкуренция}
+    \caption{Weakest competition}
     \label{fig:worst_competition_distribution}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_on_XY_medium_bad_ru.pdf}
-    \caption{Слабая конкуренция}
+    \caption{Weak competition}
     \label{fig:medium_bad_competition_distribution}
 \end{subfigure}
 \\
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_on_XY_medium_good_ru.pdf}
-    \caption{Средняя конкуренция}
+    \caption{Medium competition}
     \label{fig:medium_good_competition_distribution}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_on_XY_best_ru.pdf}
-    \caption{Сильная конкуренция}
+    \caption{Strong compettion}
     \label{fig:best_competition_XY}
 \end{subfigure}
-\caption{Визуализация весов конкуренции поверх весов $XY$. Изображения соответствуют весам сетей с рисунка \ref{fig:competition_distributions}. Изображены только веса конкуренции для одного нейрона в каждом рецептивном поле для избегания загромождения визуализации. Насыщенный синий цвет соответствует большим по модулю весам конкуренции (используется среднее арифметическое между весами $W_{ij}$ и $W_{ji}$). Видно, что похожие признаки сильнее конкурируют между собой, чем различные.}
+\caption{Visualization of competition weights on top of $ XY $ weights for the networks from Fig. (\ref{fig:competition_distributions}). Competition weights are shown only for one center neuron in each receptive field to avoid cluttering the visualization. The saturated blue color corresponds to the competition weights of large absolute value (the arithmetic mean between the weights $ W_{ij} $ and $ W_{ji} $ is used). It can be seen that similar features compete more strongly with each other than different}
 \end{figure} 
 
-Обучение конкуренции производилось только на сетях из 25 каналов (225 нейронов), так как его моделирование требует больших вычислительных ресурсов.
+Competition training was carried out only on networks of 25 channels (225 neurons), since its simulation requires large computational resources.
 
-В ходе оптимизации моделей была измерена точность большого количества LCSNN с различными конфигурациями гиперпараметров (Рис. \ref{fig:hyperparams}). Видно, что конфигурации с высокими точностями (темные ломаные) локализуются определенным образом - дописать
+During the optimization of the models, the accuracy of a large number of LCSNNs was measured with various hyperparameter configurations (Fig. \ref{fig:hyperparams}). It can be seen that configurations with high accuracy (dark lines) are localized in a certain way - \textbf{EXPLAIN THIS}
 
 \begin{figure}
 \begin{center}
  \includegraphics[,
  width=\textwidth,keepaspectratio=true]{hyperparams_ru.png}
  
-\caption{Визуализация достигаемой точности распознавания LCSNN при использовании различных комбинаций параметров в пространстве гиперпараметров. Параметры <<вес нормировки>>, <<начальный вес конкренции>> и <<угасание веса>> отвечают за значения весов, а следующие два являются комбинациями параметров anti-STDP. На последней оси указана точность сети с конфигурацией, соответствующих точкам пересечения ломаной осей гиперпараметров.}
- \label{fig:hyperparams}
+\caption{Visualization of the achieved LCSNN recognition accuracy when using various combinations in the hyperparameters space. The parameters <<normalization weight>>, <<initial competition weight>> and <<weight decay>> are responsible for the weights values, and the next two parameters are combinations of anti-STDP parameters.
+}
+ \label{fig:hyperparams} 
 \end{center} 
 
 \end{figure}
 
-\subsection{Анализ обученных весов конкуренции}
-Дополнительно были проведены эксперименты по ограничению значений весов конкуренции по модулю сверху и снизу до проведения обучения сети. Оказалось, что веса конкуренции во всем диапазоне их изменения играют важную роль в работе LCSNN, поскольку ограничение как сверху, так и снизу негативно влияет на точность распознавания (Рис. \ref{fig:compe_clamp}). Это объясняется тем, что высокая конкуренция способствует большей специализации нейронов и потому полезна, а низкая конкуренция позволяет нейронам кооперироваться и распознавать классы совместно (в том числе обеспечивая накопление большей статистики для калибровки голосов нейронов).
+\subsection{Trained competition weights analysis}
+In addition, competition weights clamping experiments were carried out. It turned out that the competition weights in the entire range of their variation are important for the effective LCSNN functioning, since both the upper and lower clamps negatively affect the classification accuracy (Fig. \ref{fig:compe_clamp}). This is due to the fact that high competition contributes to greater specialization of neurons and therefore is useful, and low competition allows neurons to cooperate and recognize digits together (including ensuring the accumulation of more statistics for calibrating the voices of neurons).
 
 \begin{figure}
 \centering 
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_clamp_low_ru.pdf}
-    \caption{Распределение весов конкуренции, ограничение сверху} 
+    \caption{Competition connections weights distribution, lower clamp} 
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_clamp_high_ru.pdf}
-    \caption{Распределение весов конкуренции, ограничение снизу}
+    \caption{Competition connections weights distribution, higher clamp}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_clamp_low_ru.pdf}
-    \caption{Веса прямого распространения, ограничение сверху}
+    \caption{Forward connections weights, lower clamp}
 \end{subfigure} 
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_clamp_high_ru.pdf}
-    \caption{Веса прямого распространения, ограничение снизу}
+    \caption{Forward connections weights, higher clamp}
 \end{subfigure} 
-\caption{Влияние ограничения значений весов конкуренции на точность. Веса были ограничены значениями $-350$ снизу и $-100$ сверху. Точность сети с аналогичными параметрами, но без ограничения конкуренции составляет 0.823, ее веса $XY$ изображены на Рис. \ref{fig:best_competition_XY}, а распределение ее весов конкуренции --- на Рис. \ref{fig:best_competition}. Видно, что в обоих случаях обучаются менее четкие веса прямого распространения.}
+\caption{Impact of limiting the values of competition weights on accuracy. The weights were limited to $ -350 $ on the illustration below and $ -100 $ on the illustration above. The accuracy of a network with similar parameters, but without competition limitation is 0.823, its weights $ XY $ are shown in Fig. \ref {fig:best_competition_XY}, and the distribution of its competition weights is shown in Fig. \ref{fig:best_competition}. It can be seen that in both cases more blurred forward propagation weights are trained.
+}
 \label{fig:compe_clamp}
 \end{figure}
 
-Обучение конкуренции позволило достичь точности, незначительно (на 2\%) превышающей точность сети такой же конфигурации, но с фиксированной конкуренцией с ингибирующими весами, равными $-50$ (Таб. \ref{results}, №4 и №5). 
+Competition training made it possible to achieve an accuracy slightly (by 2 \%) higher than the accuracy of a network of the same configuration, but with a fixed competition with competition weights equal to $ -50 $ (Table \ref{results}, №4 and №5).
 
-\section{Обсуждение}
-Настоящее исследование демонстрирует, что локально соединенная сеть – перспективная спайковая нейросетевая архитектура, подходящая для эффективной реализации на специализированном нейрочипе. Действительно, способность быстро выходить на плато кривой обучения позволяет использовать LCSNN для обучения на выборках сравнительно небольшого объема (3000-5000). Использование дополнительного алгоритма интерпретации активности, такого как линейный классификатор, позволяет повысить эффективность сети. Заметим, что при этом сами признаки распознаваемых объектов выучиваются сетью без учителя. Остается открытым вопрос о возможности получения схожих результатов без использования обучения с учителем для интерпретации активности сети.
+\section{Discussion}
+This study demonstrates that a locally connected network is a promising spiked neural network architecture suitable for efficient implementation on a specialized neural hardware. Indeed, the ability to quickly plateau the learning curve allows the LCSNN to be used for training on relatively small training samples (3000-5000). The use of an additional activity interpretation algorithm, such as a linear classifier, can improve the efficiency of the network. Note that in this case the very features of the objects being recognized are learned by the network in an unsupervised fashion. The question remains about the possibility of obtaining similar results without using supervised learning to interpret network activity.
 
-Главным преимуществом LCSNN является, как было показано, то, что локально соединенная сеть превосходит сверточную в точности при примерно одинаковом или чуть большем числе параметров. Предположительно, это происходит за счет более богатой статистики патчей (рецептивных полей), на которые реагируют нейроны внутри каждого канала, по сравнению с одним рецептивным полем на каждый канал в сверточной архитектуре. Ценой за это является увеличенное число параметров в LCSNN, но не является критическим фактором, ввиду локальной (в противоположность полносвязной) топологии межнейронных контактов. Локальная архитектура также позволяет сохранить информацию о локализации выделяемого признака в пространстве и потому является разумным выбором для реализации SNN, обучающихся преимущественно без учителя. Данный выбор обусловливает также его совокупную эффективность (по производимости, точности и энергопотреблению при определённой плотности элементов) при аппаратной реализации, при которой каждый вес обычно представлен одним или несколькими физическими элементами (главным образом, ячейками SRAM \cite{TrueNorth, Loihi} или мемристорами \cite{Li_2018}).
-Обучение связей конкуренции слегка увеличивает точность работы алгоритма на базе LCSNN, но не настолько критично, чтобы оправдывать использование такой дорогой операции как введение и обучение значительного числа ингибирующих связей с различными по модулю конечными весами. В то же время, вероятно, этот вывод справедлив только для небольших сетей, вроде исследованной в настоящей работе. На наш взгляд, более тщательного изучения заслуживает подбор оптимальных алгоритмов и параметров обучения конкуренции для глубоких SNN, в которых баланс конкуренции и кооперации нейронов внутри каждого слоя может приводить к формированию кластеров из классов подаваемых изображений, что способствует выстраиванию семантически-подобной иерархии выученных признаков и их комбинаций, то есть конечных образов \cite{10.1007/978-3-030-30425-6_30}. Потенциально такая иерархия образов может привести к существенному приросту качественных показателей работы интеллектуальных алгоритмов. 
+The main advantage of LCSNN is, as has been shown, that the locally connected network outperforms the convolutional in accuracy with approximately the same or slightly larger number of parameters. Presumably, this is due to the richer statistics of patches (receptive fields) that neurons within each channel respond to, compared to one receptive field per channel in the convolutional architecture. The price for this is the increased number of network parameters, but is not a critical factor due to the local (as opposed to fully connected) topology of interneural contacts. The local architecture also allows to save information about the localization of the selected feature in space and therefore is a reasonable choice for the implementation of unsupervised trained SNNs. This choice also determines its overall efficiency (in terms of performance, accuracy and power consumption at a certain density of elements) in a hardware implementation, in which each weight is usually represented by one or more physical elements (mainly SRAM cells \cite{TrueNorth, Loihi} or memristors \cite{Li_2018}).
+The training of competition connections slightly increases the accuracy of the LCSNN-based algorithm, but it is not so critical as to justify the use of such an expensive operation as the introduction and training of a significant number of competition connections with finite weights of different values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for training competition for deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters from classes of supplied images, which contributes to building a semantically-like hierarchy of learned features and their combinations, that is, the final images \cite{10.1007/978-3-030-30425-6_30}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
 
 \clearpage
-\addcontentsline{toc}{section}{Выводы}
-\section*{Выводы}
-Было показано, что для задачи распознавания образов на датасете MNIST локально соединенная архитектура с конкуренцией превосходит сверточную при равном числе параметров.
-Также было показано, что обучение весов конкуренции позволяет незначительно повысить качество модели, а в полученном распределении весов конкуренции важны как высокие по модулю (сильная конкуренция), так и низкие (кооперация) значения весов.
+\addcontentsline{toc}{section}{Conclusion}
+\section*{Conclusion}
+It was shown that for the problem of pattern recognition on the MNIST dataset, the locally connected architecture with competition is superior to the convolutional one with an equal number of parameters.
+It was also shown that training competition weights can slightly improve the quality of the model, and in the resulting distribution of competition weights, both with high values (strong competition) and low (cooperation) values of weights are important.
 
 
 \printbibliography[sorting=none,heading=bibintoc,type=article,title={Литература}]
  
 \begin{center}
-Все материалы этой работы находятся в репозитории\\
+All the study materials and the code implementation can be found at\\
 \href{https://github.com/danielgafni/bachelor}{https://github.com/danielgafni/bachelor} 
 \end{center}
 
