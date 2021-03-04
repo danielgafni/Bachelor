@@ -89,9 +89,7 @@ Spiking neural networks (SNNs) are an alternative promising neuromorphic algorit
 
 \item Moreover, these algorithms can use unsupervised learning, which does not require manual data labeling, as in the case of backpropagation methods.
 
-!!!!!!!!!!!!!!!!!!!! TODO: find references below
-
-\item SNNs can be implemented on specialized neuromorphic processing units (both based on digital elements \cite{TrueNorth, Loihi, Akida} and using hybrid digital-analog circuits (BrainScales, \cite{SpiNNaker}), including those based on memristors [links to others (Ielmini, Querlioz) and our works]), which have ultra-low power consumption (achieved by reducing the number of acts and the average length of signal transmission, as well as the spatial and temporal sparseness of spikes in the network). This implementation, together with the algorithmic advantage of the SNNs, also provides significant performance gains. \cite{hardware1, hardware2}.
+\item SNNs can be implemented on specialized neuromorphic processing units (both based on digital elements \cite{TrueNorth, Loihi, Akida} and using hybrid digital-analog circuits (BrainScales, \cite{SpiNNaker}), including those based on memristors \cite{WANG2020101809}, which have ultra-low power consumption (achieved by reducing the number of acts and the average length of signal transmission, as well as the spatial and temporal sparseness of spikes in the network). This implementation, together with the algorithmic advantage of the SNNs, also provides significant performance gains. \cite{hardware1, hardware2}.
 
 \item SNNs, to a greater extent than formal neural networks, biologically correctly model the interactions of neurons, which can be used for biological simulations of the nervous system for the purposes of studying not only bioinformatics, but also biophysical and medical aspects of its functioning.
 \end{itemize}
@@ -444,6 +442,7 @@ During the optimization of the models, the accuracy of a large number of LCSNNs 
 \end{figure}
 
 \subsection{Trained inhibitory weights analysis}
+
 In addition, inhibitory weights clamping (during training) experiments were carried out. It turned out that the inhibitory weights in the entire range of their variation are important for the effective LCSNN functioning, since both the upper and lower clamps negatively affect the classification accuracy (Fig. \ref{fig:compe_clamp}). This is due to the fact that high competition contributes to greater specialization of neurons and therefore is useful, and low competition allows neurons to cooperate and recognize digits together (including ensuring the accumulation of more statistics for calibrating the voices of neurons).
 
 \begin{figure}
