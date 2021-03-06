@@ -58,13 +58,20 @@
     \large\textbf{Training inhibitory connections between local receptive fields in spiking neural networks}\\
 \end{center}
 
-\begin{flushleft}
-\begin{tabularx}{\textwidth}{m{4.3cm}m{4.3cm}m{4.3cm}}
-Daniil Gafni & Dmitry Nekhaev & Vyacheslav Demin \\
-\footnotesize{Lomonosov Moscow State University, Moscow, Russia} & \multicolumn{2}{c}{\footnotesize{National Research Center <<Kurchatov Institute>>, Moscow, Russia}} \bigstrut\\
-\small{danielgafni16@gmail.com} & \small{nekhaev.d.v@yandex.ru} & \small{demin.vyacheslav@mail.ru}
-\end{tabularx}
-\end{flushleft}
+\begin{center}
+\begin{tabular}{ccc}
+D. Gafni \textsuperscript{a\textasteriskcentered} & D.V. Nekhaev \textsuperscript{b} & V.A. Demin \textsuperscript{b} \\
+\end{tabular}
+
+\footnotesize{
+\textsuperscript{(a)} Lomonosov Moscow State University, Moscow, Russia \linebreak
+\textsuperscript{(b)} National Research Center <<Kurchatov Institute>>, Moscow, Russia \linebreak
+\textsuperscript{(\textasteriskcentered)} Corresponding author. Email adress: \textit{danielgafni16@gmail.com}
+}
+
+\end{center}
+
+
 
 \section*{Acknowledgments}
 \small{This work was partially supported by the Russian Science Foundation (project № 20-79-10185) in the studying of inhibitory connections training and by the grant INSERT NAME in the part of comparison of convolгtional and locally connected achitectures.}
@@ -85,8 +92,9 @@ Spiking Neural Networks, Unsupervised Learning, Ingibitory Connections, Neurosci
 
 \begin{flushleft}
  \begin{tabularx}{\textwidth}{lm{10cm}}
-  \textbf{Funding} & {Insert Grant Name} \\
+  \textbf{Funding} & {This work was partially supported by the Russian Science Foundation (project № 20-79-10185) in the studying of inhibitory connections training and by the grant INSERT NAME in the part of comparison of convolгtional and locally connected achitectures.} \\
   \textbf{Data, Materials, Code} & {\href{https://github.com/danielgafni/bachelor}{https://github.com/danielgafni/bachelor}} \\
+  \textbf{Conflicts of Interest} & {The authors declare no conflict of interest.} \\
  \end{tabularx}
 \end{flushleft}
 
@@ -376,7 +384,7 @@ To answer this question, in order to update the $ YY $ connections, the anti-STD
 \begin{center}
 \begin{tabular}{|l|l|l|l|l|}
 \hline
-Рисунок & {$\tau_{+}$, мс} & {$\tau_{-}$, мс} & {$A_{+}$} & {$A_{-}$} \\
+Figure & {$\tau_{+}$, ms} & {$\tau_{-}$, ms} & {$A_{+}$} & {$A_{-}$} \\
 \hline
 \ref{fig:worst_competition_distribution} & 14.7 & 14.2 & -0.5 & -1.5 \\
 \hline
@@ -446,7 +454,7 @@ It is noteworthy that not all $ YY $ connections end up with a large value (Fig.
 
 Competition training was carried out only on networks of 25 channels (225 neurons), since its simulation requires large computational resources.
 
-During the optimization of the models, the accuracy of a large number of LCSNNs was measured with various hyperparameter configurations (Fig. \ref{fig:hyperparams}). It can be seen that configurations with high accuracy (dark lines) are localized in a certain way - \textbf{EXPLAIN THIS}
+During the optimization of the models, the accuracy of a large number of LCSNNs was measured with various hyperparameter configurations (Fig. \ref{fig:hyperparams}). It can be seen that configurations with high accuracy (dark lines) are localized in a manner that encourages negative weight accumulation for larger time differencies $t_{post} - t_{pre}$ between -post and -pre spikes (for the anti-STDP weight update rule).
 
 \begin{figure}
 \begin{center}
