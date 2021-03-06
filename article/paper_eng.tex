@@ -23,6 +23,7 @@
 \usepackage[left=15mm, right=15mm, top=15mm, bottom=15mm]{geometry} 
 \usepackage[nottoc]{tocbibind}
 \usepackage[style=gost-numeric,sorting=none,backend=biber,defernumbers=false]{biblatex}
+\usepackage{multicol}
 \DeclareBibliographyAlias{misc}{article}
 \addbibresource{lit.bib} 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -71,11 +72,8 @@ D. Gafni \textsuperscript{a\textasteriskcentered} & D.V. Nekhaev \textsuperscrip
 
 \end{center}
 
-
-
 \section*{Acknowledgments}
 \small{This work was partially supported by the Russian Science Foundation (project № 20-79-10185) in the studying of inhibitory connections training and by the grant INSERT NAME in the part of comparison of convolгtional and locally connected achitectures.}
-
 
 \addcontentsline{toc}{section}{Abstract}
 \section*{Abstract}
@@ -97,8 +95,6 @@ Spiking Neural Networks, Unsupervised Learning, Ingibitory Connections, Neurosci
   \textbf{Conflicts of Interest} & {The authors declare no conflict of interest.} \\
  \end{tabularx}
 \end{flushleft}
-
-
 
 \pagebreak
 
@@ -362,12 +358,12 @@ Inhibitory connections $YY$ greatly affect the training of forward connections $
 \begin{figure}
 \centering
 \begin{subfigure}{0.45\textwidth}
-    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_good_ru.pdf}
+    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_good.pdf}
     \caption{Highly specialized neurons, compeition weights equal --100}
     \label{fig:high_comp}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
-    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_bad_ru.pdf}
+    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_bad.pdf} 
     \caption{Poorly specialized neurons, compeition weights equal --10}
     \label{fig:low_comp}
 \end{subfigure}
@@ -510,7 +506,6 @@ It was shown that for the problem of pattern recognition on the MNIST dataset, t
 It was also shown that training inhibitory weights can slightly improve the quality of the model, and in the resulting distribution of inhibitory weights, both with high values (strong competition) and low (cooperation) values of weights are important.
 
 \pagebreak
-
 
 \printbibliography[sorting=none,heading=bibintoc,type=article,title={References}]
  
