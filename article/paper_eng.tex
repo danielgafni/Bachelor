@@ -202,7 +202,7 @@ After each training iteration, the weights are normalized to keep their sum equa
     \caption{} 
     \label{fig:training:after_training}
 \end{subfigure}
-\caption{Visualization of $XY$ connection weights of a 900 $Y$ neurons (100 neurons for each of the 9 patches) network --- a 360 $ \times $ 360 matrix. The weights of one neuron correspond to a 12 $\times$ 12 square. The weights of the $Y$ neurons are grouped by patch - the lower left 120 $  \times $ 120 square  (10 $ \times $ 10 neurons) corresponds to the lower left patch, the center square corresponds to the center patch, and so on. Weights are initialized randomly (Fig. \ref{fig:training:before_training}), and after 1000 training iterations (Fig. \ref{fig:training:after_training}) the neurons learn different features, resembling digits elements}
+\caption{Visualization of $XY$ connection weights of a 900 $Y$ neurons (100 neurons for each of the 9 patches) network --- a 360 $ \times $ 360 matrix. The weights of one neuron correspond to a 12 $\times$ 12 square. The weights of the $Y$ neurons are grouped by patch --- the lower left 120 $  \times $ 120 square  (10 $ \times $ 10 neurons) corresponds to the lower left patch, the center square corresponds to the center patch, and so on. Weights are initialized randomly (Fig. \subref{fig:training:before_training}), and after 1000 training iterations (\subref{fig:training:after_training}) the neurons learn different features, resembling digits elements}
 \label{fig:training}
 \end{figure}
 
@@ -218,17 +218,17 @@ For all networks, this calibration process was used for 10,000 examples from a c
 
 \begin{figure}
 \centering
-\begin{subfigure}{\textwidth}
+\begin{subfigure}{0.7\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{votes.pdf}
     \caption{}
     \label{fig:votes:votes}
 \end{subfigure}
-\begin{subfigure}{\textwidth} 
+\begin{subfigure}{0.7\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{votes_distr_4.pdf} 
     \caption{}
     \label{fig:votes:distr}
 \end{subfigure}
-\caption{Votes visualization for a network with 225 $Y$ neurons. All $Y$ neurons votes are shown in Fig. \ref{fig:votes:votes}. High values correspond to a large specialization on the corresponding class. It can be seen that almost all neurons have a nonzero vote value, therefore, almost all neurons in the network are active. Votes distrivution for the 4 most relevant classes (for each neuron) are shown in Fig. \ref{fig:votes:distr}. It can be seen that the vote value (average number of spikes per class) drops significantly with relevance decreasing}
+\caption{Votes visualization for a network with 225 $Y$ neurons. All $Y$ neurons votes are shown in (Fig. \subref{fig:votes:votes}). High values correspond to a large specialization on the corresponding class. It can be seen that almost all neurons have a nonzero vote value, therefore, almost all neurons in the network are active. Votes distrivution for the 4 most relevant classes (for each neuron) are shown in (Fig. \subref{fig:votes:distr}). It can be seen that the vote value (average number of spikes per class) drops significantly with relevance decreasing}
 \label{fig:votes}
 \end{figure}
 
@@ -251,25 +251,22 @@ After several thousand training iterations, the accuracy reaches a plateau. It i
 The linear classifier surpasses the LCSNN- and CSNN-based voting algorithms in accuracy, since it is a generalization of voting in the sense that it also uses the sum of the products of weights/votes by neurons activity. However, when training a linear classifier effective optimization algorithms (including gradient) are being used, while when voting we achieve practically the same goal (calculating satisfactory votes/weights) with a heuristic - the averaged activity of neurons by classes.
 
 \begin{figure}
-\centering
-\begin{subfigure}{0.48\textwidth}
+\begin{subfigure}{0.49\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{LCSNN_learning_rate.pdf}
  \caption{}
  \label{LCSNN_learning_curve}
-\end{subfigure} 
-\begin{subfigure}{0.48\textwidth} 
+\end{subfigure}
+\begin{subfigure}{0.49\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{CSNN_learning_rate.pdf}
  \caption{}
  \label{CSNN_learning_curve}
 \end{subfigure} 
-\end{figure}
-\begin{figure}\ContinuedFloat
-\begin{subfigure}{0.48\textwidth} 
+\begin{subfigure}{0.49\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{FCSNN_learning_rate.pdf}
  \caption{}
  \label{FCSNN_learning_curve}
 \end{subfigure}
-\caption{Comparison of learning curves of different architectures of SNNs with competition: (Fig. \ref{LCSNN_learning_curve}) LCSNN, (Fig. \ref{CSNN_learning_curve}) CSNN, (Fig. \ref{FCSNN_learning_curve}) FCSNN. The results are evaluated with different algorithms for the interpretation of activity. The \textbf{preselections by spikes} algorithm was only checked for LCSNN, because it achieves practically same results as \textbf{patch voting}. Standard deviations are plotted as errors. The networks have 100 channels (for a FCSNN the channel consists of a single neuron), the convolution kernel size ($k$) for the LCSNN is 12, and 8 for the CSNN}
+\caption{Comparison of learning curves of different architectures of SNNs with competition: (Fig. \subref{LCSNN_learning_curve}) LCSNN, (Fig. \subref{CSNN_learning_curve}) CSNN, (Fig. \subref{FCSNN_learning_curve}) FCSNN. The results are evaluated with different algorithms for the interpretation of activity. The \textbf{preselections by spikes} algorithm was only checked for LCSNN, because it achieves practically same results as \textbf{patch voting}. Standard deviations are plotted as errors. The networks have 100 channels (for a FCSNN the channel consists of a single neuron), the convolution kernel size ($k$) for the LCSNN is 12, and 8 for the CSNN}
 \label{fig:learning_curves}
 \end{figure}
 
@@ -368,7 +365,7 @@ Inhibitory connections $YY$ greatly affect the training of forward connections $
     \caption{}
     \label{fig:competition_effect_on_training:low_comp}
 \end{subfigure}
-\caption{The effect of competition on $ XY $ connections training. Fig. \ref{fig:competition_effect_on_training:low_comp} shows poorly specialized neuros with similar features - the result of training with competiiton weights set to $-10$, while Fig. \ref{fig:competition_effect_on_training:high_comp} features highly specialized neurons with diverse features, trained with inhibitory weights set to $-100$}
+\caption{The effect of competition on $ XY $ connections training. (\subref{fig:competition_effect_on_training:low_comp}) shows poorly specialized neuros with similar features - the result of training with competiiton weights set to $-10$, while (\subref{fig:competition_effect_on_training:high_comp}) features highly specialized neurons with diverse features, trained with inhibitory weights set to $-100$}
 \label{competition-training-importance}
 \end{figure}
 
@@ -418,7 +415,7 @@ Figure & {$\tau_{+}$, ms} & {$\tau_{-}$, ms} & {$A_{+}$} & {$A_{-}$} \\
     \caption{}
     \label{fig:competition_distributions:strong}
 \end{subfigure}
-\caption{Different competition ($YY$) weights distributions: weakest competition (Fig. \ref{fig:competition_distributions:weakest}), weak competition (Fig. \ref{fig:competition_distributions:weak}), medium competition (Fig. \ref{fig:competition_distributions:medium}) and strong competition (Fig. \ref{fig:competition_distributions:strong})}
+\caption{Different competition ($YY$) weights distributions: weakest competition (Fig. \subref{fig:competition_distributions:weakest}), weak competition (Fig. \subref{fig:competition_distributions:weak}), medium competition (Fig. \subref{fig:competition_distributions:medium}) and strong competition (Fig. \subref{fig:competition_distributions:strong})}
 \label{fig:competition_distributions}
 \end{figure}
 
@@ -449,7 +446,7 @@ It is noteworthy that not all $ YY $ connections end up with a large value (Fig.
     \caption{}
     \label{fig:best_competition_XY}
 \end{subfigure}
-\caption{Visualization of inhibitory weights on top of $ XY $ weights for the networks from Fig. (\ref{fig:competition_distributions}). Competition weights are shown only for one center neuron in each receptive field to avoid cluttering the visualization. The saturated blue color corresponds to the inhibitory weights of large absolute value (the arithmetic mean between the weights $ W_{ij} $ and $ W_{ji} $ is used). Figures \ref{fig:worst_competition_distribution}-\subref{fig:best_competition_XY} correspond to the same networks as Figures \ref{fig:competition_distributions:weakest}-\subref{fig:competition_distributions:strong} (from weakest to strongest competition). It can be seen that similar features have higher inhibitory connections weights than different}
+\caption{Visualization of inhibitory weights on top of $ XY $ weights for the networks from Fig. (\ref{fig:competition_distributions}). Inhibitory weights are shown only for one center neuron in each receptive field to avoid cluttering the visualization. The saturated blue color corresponds to the inhibitory weights of large absolute value (the arithmetic mean between the weights $ W_{ij} $ and $ W_{ji} $ is used). Figures \subref{fig:worst_competition_distribution}-\subref{fig:best_competition_XY} correspond to the same networks as on Figures (\ref{fig:competition_distributions:weakest}-\subref{fig:competition_distributions:strong}) (from weakest to strongest competition). It can be seen that similar features have higher inhibitory connections weights than different}
 \end{figure}
 
 Competition training was carried out only on networks of 25 channels (225 neurons), since its simulation requires large computational resources.
@@ -480,21 +477,21 @@ In addition, inhibitory weights clamping (during training) experiments were carr
     \label{fig:compe_clamp:low_distr}
 \end{subfigure}
 \begin{subfigure}{0.45\textwidth}
-    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_clamp_low.pdf}
-    \caption{}
-    \label{fig:compe_clamp:low_weights}
-\end{subfigure} 
-\begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_clamp_high.pdf}
     \caption{}
     \label{fig:compe_clamp:high_distr}
 \end{subfigure}
+\begin{subfigure}{0.45\textwidth}
+    \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_clamp_low.pdf}
+    \caption{}
+    \label{fig:compe_clamp:low_weights}
+\end{subfigure} 
 \begin{subfigure}{0.45\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_clamp_high.pdf}
     \caption{}
     \label{fig:compe_clamp:high_weights}
 \end{subfigure}
-\caption{Impact of limiting the values of inhibitory weights on accuracy. Figures \ref{fig:compe_clamp:low_weights} and \ref{fig:compe_clamp:high_weights} show $XY$ weights and Figures \ref{fig:compe_clamp:low_distr} and \ref{fig:compe_clamp:high_distr} show the competition ($YY$) weights distributions. The inhibitory weights were clamped (during training) to $[-350, 0]$ (Fig. \ref{fig:compe_clamp:low_distr},\subref{fig:compe_clamp:low_weights}) and to $(-\infty, -100]$ (Fig. \ref{fig:compe_clamp:high_distr},\subref{fig:compe_clamp:high_weights}). The accuracy of a network with the same hyperparameters, but without the competition limitation is 82.3\%, which is significantly higher than the accuracies of the networks presented in this Figure. Its weights $ XY $ are shown in Fig. \ref{fig:best_competition_XY}, and the distribution of its inhibitory weights is shown in Fig. \ref{fig:competition_distributions:strong}. In both cases the networks develop more blurred features comparing to the network with unrestricted competition in Fig. \ref{fig:competition_distributions:strong}
+\caption{Impact of limiting the values of inhibitory weights on accuracy. Figures (\subref{fig:compe_clamp:low_weights}, \subref{fig:compe_clamp:high_weights}) show $XY$ weights and Figures (\ref{fig:compe_clamp:low_distr}, \subref{fig:compe_clamp:high_distr}) show the competition ($YY$) weights distributions. The inhibitory weights were clamped (during training) to $[-350, 0]$ (Fig. \subref{fig:compe_clamp:low_distr},\subref{fig:compe_clamp:low_weights}) and to $(-\infty, -100]$ (Fig. (\subref{fig:compe_clamp:high_distr},\subref{fig:compe_clamp:high_weights}). The accuracy of a network with the same hyperparameters, but without the competition limitation is 82.3\%, which is significantly higher than the accuracies of the networks presented in this Figure. Its weights $ XY $ are shown in Fig. \ref{fig:best_competition_XY}, and the distribution of its inhibitory weights is shown in Fig. \ref{fig:competition_distributions:strong}. In both cases the networks develop more blurred features comparing to the network with unrestricted competition in Fig. \ref{fig:competition_distributions:strong}
 } 
 \label{fig:compe_clamp}
 \end{figure}
