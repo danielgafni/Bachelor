@@ -17,12 +17,18 @@
 \usepackage[left=15mm, right=15mm, top=15mm, bottom=15mm]{geometry} 
 \usepackage[nottoc]{tocbibind}
 \usepackage[
-style=chem-biochem,
+citestyle=authoryear,
 sorting=nyt,
 backend=biber,
 defernumbers=false,
-citestyle=authoryear
+citestyle=authoryear,
+bibstyle=numeric,
+firstinits=true
 ]{biblatex}
+
+\renewbibmacro{in:}{%
+  \ifentrytype{article}{}{%
+  \printtext{\bibstring{in}\intitlepunct}}}
 
 \usepackage{multicol}
 \DeclareBibliographyAlias{misc}{article}
@@ -240,7 +246,7 @@ In \textbf{patch voting} the network response is considered to be the class with
 
 \textbf{Preselection by spikes voting} is done in a similiar fassion, but comparing the number of spikes, not \textit{scores}.
 
-When using a \textbf{linear classifier}, the sums of spikes of individual  $ Y $ layer neurons are fed as features to te classifier, which is trained to predict the true image labels. As in other methods of interpreting the network activity, classifier training is performed on a separate calibration sample.
+When using a \textbf{linear classifier}, the sums of spikes of individual  $Y$ layer neurons are fed as features to te classifier, which is trained to predict the true image labels. As in other methods of interpreting the network activity, classifier training is performed on a separate calibration sample.
 
 To evaluate the interpretation algorithm, accuracy is used - the ratio of the number of correctly recognized objects from a test sample to the size of the test sample. In this work, the test sample size (when measuring the accuracy for individual networks) is 10,000.
 
