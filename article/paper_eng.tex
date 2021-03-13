@@ -16,7 +16,14 @@
 \usepackage{tabularx}
 \usepackage[left=15mm, right=15mm, top=15mm, bottom=15mm]{geometry} 
 \usepackage[nottoc]{tocbibind}
-\usepackage[style=gost-numeric,sorting=none,backend=biber,defernumbers=false]{biblatex}
+\usepackage[
+style=chem-biochem,
+sorting=nyt,
+backend=biber,
+defernumbers=false,
+citestyle=authoryear
+]{biblatex}
+
 \usepackage{multicol}
 \DeclareBibliographyAlias{misc}{article}
 \addbibresource{lit.bib} 
@@ -89,34 +96,34 @@ Spiking Neural Networks, Unsupervised Learning, Inhibitory Connections, Neurosci
  \end{tabularx}
 \end{flushleft}
 
-\pagebreak
+\pagebreak 
 
 \addcontentsline{toc}{section}{Introduction}
 \section*{Introduction}
 
-Modern abstract neural networks (represented by combinations of linear layer transformations and non-linear activation functions) do an excellent job at solving many machine learning problems \cite{pmlr-v28-wan13, Khan_2020}. However, training them is a laborious process that requires large computational resources. Typically, training is conducted using hundreds or thousands of examples and can take months. Both training and inference of formal neural network algorithms are far from being effective \cite{Edwards2015GrowingPF}. This is due both to the physically separate storage of connection weights and neuron activations, and to the calculations themselves, which are tensor in nature, associated with vector-matrix and matrix-matrix multiplication of floating point numbers. Modern CPUs are not optimized for this kind of computing. GPUs --- architectures originally created for working with computer graphics, and therefore more suitable for tensor calculations --- are much better at these tasks than traditional CPUs, but they do not perform with the desired efficiency either. The number of parameters in modern formal neural networks can reach tens \cite{ManyParams, Khan_2020} and even hundreds of billions (the latest OpenAI language model GPT-3 \cite{brown2020language}).
+Modern abstract neural networks (represented by combinations of linear layer transformations and non-linear activation functions) do an excellent job at solving many machine learning problems \parencite{pmlr-v28-wan13, Khan_2020}. However, training them is a laborious process that requires large computational resources. Typically, training is conducted using hundreds or thousands of examples and can take months. Both training and inference of formal neural network algorithms are far from being effective \parencite{Edwards2015GrowingPF}. This is due both to the physically separate storage of connection weights and neuron activations, and to the calculations themselves, which are tensor in nature, associated with vector-matrix and matrix-matrix multiplication of floating point numbers. Modern CPUs are not optimized for this kind of computing. GPUs --- architectures originally created for working with computer graphics, and therefore more suitable for tensor calculations --- are much better at these tasks than traditional CPUs, but they do not perform with the desired efficiency either. The number of parameters in modern formal neural networks can reach tens \parencite{ManyParams, Khan_2020} and even hundreds of billions (the latest OpenAI language model GPT-3 \parencite{brown2020language}).
 
 Spiking neural networks (SNNs) are an alternative promising neuromorphic algorithm and have several advantages over formal neural networks.
 
 \begin{itemize}
-\item SNNs allow a richer dynamic coding of patterns in continuous time, which is usually not available for formal neural networks \cite{Ismail_Fawaz_2019}. Thus, SNNs are of greatest interest for solving time series problems (video and sound streams processing, speech recognition, decision making).
+\item SNNs allow a richer dynamic coding of patterns in continuous time, which is usually not available for formal neural networks \parencite{Ismail_Fawaz_2019}. Thus, SNNs are of greatest interest for solving time series problems (video and sound streams processing, speech recognition, decision making).
 
-\item Local algorithms, which use only information from the neurons connected by this connection to update the weight of each connection \cite{STDP, pehlevan2019spiking, Baldi_2016}, can be used to train SNNs. On the contrary, when training formal neural networks, information about all neural connections between this connection and the output of the network is used to update the weight of each connection. Thus, SNNs learning algorithms on their own are far more efficient than formal neural network learning algorithms.
+\item Local algorithms, which use only information from the neurons connected by this connection to update the weight of each connection \parencite{STDP, pehlevan2019spiking, Baldi_2016}, can be used to train SNNs. On the contrary, when training formal neural networks, information about all neural connections between this connection and the output of the network is used to update the weight of each connection. Thus, SNNs learning algorithms on their own are far more efficient than formal neural network learning algorithms.
 
 \item Moreover, these algorithms can use unsupervised learning, which does not require manual data labeling, as in the case of backpropagation methods.
 
-\item SNNs can be implemented on specialized neuromorphic processing units (both based on digital elements \cite{TrueNorth, Loihi, Akida} and using hybrid digital-analog circuits (BrainScales, \cite{SpiNNaker}), including those based on memristors \cite{WANG2020101809}, which have ultra-low power consumption (achieved by reducing the number of acts and the average length of signal transmission, as well as the spatial and temporal sparseness of spikes in the network). This implementation, together with the algorithmic advantage of the SNNs, also provides significant performance gains. \cite{hardware1, hardware2}.
+\item SNNs can be implemented on specialized neuromorphic processing units (both based on digital elements \parencite{TrueNorth, Loihi, Akida} and using hybrid digital-analog circuits (BrainScales, \parencite{SpiNNaker}), including those based on memristors \parencite{WANG2020101809}, which have ultra-low power consumption (achieved by reducing the number of acts and the average length of signal transmission, as well as the spatial and temporal sparseness of spikes in the network). This implementation, together with the algorithmic advantage of the SNNs, also provides significant performance gains. \parencite{hardware1, hardware2}.
 
 \item SNNs, to a greater extent than formal neural networks, biologically correctly model the interactions of neurons, which can be used for biological simulations of the nervous system for the purposes of studying not only bioinformatics, but also biophysical and medical aspects of its functioning.
 \end{itemize}
 
-It is of interest to study well-known ANN architectures in application to SNN, such as convolutional, locally connected and fully connected \cite{Khan_2020} architectures. Moreover, the introduction of additional recurrent inhibitory connections contributes to a better separation of features in the learning process \cite{MaxActiv1, MaxActiv2}. A fully connected network is the simplest model that can be used as a benchmark. Convolutional and locally connected architectures use convolution --- an operation that allows to extract important features more efficiently (comparing to a fully connected network). The locally connected architecture is especially interesting, because it can be easily implemented in hardware, since, unlike a convolutional network, it does not use shared synaptic weights  inside a separate feature map. A locally connected architecture has significantly fewer parameters than a fully connected architecture and allows to train a unique set of features for each receptive field, in contrast to convolutional networks. At the same time, convolutional networks have translational invariance, a useful property for image processing (spatially correlated data). The presence of competition in the SNN makes it possible to make their features more independent. Therefore, for experiments in this work, we chose locally connected SNNs with inhibitory connections, and as basic models, convolutional and fully connected networks with inhibitory connections. We:
+It is of interest to study well-known ANN architectures in application to SNN, such as convolutional, locally connected and fully connected \parencite{Khan_2020} architectures. Moreover, the introduction of additional recurrent inhibitory connections contributes to a better separation of features in the learning process \parencite{MaxActiv1, MaxActiv2}. A fully connected network is the simplest model that can be used as a benchmark. Convolutional and locally connected architectures use convolution --- an operation that allows to extract important features more efficiently (comparing to a fully connected network). The locally connected architecture is especially interesting, because it can be easily implemented in hardware, since, unlike a convolutional network, it does not use shared synaptic weights  inside a separate feature map. A locally connected architecture has significantly fewer parameters than a fully connected architecture and allows to train a unique set of features for each receptive field, in contrast to convolutional networks. At the same time, convolutional networks have translational invariance, a useful property for image processing (spatially correlated data). The presence of competition in the SNN makes it possible to make their features more independent. Therefore, for experiments in this work, we chose locally connected SNNs with inhibitory connections, and as basic models, convolutional and fully connected networks with inhibitory connections. We:
 
 \begin{enumerate}[i]
 
 \item compare this architecture with a Convolution Spiking Neural Network (CSNN) and a Fully Connected Spiking Neural Network (FCSNN).
 
-\item study the effect of training the inhibitory connections \cite{MaxActiv1, MaxActiv2, hardware_survey} between neurons on the accuracy of the image classification problem of handwritten digits from the MNIST \cite{MNIST} dataset for the architecture of a locally connected network (Locally Connected Spiking Neural Network, LCSNN) \cite{saunders2019locally};
+\item study the effect of training the inhibitory connections \parencite{MaxActiv1, MaxActiv2, hardware_survey} between neurons on the accuracy of the image classification problem of handwritten digits from the MNIST \parencite{MNIST} dataset for the architecture of a locally connected network (Locally Connected Spiking Neural Network, LCSNN) \parencite{saunders2019locally};
 
 \end{enumerate}
 
@@ -130,7 +137,7 @@ For different networks architectures comparative analysis, a classical machine l
 The images are also cropped so that only the center 20 $ \times $ 20 pixels are used. \\
 
 \subsection{Competition between local receptive fields in SNN}
-In this paper, networks are studied using locally connected, fully connected and convolutional layers. In a fully connected layer, each neuron is connected to each neuron from the previous layer. In the convolutional layer, neurons are divided into channels. The neurons in one channel have shared weights, but each neuron is only connected to a certain region (rectangular in the case of a two-dimensional layer) \cite{li2020survey} --- receptive field, or patch. The architecture of the locally connected layer is the same, but each neuron has its own unique weights \cite{saunders2019locally}.
+In this paper, networks are studied using locally connected, fully connected and convolutional layers. In a fully connected layer, each neuron is connected to each neuron from the previous layer. In the convolutional layer, neurons are divided into channels. The neurons in one channel have shared weights, but each neuron is only connected to a certain region (rectangular in the case of a two-dimensional layer) \parencite{li2020survey} --- receptive field, or patch. The architecture of the locally connected layer is the same, but each neuron has its own unique weights \parencite{saunders2019locally}.
 
 The neural network architecture of LCSNN is inspired by the structure of the visual cortex of the brain. The $Y$ network layer consists of $n$ channels, each of which is locally connected to the $X$ layer of neurons, and neurons with common receptive fields are connected by inhibitory connections (Fig. \ref{fig:LC_SNN_architecture}).
 
@@ -161,7 +168,7 @@ Activation threshold $v_{thresh}$ of an ALIF neurone is not static, but slightly
 After the generation of each spike, a short refractory period occurs, when for time $t_{refract}$ the potential of the neuron remains at the level of $v_{reset}$. The initial connection weights are generated randomly from a uniform distribution.
 
 \subsection{Forward connections training}
-To reduce the number of model parameters, images are cropped to 20 $\times$ 20 pixels. The edges of the images are often almost empty, so this operation has little or no effect on the amount of information, available to the network. For each image, $X$ spikes are generated using a Poisson distribution with a mathematical expectation value  proportional to the corresponding pixel intensiveness. Connections $XY$ are trained according to the STDP \cite{STDP} rule. This is a biologically inspired rule of unsupervised learning. When the presynaptic spike (pre-spike) is received and the post-spike is emitted, the weight $w$ of the corresponding connection is increased by $ \Delta w $, where
+To reduce the number of model parameters, images are cropped to 20 $\times$ 20 pixels. The edges of the images are often almost empty, so this operation has little or no effect on the amount of information, available to the network. For each image, $X$ spikes are generated using a Poisson distribution with a mathematical expectation value  proportional to the corresponding pixel intensiveness. Connections $XY$ are trained according to the STDP \parencite{STDP} rule. This is a biologically inspired rule of unsupervised learning. When the presynaptic spike (pre-spike) is received and the post-spike is emitted, the weight $w$ of the corresponding connection is increased by $ \Delta w $, where
 \begin{equation} 
 \Delta w =
  \begin{cases}
@@ -179,7 +186,7 @@ $$
 \end{cases}
 $$
 
-Thus, in the process of learning, the weights of connections where pre-spikes are systematicly recieved right before the emmision of post-spikes are increased, and decreased if vice versa. After such training, the neurons begins to actively react to pre-spikes received from neurons with larger connection weights. This leads to the neuron weights learning certain features (Fig. \ref{fig:training}). If these pre-spikes are recieved in a short enough time period, they might cause a new spike. The opposite rule (with $A_{+}$ and $A_{-}$ having the opposite signs) is called the anti-STDP \cite{anti-STDP} rule. It is used to train inhibitory connenctions in section \ref{section:competition-training} of this paper.
+Thus, in the process of learning, the weights of connections where pre-spikes are systematicly recieved right before the emmision of post-spikes are increased, and decreased if vice versa. After such training, the neurons begins to actively react to pre-spikes received from neurons with larger connection weights. This leads to the neuron weights learning certain features (Fig. \ref{fig:training}). If these pre-spikes are recieved in a short enough time period, they might cause a new spike. The opposite rule (with $A_{+}$ and $A_{-}$ having the opposite signs) is called the anti-STDP \parencite{anti-STDP} rule. It is used to train inhibitory connenctions in section \ref{section:competition-training} of this paper.
 
 After each training iteration, the weights are normalized to keep their sum equal to a certain constant. This is done to forbid the weights to grow too large. The value of the normalization constant is an important model hyperparameter that has to be carefully selected for each specific network architecture.
 
@@ -239,7 +246,7 @@ To evaluate the interpretation algorithm, accuracy is used - the ratio of the nu
 
 Accuracy learning curves (Fig. \ref{fig:learning_curves}) were built for various interpretation algorithms. The accuracy was measured every 250 training iterations. To calibrate the interpretation algorithm at each step a calibration sample of 5000 was used, while to measure the accuracy, a test sample of 1000 was used.
 
-After several thousand training iterations, the accuracy reaches a plateau. It is also noticeable that the three voting methods have very similar accuracy, while the linear classifier performes significantly better. The accuracy of even an untrained network can reach 70\% due to the fact that even with random weights initialization, different feature maps are formed, with some being a little better at recognizing certain patters, which can be amplified by the interpretaion alrorithm. It is known from \cite{saunders2019locally} that for a sufficiently large number of parameters, a locally connected network outperforms a convolutional and fully connected network in learning speed, since more parameters are updated with each training iteration (at least one neuron per patch is active). In the present study, no such effect is observed, since the presented learning curves are constructed for insufficiently large networks. Interestingly, the use of a linear classifier does not improve the recognition accuracy for a fully connected network - most likely due to the selection of voting features throughout the image, in contrast to convolutional and locally connected architectures.
+After several thousand training iterations, the accuracy reaches a plateau. It is also noticeable that the three voting methods have very similar accuracy, while the linear classifier performes significantly better. The accuracy of even an untrained network can reach 70\% due to the fact that even with random weights initialization, different feature maps are formed, with some being a little better at recognizing certain patters, which can be amplified by the interpretaion alrorithm. It is known from \parencite{saunders2019locally} that for a sufficiently large number of parameters, a locally connected network outperforms a convolutional and fully connected network in learning speed, since more parameters are updated with each training iteration (at least one neuron per patch is active). In the present study, no such effect is observed, since the presented learning curves are constructed for insufficiently large networks. Interestingly, the use of a linear classifier does not improve the recognition accuracy for a fully connected network - most likely due to the selection of voting features throughout the image, in contrast to convolutional and locally connected architectures.
 
 The linear classifier surpasses the LCSNN- and CSNN-based voting algorithms in accuracy, since it is a generalization of voting in the sense that it also uses the sum of the products of weights/votes by neurons activity. However, when training a linear classifier effective optimization algorithms (including gradient) are being used, while when voting we achieve practically the same goal (calculating satisfactory votes/weights) with a heuristic - the averaged activity of neurons by classes.
 
@@ -313,7 +320,7 @@ N & Architecture & Channels & Kernel & Parameters & $Y$ neurons & {Method \footn
 
 It can be seen (№2 and №7 in the \ref{results} table) that the locally connected network surpasses the convolutional network in accuracy even if the number of parameters of the latter is slightly larger. Also, having too small convolution kernel size leads to lower network accuracy, because it leads to learning of less essential features. Indeed, in traditional deep learning based, either shallow networks with large convolution kernels are used, or deep networks with small convolution kernels.
 
-It should be noted that SNNs can achieve significantly higher recognition accuracy on MNIST. It can be achieved by: (i) networks with a significantly larger number of parameters (for example, with an increased number of channels); (ii) deeper networks; (iii) more efficient learning algorithms (for example, supervised learning or using the contrastive loss function \cite{contrastive_loss}). At the same time, achieving the highest possible accuracy was not the goal of this study, which is primarily aimed at comparing various SNN architectures.
+It should be noted that SNNs can achieve significantly higher recognition accuracy on MNIST. It can be achieved by: (i) networks with a significantly larger number of parameters (for example, with an increased number of channels); (ii) deeper networks; (iii) more efficient learning algorithms (for example, supervised learning or using the contrastive loss function \parencite{contrastive_loss}). At the same time, achieving the highest possible accuracy was not the goal of this study, which is primarily aimed at comparing various SNN architectures.
 
 \begin{table}
  \caption{Results from other studies of spiking neural networks with MNIST}
@@ -324,17 +331,17 @@ Paper & Architecture & Training & Accuracy, \% \\
 \hline\hline
 {This study} & {Local + competition} & {Unsupervised} & {$95.1 \pm 0.5$}\\
 \hline\hline
-{\cite{saunders2019locally}} & {Local + competition} & {Unsupervised} & {$95.07 \pm 0.63$}\\
+{\parencite{saunders2019locally}} & {Local + competition} & {Unsupervised} & {$95.07 \pm 0.63$}\\
 \hline
-{\cite{mnist2}} & {Fully connected + competition} & {Unsupervised} & {95}\\
+{\parencite{mnist2}} & {Fully connected + competition} & {Unsupervised} & {95}\\
 \hline
-{\cite{MaxActiv1}} & {Fully connected + competition} & {Supervised / Semi-supervised} & {95.4 / 72.1}\\
+{\parencite{MaxActiv1}} & {Fully connected + competition} & {Supervised / Semi-supervised} & {95.4 / 72.1}\\
 \hline
-{\cite{conv1}} & {Convolutional} & {Semi-supervised} & {$96.95 \pm 0.08$}\\
+{\parencite{conv1}} & {Convolutional} & {Semi-supervised} & {$96.95 \pm 0.08$}\\
 \hline
-{\cite{conv2}} & {Convolutional} & {Semi-supervised} & {$99.28 \pm 0.10$}\\
+{\parencite{conv2}} & {Convolutional} & {Semi-supervised} & {$99.28 \pm 0.10$}\\
 \hline
-{\cite{conv3}} & {Convolutional} & {Semi-supervised} & {$97.20 \pm 0.07$}\\
+{\parencite{conv3}} & {Convolutional} & {Semi-supervised} & {$97.20 \pm 0.07$}\\
 \hline
 \end{tabular}
 \end{center}
@@ -344,7 +351,7 @@ Paper & Architecture & Training & Accuracy, \% \\
 
 \section{Inhibitory connections training}
 \label{section:competition-training}
-The result obtained in this work are comparable to the result of \cite{saunders2019locally}. Note that the results achieved with unsupervised training are only slightly inferior to the results achived by supervised training. Note, that our best locally connected network with trainable competitions had $ 10^7 $ parameters (of which $ 1 \cdot 10^6 $ are forward connections and $ 9 \cdot 10^6 $ inhibitory connections), which is less than $ 4.6 \cdot 10^7 $ (of which $ 0.5 \cdot 10^7 $ forward conenctions and $ 4.1 \cdot 10^7 $ compettition connections) for a fully connected network with competition from \cite{mnist2}. In addition, the network from \cite{mnist2} was trained for $ 1 \cdot 10^6 $ iterations, while in this study the number of training iterations did not exceed 5000. 
+The result obtained in this work are comparable to the result of \parencite{saunders2019locally}. Note that the results achieved with unsupervised training are only slightly inferior to the results achived by supervised training. Note, that our best locally connected network with trainable competitions had $ 10^7 $ parameters (of which $ 1 \cdot 10^6 $ are forward connections and $ 9 \cdot 10^6 $ inhibitory connections), which is less than $ 4.6 \cdot 10^7 $ (of which $ 0.5 \cdot 10^7 $ forward conenctions and $ 4.1 \cdot 10^7 $ compettition connections) for a fully connected network with competition from \parencite{mnist2}. In addition, the network from \parencite{mnist2} was trained for $ 1 \cdot 10^6 $ iterations, while in this study the number of training iterations did not exceed 5000. 
 
 \section {Inhibitory connections training}
 Inhibitory connections $YY$ greatly affect the training of forward connections $XY$. Large absolute values of inhibitory weights contibute to greater variability and specialization in training $Y$ neurons, as for each receptive field similar weights $XY$ neoruns are simultaneously active (Fig. \ref{fig:high_comp}). On the contrary, inhibitory weights of small absolute values do not allow neurons to specialize effectively (Fig. \ref{fig:high_comp}). 
@@ -497,8 +504,8 @@ Competition training made it possible to achieve an accuracy slightly (by 2 \%) 
 \section{Discussion}
 This study demonstrates that a locally connected network is a promising spiked neural network architecture suitable for efficient implementation on a specialized neural hardware. Indeed, the ability to quickly plateau the learning curve allows the LCSNN to be used for training on relatively small training samples (3000-5000). The use of an additional activity interpretation algorithm, such as a linear classifier, can improve the efficiency of the network. Note that in this case the very features of the objects being recognized are learned by the network in an unsupervised fashion. The question remains about the possibility of obtaining similar results without using supervised learning to interpret network activity.
 
-The main advantage of LCSNN is, as has been shown, that the locally connected network outperforms the convolutional in accuracy with approximately the same or slightly larger number of parameters. Presumably, this is due to the richer statistics of patches (receptive fields) that neurons within each channel respond to, compared to one receptive field per channel in the convolutional architecture. The price for this is the increased number of network parameters, but is not a critical factor due to the local (as opposed to fully connected) topology of interneural contacts. The local architecture also allows to save information about the localization of the selected feature in space and therefore is a reasonable choice for the implementation of unsupervised trained SNNs. This choice also determines its overall efficiency (in terms of performance, accuracy and power consumption at a certain density of elements) in a hardware implementation, in which each weight is usually represented by one or more physical elements (mainly SRAM cells \cite{TrueNorth, Loihi} or memristors \cite{Li_2018}).
-The training of inhibitory connections slightly increases the accuracy of the LCSNN-based algorithm, but it is not so critical as to justify the use of such an expensive operation as the introduction and training of a significant number of inhibitory connections with finite weights of different values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for training competition for deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters from classes of supplied images, which contributes to building a semantically-like hierarchy of learned features and their combinations, that is, the final images \cite{10.1007/978-3-030-30425-6_30}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
+The main advantage of LCSNN is, as has been shown, that the locally connected network outperforms the convolutional in accuracy with approximately the same or slightly larger number of parameters. Presumably, this is due to the richer statistics of patches (receptive fields) that neurons within each channel respond to, compared to one receptive field per channel in the convolutional architecture. The price for this is the increased number of network parameters, but is not a critical factor due to the local (as opposed to fully connected) topology of interneural contacts. The local architecture also allows to save information about the localization of the selected feature in space and therefore is a reasonable choice for the implementation of unsupervised trained SNNs. This choice also determines its overall efficiency (in terms of performance, accuracy and power consumption at a certain density of elements) in a hardware implementation, in which each weight is usually represented by one or more physical elements (mainly SRAM cells \parencite{TrueNorth, Loihi} or memristors \parencite{Li_2018}).
+The training of inhibitory connections slightly increases the accuracy of the LCSNN-based algorithm, but it is not so critical as to justify the use of such an expensive operation as the introduction and training of a significant number of inhibitory connections with finite weights of different values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for training competition for deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters from classes of supplied images, which contributes to building a semantically-like hierarchy of learned features and their combinations, that is, the final images \parencite{10.1007/978-3-030-30425-6_30}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
 
 \clearpage
 
@@ -509,6 +516,6 @@ It was also shown that training inhibitory weights can slightly improve the qual
 
 \pagebreak
 
-\printbibliography[sorting=none,heading=bibintoc,type=article,title={References}]
+\printbibliography[sorting=nyt,heading=bibintoc,type=article,title={References}]
  
 \end{document}  
