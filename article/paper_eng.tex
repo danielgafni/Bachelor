@@ -25,7 +25,7 @@ citestyle=authoryear,
 bibstyle=numeric,
 firstinits=true
 ]{biblatex}
-
+\newcolumntype{P}[1]{>{\raggedright\arraybackslash}p{#1}}
 \renewbibmacro{in:}{%
   \ifentrytype{article}{}{%
   \printtext{\bibstring{in}\intitlepunct}}}
@@ -90,19 +90,19 @@ SNN's local learning rules are significantly understudied in comparison to ANNs,
 The introduction of inhibitory connections (with negative weights) allows to achieve a better distinction of features learned by the neurons. In this work it is shown that learning competition relationships in a locally connected (LC) SNN potentially leads to higher pattern recognition accuracy due to the organization of competition and cooperation between groups of neurons. It is also shown that the LC SNN produces better results than a convolutional SNN.
 
 \section*{Keywords}
-Spiking Neural Networks, Unsupervised Learning, Inhibitory Connections, Neuroscience
+Spiking Neural Networks $\bullet$ Unsupervised Learning $\bullet$ Inhibitory Connections $\bullet$ Competition $\bullet$ Local Connection $\bullet$ Neuroscience
 
 \section*{Declarations}
 
 \begin{flushleft}
- \begin{tabularx}{\textwidth}{lm{10cm}}
+ \begin{tabularx}{\textwidth}{lm{12cm}}
   \textbf{Funding} & {This work was partially supported by the Russian Science Foundation (project № 20-79-10185) in the studying of inhibitory connections training and by the Russian Foundation for Basic Research (Grant No. 18-29-23041) in the part of comparison of convolгtional and locally connected achitectures.} \\
   \textbf{Data, Materials, Code} & {\href{https://github.com/danielgafni/bachelor}{https://github.com/danielgafni/bachelor}} \\
   \textbf{Conflicts of Interest} & {The authors declare no conflict of interest.} \\
  \end{tabularx}
 \end{flushleft}
 
-\pagebreak 
+\pagebreak
 
 \addcontentsline{toc}{section}{Introduction}
 \section*{Introduction}
@@ -325,9 +325,9 @@ It can be seen (№2 and №7 in the \ref{results} table) that the locally conne
 It should be noted that SNNs can achieve significantly higher recognition accuracy on MNIST. It can be achieved by: (i) networks with a significantly larger number of parameters (for example, with an increased number of channels); (ii) deeper networks; (iii) more efficient learning algorithms (for example, supervised learning or using the contrastive loss function \parencite{contrastive_loss}). At the same time, achieving the highest possible accuracy was not the goal of this study, which is primarily aimed at comparing various SNN architectures.
 
 \begin{table}[H]
- \caption{Results from other studies of spiking neural networks with MNIST}
+ \caption{Other studies on spiking neural networks with MNIST results}
 \begin{center}
-\begin{tabular}{|l|p{4cm}|p{7cm}|l|l|}
+\begin{tabular}{|l|P{2.8cm}|P{2.5cm}|l|l|}
 \hline
 Paper & Architecture & Training & Accuracy, \% \\
 \hline\hline
@@ -335,9 +335,9 @@ Paper & Architecture & Training & Accuracy, \% \\
 \hline\hline
 {\parencite{saunders2019locally}} & {Local + competition} & {Unsupervised} & {$95.07 \pm 0.63$}\\
 \hline
-{\parencite{mnist2}} & {Fully connected + competition} & {Unsupervised} & {95}\\
+{\parencite{mnist2}} & {Fully connected + \linebreak competition} & {Unsupervised} & {95}\\
 \hline
-{\parencite{MaxActiv1}} & {Fully connected + competition} & {Supervised / Semi-supervised} & {95.4 / 72.1}\\
+{\parencite{MaxActiv1}} & {Fully connected + \linebreak competition} & {Supervised / \linebreak Semi-supervised} & {95.4 / 72.1}\\
 \hline
 {\parencite{conv1}} & {Convolutional} & {Semi-supervised} & {$96.95 \pm 0.08$}\\
 \hline
