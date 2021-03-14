@@ -1,8 +1,10 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-# Bachelor's thesis
+# My Bachelor's thesis and paper
 
 **Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields**
+
+The paper in English is located ad `article/paper_eng.pd`
 
 The text in Russian is located at `article/thesis.pdf`.
 
