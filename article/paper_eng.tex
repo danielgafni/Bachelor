@@ -123,7 +123,7 @@ Spiking neural networks (SNNs) are an alternative promising neuromorphic algorit
 \item SNNs, to a greater extent than formal neural networks, biologically correctly model the interactions of neurons, which can be used for biological simulations of the nervous system for the purposes of studying not only bioinformatics, but also biophysical and medical aspects of its functioning.
 \end{itemize}
 
-It is of interest to study well-known ANN architectures in application to SNN, such as convolutional, locally connected and fully connected \parencite{Khan_2020} architectures. Moreover, the introduction of additional recurrent inhibitory connections contributes to a better separation of features in the learning process \parencite{MaxActiv1, MaxActiv2}. A fully connected network is the simplest model that can be used as a benchmark. Convolutional and locally connected architectures use convolution --- an operation that allows to extract important features more efficiently (comparing to a fully connected network). The locally connected architecture is especially interesting, because it can be easily implemented in hardware, since, unlike a convolutional network, it does not use shared synaptic weights  inside a separate feature map. A locally connected architecture has significantly fewer parameters than a fully connected architecture and allows to train a unique set of features for each receptive field, in contrast to convolutional networks. At the same time, convolutional networks have translational invariance, a useful property for image processing (spatially correlated data). The presence of competition in the SNN makes it possible to make their features more independent. Therefore, for experiments in this work, we chose locally connected SNNs with inhibitory connections, and as basic models, convolutional and fully connected networks with inhibitory connections. We:
+It is of interest to study well-known ANN architectures in application to SNN, such as convolutional, locally connected and fully connected \parencite{Khan_2020} architectures. Moreover, the introduction of additional recurrent inhibitory connections contributes to a better separation of features in the learning process \parencite{MaxActiv1, MaxActiv2}. A fully connected network is the simplest model that can be used as a benchmark. Convolutional and locally connected architectures use convolution --- an operation that allows to extract important features more efficiently (comparing to a fully connected network). The locally connected architecture is especially interesting, because it can be easily implemented in hardware, since, unlike a convolutional network, it does not use shared synaptic weights  inside a separate feature map. A locally connected architecture has significantly fewer parameters than a fully connected architecture and allows to train a unique set of features for each receptive field, in contrast to convolutional networks. At the same time, convolutional networks have translational invariance, a useful property for image processing (spatially correlated data). The presence of competition in the SNN makes it possible to make their features more independent. Therefore, for experiments in this work, we chose locally connected SNNs with inhibitory connections, and as basic models, convolutional and fully connected networks with inhibitory connections. In this paper we:
 
 \begin{enumerate}[i]
 
@@ -135,9 +135,8 @@ It is of interest to study well-known ANN architectures in application to SNN, s
 
 \clearpage
 
-\section{Training of the SNN with fixed inhibitory connections of local receptive fields}
+\section{SNN with fixed inhibitory connections between local receptive fields}
 
-\subsection{Problem description}
 For different networks architectures comparative analysis, a classical machine learning problem was chosen --- the problem of classifying images of handwritten digits from the MNIST dataset. MNIST consists of labeled training and test subsets of 60,000 and 10,000 images. The images have 28 $ \times $ 28 resolution and are black and white. Due to the need to calibrate the networks (see below), the original training subset was split into 50,000 images for training (training dataset) and 10,000 images for calibration (calibration dataset).
 
 The images are also cropped so that only the center 20 $ \times $ 20 pixels are used. \\
@@ -147,7 +146,7 @@ In this paper, networks are studied using locally connected, fully connected and
 
 The neural network architecture of LCSNN is inspired by the structure of the visual cortex of the brain. The $Y$ network layer consists of $n$ channels, each of which is locally connected to the $X$ layer of neurons, and neurons with common receptive fields are connected by inhibitory connections (Fig. \ref{fig:LC_SNN_architecture}).
 
-\begin{figure} \label{LCSNN}
+\begin{figure}[H] \label{LCSNN}
 \includegraphics[,
  width=\textwidth,keepaspectratio=true]{LCSNN.pdf} 
     \caption{LCSNN architecture}
@@ -156,13 +155,13 @@ The neural network architecture of LCSNN is inspired by the structure of the vis
 
 Such connections have negative weights, which means they negatively affect neuron activity. Neurons that do not have a common patch (and therefore respond to different areas of the image) do not compete with each other. Inhibitory connections are introduced to improve the separation of neurons by learned features. A similar architecture can be built for networks with convolution or fully connected layers. We studied networks with the number of $Y$ neurons $\approx$ 100 --- 900 and folowwing convolutions parameters: kernel size of 8 or 12 and stride of 4. Since the MNIST images were cropped to a size of 20 $\times 20$, the number of neurons per the channel was 3 or 4.
 
-This work uses the Adaptive Integrate-And-Fire (ALIF) model of neurons. The dynamics of the neuron potential in this model is given by the equation
+The Adaptive Integrate-And-Fire (ALIF) neuron model has been chosed for this study. The dynamics of the neuron potential in this model is given by the equationof
 
 \begin{equation} \label{eq:alif}
  \tau_v \dv{v(t)}{t} = -v(t) + v_{rest} + I(t) \cdot R \text{,}
 \end{equation} where $I(t)$ is the current, accumulated by time moment $t$, $v_{rest}$ --- relaxation level, $\tau_v$ --- simulation time constant, а $R$ --- unit coefficient, numerically equal to one.\\ 
 
-Activation threshold $v_{thresh}$ of an ALIF neurone is not static, but slightly increases with every spike, then relaxing to its initial value $\theta_o$. The dynamics of the activation threshold is given by:
+Activation threshold $v_{thresh}$ of an ALIF neurone is not static. It slightly increases with every spike, then relaxing to its initial value $\theta_o$. The dynamics of the activation threshold is given by:
 \begin{equation} 
  v_{thresh} = \theta_0 + \theta(t) \text{,}
 \end{equation} where $\theta_0$ is the initial activation threshold, $\theta(t)$ --- an adaptive additive to the activation threshold after each spike generation, which is calculated from the condition\\
@@ -196,7 +195,7 @@ Thus, in the process of learning, the weights of connections where pre-spikes ar
 
 After each training iteration, the weights are normalized to keep their sum equal to a certain constant. This is done to forbid the weights to grow too large. The value of the normalization constant is an important model hyperparameter that has to be carefully selected for each specific network architecture.
 
-\begin{figure}
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_untrained.pdf} 
@@ -208,7 +207,7 @@ After each training iteration, the weights are normalized to keep their sum equa
     \caption{} 
     \label{fig:training:after_training}
 \end{subfigure}
-\caption{Visualization of $XY$ connection weights of a 900 $Y$ neurons (100 neurons for each of the 9 patches) network --- a 360 $ \times $ 360 matrix. The weights of one neuron correspond to a 12 $\times$ 12 square. The weights of the $Y$ neurons are grouped by patch --- the lower left 120 $  \times $ 120 square  (10 $ \times $ 10 neurons) corresponds to the lower left patch, the center square corresponds to the center patch, and so on. Weights are initialized randomly (Fig. \subref{fig:training:before_training}), and after 1000 training iterations (\subref{fig:training:after_training}) the neurons learn different features, resembling digits elements}
+\caption{Visualization of $XY$ connection weights of a 900 $Y$ neurons (100 neurons for each of the 9 patches) network --- a 360 $ \times $ 360 matrix. The weights of one neuron correspond to a 12 $\times$ 12 square. The weights of the $Y$ neurons are grouped by patch --- the lower left 120 $  \times $ 120 square  (10 $ \times $ 10 neurons) corresponds to the lower left patch, the center square corresponds to the center patch, and so on. Weights are initialized randomly (\subref{fig:training:before_training}), and after 1000 training iterations (\subref{fig:training:after_training}) the neurons learn different features, resembling digits elements}
 \label{fig:training}
 \end{figure}
 
@@ -222,7 +221,7 @@ where $ s_t $ takes the value 0 or 1 depending on the presence of a spike at a g
 
 For all networks, this calibration process was used for 10,000 examples from a calibration sample especially selected from the test part of the MNIST dataset, as noted above. Note that calibration is nota  part of the network training, since it is only included in the algorithm for interpreting the behavior of the SNS. The votes are used as a measure of confidence of the neuron in each of the digits classes. The example votes are shown in Fig. \ref{fig:votes}.
 
-\begin{figure}
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.7\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{votes.pdf}
@@ -234,7 +233,7 @@ For all networks, this calibration process was used for 10,000 examples from a c
     \caption{}
     \label{fig:votes:distr}
 \end{subfigure}
-\caption{Votes visualization for a network with 225 $Y$ neurons. All $Y$ neurons votes are shown in (Fig. \subref{fig:votes:votes}). High values correspond to a large specialization on the corresponding class. It can be seen that almost all neurons have a nonzero vote value, therefore, almost all neurons in the network are active. Votes distrivution for the 4 most relevant classes (for each neuron) are shown in (Fig. \subref{fig:votes:distr}). It can be seen that the vote value (average number of spikes per class) drops significantly with relevance decreasing}
+\caption{Votes visualization for a network with 225 $Y$ neurons. All $Y$ neurons votes are shown in (\subref{fig:votes:votes}). High values correspond to a large specialization on the corresponding class. It can be seen that almost all neurons have a nonzero vote value, therefore, almost all neurons in the network are active. Votes distrivution for the 4 most relevant classes (for each neuron) are shown in (\subref{fig:votes:distr}). It can be seen that the vote value (average number of spikes per class) drops significantly with relevance decreasing}
 \label{fig:votes}
 \end{figure}
 
@@ -272,14 +271,14 @@ The linear classifier surpasses the LCSNN- and CSNN-based voting algorithms in a
  \caption{}
  \label{FCSNN_learning_curve}
 \end{subfigure}
-\caption{Comparison of learning curves of different architectures of SNNs with competition: (Fig. \subref{LCSNN_learning_curve}) LCSNN, (Fig. \subref{CSNN_learning_curve}) CSNN, (Fig. \subref{FCSNN_learning_curve}) FCSNN. The results are evaluated with different algorithms for the interpretation of activity. The \textbf{preselections by spikes} algorithm was only checked for LCSNN, because it achieves practically same results as \textbf{patch voting}. Standard deviations are plotted as errors. The networks have 100 channels (for a FCSNN the channel consists of a single neuron), the convolution kernel size ($k$) for the LCSNN is 12, and 8 for the CSNN}
+\caption{Comparison of learning curves of different architectures of SNNs with competition: (\subref{LCSNN_learning_curve}) LCSNN, (\subref{CSNN_learning_curve}) CSNN, (\subref{FCSNN_learning_curve}) FCSNN. The results are evaluated with different algorithms for the interpretation of activity. The \textbf{preselections by spikes} algorithm was only checked for LCSNN, because it achieves practically same results as \textbf{patch voting}. Standard deviations are plotted as errors. The networks have 100 channels (for a FCSNN the channel consists of a single neuron), the convolution kernel size ($k$) for the LCSNN is 12, and 8 for the CSNN}
 \label{fig:learning_curves}
 \end{figure}
 
 \subsection{Comparison of convolution and local connections effectiveness}
 Experiments were carried out to measure the accuracy of networks with different architectures. For convolutional and fully connected networks,  inhibitory connections similar to LCSNN were introduced. Note that using a linear classifier as an interpretation algorithm, it was possible to achieve 95\% accuracy for a locally connected network of 1000 channels with kernel size of 12.
 
-\begin{table}
+\begin{table}[H]
  \caption{Comparison of different architectures. For each configuration, the accuracy was measured $ N = 5 $ times. The table shows the arithmetic mean of the accuracy and its standard deviation. The <<kernel>> corresponds to the number $ k $ in the size of the convolution $ k \times k $}
 \begin{center}
 \begin{tabular}{|l|l|l|l|l|l|p{2.2cm}|p{2.2cm}|}
@@ -325,7 +324,7 @@ It can be seen (№2 and №7 in the \ref{results} table) that the locally conne
 
 It should be noted that SNNs can achieve significantly higher recognition accuracy on MNIST. It can be achieved by: (i) networks with a significantly larger number of parameters (for example, with an increased number of channels); (ii) deeper networks; (iii) more efficient learning algorithms (for example, supervised learning or using the contrastive loss function \parencite{contrastive_loss}). At the same time, achieving the highest possible accuracy was not the goal of this study, which is primarily aimed at comparing various SNN architectures.
 
-\begin{table}
+\begin{table}[H]
  \caption{Results from other studies of spiking neural networks with MNIST}
 \begin{center}
 \begin{tabular}{|l|p{4cm}|p{7cm}|l|l|}
@@ -350,16 +349,13 @@ Paper & Architecture & Training & Accuracy, \% \\
 \end{center}
 \end{table}
 
-\pagebreak
+The result obtained in this work are comparable to the result of \parencite{saunders2019locally}. Note that the results achieved with unsupervised training are only slightly inferior to the results achived by supervised training. Note, that our best locally connected network with trainable competitions had $ 10^7 $ parameters (of which $ 1 \cdot 10^6 $ are forward connections and $ 9 \cdot 10^6 $ inhibitory connections), which is less than $ 4.6 \cdot 10^7 $ (of which $ 0.5 \cdot 10^7 $ forward conenctions and $ 4.1 \cdot 10^7 $ compettition connections) for a fully connected network with competition from \parencite{mnist2}. In addition, the network from \parencite{mnist2} was trained for $ 1 \cdot 10^6 $ iterations, while in this study the number of training iterations did not exceed 5000. 
 
 \section{Inhibitory connections training}
 \label{section:competition-training}
-The result obtained in this work are comparable to the result of \parencite{saunders2019locally}. Note that the results achieved with unsupervised training are only slightly inferior to the results achived by supervised training. Note, that our best locally connected network with trainable competitions had $ 10^7 $ parameters (of which $ 1 \cdot 10^6 $ are forward connections and $ 9 \cdot 10^6 $ inhibitory connections), which is less than $ 4.6 \cdot 10^7 $ (of which $ 0.5 \cdot 10^7 $ forward conenctions and $ 4.1 \cdot 10^7 $ compettition connections) for a fully connected network with competition from \parencite{mnist2}. In addition, the network from \parencite{mnist2} was trained for $ 1 \cdot 10^6 $ iterations, while in this study the number of training iterations did not exceed 5000. 
+Inhibitory connections $YY$ greatly affect the training of forward connections $XY$. Large absolute values of inhibitory weights contibute to greater variability and specialization in training $Y$ neurons, as for each receptive field similar weights $XY$ neoruns are simultaneously active (Fig. \ref{fig:competition_effect_on_training:high_comp}). On the contrary, inhibitory weights of small absolute values do not allow neurons to specialize effectively (Fig. \ref{fig:competition_effect_on_training:low_comp}). 
 
-\section {Inhibitory connections training}
-Inhibitory connections $YY$ greatly affect the training of forward connections $XY$. Large absolute values of inhibitory weights contibute to greater variability and specialization in training $Y$ neurons, as for each receptive field similar weights $XY$ neoruns are simultaneously active (Fig. \ref{fig:high_comp}). On the contrary, inhibitory weights of small absolute values do not allow neurons to specialize effectively (Fig. \ref{fig:high_comp}). 
-
-\begin{figure}
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{weights_XY_good.pdf}
@@ -379,26 +375,26 @@ All SNNs discussed in this paper up to this point had fixed competition. In this
 
 To answer this question, in order to update the $ YY $ connections, the anti-STDP rule was chosen (the rule opposite in the signs of $ A_{+} $ and $ A_{-} $ to standard STDP). For different values of the parameters of this rule, different distributions of inhibitory weights were obtained. The initial values of the weights were set from a uniform distibution from 0 to a certain negative values. Experiments were carried out with LCSNN networks.
 
-\begin{table}
+\begin{table}[H]
  \caption{anti-STDP parameters}
 \begin{center}
 \begin{tabular}{|l|l|l|l|l|}
 \hline
 Figure & {$\tau_{+}$, ms} & {$\tau_{-}$, ms} & {$A_{+}$} & {$A_{-}$} \\
 \hline
-\ref{fig:worst_competition_distribution} & 14.7 & 14.2 & -0.5 & -1.5 \\
+\ref{fig:competition_distributions:weakest}, \ref{fig:worst_competition_distribution} & 14.7 & 14.2 & -0.5 & 1.5 \\
 \hline
-\ref{fig:medium_bad_competition_distribution} & 5.4 & 15.1 & -1.2 & -0.6 \\
+\ref{fig:competition_distributions:weak}, \ref{fig:medium_bad_competition_distribution} & 5.4 & 15.1 & -1.2 & 0.6 \\
 \hline
-\ref{fig:medium_good_competition_distribution} & 17.6 & 24.5 & -1.9 & -1.6 \\
+\ref{fig:competition_distributions:medium}, \ref{fig:medium_good_competition_distribution} & 17.6 & 24.5 & -1.9 & 1.6 \\
 \hline
-\ref{fig:best_competition_XY} & 17.7 & 16.5 & -0.1 & -1.6\\
+\ref{fig:competition_distributions:strong}, \ref{fig:best_competition_XY} & 17.7 & 16.5 & -0.1 & 1.6\\
 \hline
 \end{tabular}
 \end{center}
 \end{table}
 
-\begin{figure}
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_worst.pdf}
@@ -421,7 +417,7 @@ Figure & {$\tau_{+}$, ms} & {$\tau_{-}$, ms} & {$A_{+}$} & {$A_{-}$} \\
     \caption{}
     \label{fig:competition_distributions:strong}
 \end{subfigure}
-\caption{Different competition ($YY$) weights distributions: weakest competition (Fig. \subref{fig:competition_distributions:weakest}), weak competition (Fig. \subref{fig:competition_distributions:weak}), medium competition (Fig. \subref{fig:competition_distributions:medium}) and strong competition (Fig. \subref{fig:competition_distributions:strong})}
+\caption{Different inhibitory ($YY$) weights distributions: weakest competition (\subref{fig:competition_distributions:weakest}), weak competition (\subref{fig:competition_distributions:weak}), medium competition (\subref{fig:competition_distributions:medium}) and strong competition (\subref{fig:competition_distributions:strong})}
 \label{fig:competition_distributions}
 \end{figure}
 
@@ -429,7 +425,7 @@ It can be seen that the accuracy of the network increases when the distribution 
 
 It is noteworthy that not all $ YY $ connections end up with a large value (Fig. \ref{fig:competition_distributions:strong}). This is due to the fact that neurons specializing in substantially different features do not need competition, since they do not exhibit high activity at the same time.
 
-\begin{figure}
+\begin{figure}[H]
 \centering
 \begin{subfigure}{0.45\textwidth} 
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_on_XY_worst.pdf}
@@ -452,30 +448,29 @@ It is noteworthy that not all $ YY $ connections end up with a large value (Fig.
     \caption{}
     \label{fig:best_competition_XY}
 \end{subfigure}
-\caption{Visualization of inhibitory weights on top of $ XY $ weights for the networks from Fig. (\ref{fig:competition_distributions}). Inhibitory weights are shown only for one center neuron in each receptive field to avoid cluttering the visualization. The saturated blue color corresponds to the inhibitory weights of large absolute value (the arithmetic mean between the weights $ W_{ij} $ and $ W_{ji} $ is used). Figures \subref{fig:worst_competition_distribution}-\subref{fig:best_competition_XY} correspond to the same networks as on Figures (\ref{fig:competition_distributions:weakest}-\subref{fig:competition_distributions:strong}) (from weakest to strongest competition). It can be seen that similar features have higher inhibitory connections weights than different}
+\caption{Visualization of inhibitory weights on top of $ XY $ weights for the networks from Fig. (\ref{fig:competition_distributions}). Inhibitory weights are shown only for one center neuron in each receptive field to avoid cluttering the visualization. The saturated blue color corresponds to the inhibitory weights of large absolute value (the arithmetic mean between the weights $ W_{ij} $ and $ W_{ji} $ is used). Figures \subref{fig:worst_competition_distribution}-\subref{fig:best_competition_XY} correspond to the same networks as on Figures \ref{fig:competition_distributions:weakest}-\subref{fig:competition_distributions:strong} (from weakest to strongest competition). It can be seen that similar features have higher inhibitory connections weights than different}
 \end{figure}
 
-Competition training was carried out only on networks of 25 channels (225 neurons), since its simulation requires large computational resources.
+Competition training was carried out only on networks of 25 channels (225 neurons), since its simulation requires large computational resources. 
 
 During the optimization of the models, the accuracy of a large number of LCSNNs was measured with various hyperparameter configurations (Fig. \ref{fig:hyperparams}). It can be seen that configurations with high accuracy (dark lines) are localized in a manner that encourages negative weight accumulation for larger time differencies $t_{post} - t_{pre}$ between -post and -pre spikes (for the anti-STDP weight update rule). 
 
-\begin{figure}
+\begin{figure}[H]
 \begin{center}
  \includegraphics[,
- width=\textwidth,keepaspectratio=true]{hyperparams.png}
+ width=0.8\textwidth,keepaspectratio=true]{hyperparams.png}
  
-\caption{Visualization of the achieved LCSNN recognition accuracy when using various combinations in the hyperparameters space. The parameters <<normalization weight>>, <<initial competition weight>> and <<weight decay>> are responsible for the weights values, and the next two parameters are combinations of anti-STDP parameters
+\caption{Visualization of the achieved LCSNN recognition accuracy when using various combinations in the hyperparameters space. The parameters <<normalization weight>>, <<initial inhibitory weight>> and <<weight decay>> are responsible for the weights values, and the next two parameters are combinations of anti-STDP parameters
 }
  \label{fig:hyperparams} 
 \end{center} 
-
 \end{figure}
 
 \subsection{Trained inhibitory weights analysis}
 
 In addition, inhibitory weights clamping (during training) experiments were carried out. It turned out that the inhibitory weights in the entire range of their variation are important for the effective LCSNN functioning, since both the upper and lower clamps negatively affect the classification accuracy (Fig. \ref{fig:compe_clamp}). This is due to the fact that high competition contributes to greater specialization of neurons and therefore is useful, and low competition allows neurons to cooperate and recognize digits together (including ensuring the accumulation of more statistics for calibrating the voices of neurons).
 
-\begin{figure}
+\begin{figure}[H] 
 \centering 
 \begin{subfigure}{0.45\textwidth}
     \includegraphics[width=\textwidth,keepaspectratio=true]{competition_distribution_clamp_low.pdf}
@@ -497,7 +492,7 @@ In addition, inhibitory weights clamping (during training) experiments were carr
     \caption{}
     \label{fig:compe_clamp:high_weights}
 \end{subfigure}
-\caption{Impact of limiting the values of inhibitory weights on accuracy. Figures (\subref{fig:compe_clamp:low_weights}, \subref{fig:compe_clamp:high_weights}) show $XY$ weights and Figures (\ref{fig:compe_clamp:low_distr}, \subref{fig:compe_clamp:high_distr}) show the competition ($YY$) weights distributions. The inhibitory weights were clamped (during training) to $[-350, 0]$ (Fig. \subref{fig:compe_clamp:low_distr},\subref{fig:compe_clamp:low_weights}) and to $(-\infty, -100]$ (Fig. (\subref{fig:compe_clamp:high_distr},\subref{fig:compe_clamp:high_weights}). The accuracy of a network with the same hyperparameters, but without the competition limitation is 82.3\%, which is significantly higher than the accuracies of the networks presented in this Figure. Its weights $ XY $ are shown in Fig. \ref{fig:best_competition_XY}, and the distribution of its inhibitory weights is shown in Fig. \ref{fig:competition_distributions:strong}. In both cases the networks develop more blurred features comparing to the network with unrestricted competition in Fig. \ref{fig:competition_distributions:strong}
+\caption{Impact of limiting the values of inhibitory weights on accuracy. Figures (\subref{fig:compe_clamp:low_weights}, \subref{fig:compe_clamp:high_weights}) show $XY$ weights and Figures (\subref{fig:compe_clamp:low_distr}, \subref{fig:compe_clamp:high_distr}) show the inhibitory ($YY$) weights distributions. The inhibitory weights were clamped (during training) to $[-350, 0]$ (\subref{fig:compe_clamp:low_distr},\subref{fig:compe_clamp:low_weights}) and to $(-\infty, -100]$ (\subref{fig:compe_clamp:high_distr},\subref{fig:compe_clamp:high_weights}). The accuracy of a network with the same hyperparameters, but without the competition limitation is 82.3\%, which is significantly higher than the accuracies of the networks presented in this Figure. Its weights $ XY $ are shown in Fig. \ref{fig:best_competition_XY}, and the distribution of its inhibitory weights is shown in Fig. \ref{fig:competition_distributions:strong}. In both cases the networks develop more blurred features comparing to the network with unrestricted competition in Fig. \ref{fig:competition_distributions:strong}
 } 
 \label{fig:compe_clamp}
 \end{figure}
@@ -509,8 +504,6 @@ This study demonstrates that a locally connected network is a promising spiked n
 
 The main advantage of LCSNN is, as has been shown, that the locally connected network outperforms the convolutional in accuracy with approximately the same or slightly larger number of parameters. Presumably, this is due to the richer statistics of patches (receptive fields) that neurons within each channel respond to, compared to one receptive field per channel in the convolutional architecture. The price for this is the increased number of network parameters, but is not a critical factor due to the local (as opposed to fully connected) topology of interneural contacts. The local architecture also allows to save information about the localization of the selected feature in space and therefore is a reasonable choice for the implementation of unsupervised trained SNNs. This choice also determines its overall efficiency (in terms of performance, accuracy and power consumption at a certain density of elements) in a hardware implementation, in which each weight is usually represented by one or more physical elements (mainly SRAM cells \parencite{TrueNorth, Loihi} or memristors \parencite{Li_2018}).
 The training of inhibitory connections slightly increases the accuracy of the LCSNN-based algorithm, but it is not so critical as to justify the use of such an expensive operation as the introduction and training of a significant number of inhibitory connections with finite weights of different values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for training competition for deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters from classes of supplied images, which contributes to building a semantically-like hierarchy of learned features and their combinations, that is, the final images \parencite{10.1007/978-3-030-30425-6_30}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
-
-\clearpage
 
 \addcontentsline{toc}{section}{Conclusion}
 \section*{Conclusion}
