@@ -1,8 +1,6 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-# My Bachelor's thesis and paper
-
-**Modeling of visual recognition based on spiking neural networks with a competition between local receptive fields**
+# Code & data for the paper Training Inhibitory Connections Between Receptive Fields in a Locally Connected Spiking Neural Network and my Bachelor's thesis
 
 The paper in English is located ad `article/paper_eng.pd`
 

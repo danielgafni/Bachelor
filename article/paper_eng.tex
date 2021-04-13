@@ -1,3 +1,4 @@
+%!TEX TS-program = pdflatex
 \documentclass[a4paper,10pt]{article}
 \usepackage[T2A]{fontenc}
 \usepackage{sectsty}
@@ -63,8 +64,6 @@ firstinits=true
 
 \begin{document}
 
-
-
 \thispagestyle{empty}
 
 \begin{center}
@@ -102,7 +101,7 @@ Spiking Neural Networks $\bullet$ Unsupervised Learning $\bullet$ Inhibitory Con
 \begin{flushleft}
  \begin{tabularx}{\textwidth}{lm{12cm}}
   \textbf{Funding} & {This work was partially supported by the Russian Science Foundation (Project № 20-79-10185) in the studying of inhibitory connections training part and by the Russian Foundation for Basic Research (Project № 18-29-23041) in the part of comparison of convolutional and locally connected achitectures.} \\
-  \textbf{Data, Materials, Code} & {\href{https://github.com/danielgafni/bachelor}{https://github.com/danielgafni/bachelor}} \\
+  \textbf{Data Availability} & {The datasets generated during and/or analysed during the current study are available in the \href{https://github.com/danielgafni/bachelor}{https://github.com/danielgafni/bachelor} repository.} \\
   \textbf{Conflicts of Interest} & {The authors declare no conflict of interest.} \\
  \end{tabularx}
 \end{flushleft}
@@ -513,7 +512,7 @@ In addition, inhibitory weights clamping (during training) experiments were carr
 This study demonstrates that a locally connected network is a promising spiking neural network architecture suitable for efficient implementation on a specialized neuromorphic hardware \parencite{Emelyanov_2019, SURAZHEVSKY2021110890}. Indeed, the ability to quickly plateau the learning curve allows the LCSNN to be used for training on relatively small training samples (3000-5000). The use of an additional activity interpretation algorithm, such as a linear classifier, can improve the efficiency of the network. Note that in this case the very features of the objects being recognized are learned by the network in an unsupervised fashion. The question about the possibility of obtaining similar results without using supervised learning to interpret network activity, remains open.
 
 The main advantage of LCSNN, as it has been shown, is that the locally connected network outperforms the convolutional in accuracy with approximately the same or slightly larger number of parameters. Presumably, this is due to the richer statistics of patches (receptive fields) that neurons within each channel respond to, compared to one receptive field per channel in the convolutional architecture. The price for this is the increased number of network parameters, but it's not a critical factor due to the local (as opposed to fully connected) topology of interneural contacts. The local architecture also allows to save information about the localization of the selected feature in space and therefore is a reasonable choice for the implementation of unsupervised trained SNNs. This choice also determines its overall efficiency (in terms of performance, accuracy and power consumption at a certain density of elements) in a hardware implementation, in which each weight is usually represented by one or more physical elements (mainly SRAM cells \parencite{TrueNorth, Loihi} or memristors \parencite{Li_2018, DEMIN202164}).
-The training of inhibitory connections slightly increases the accuracy of the LCSNN-based algorithm, but it's not so crusial as to justify the use of such an expensive operation as the introduction and training of a significant number of inhibitory connections with variable values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for learnable competition deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters composed of supplied visually similar images. This contributes to building a semantical hierarchy of learned features and their combinations, up to the higher-level images \parencite{10.1007/978-3-030-30425-6_30}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
+The training of inhibitory connections slightly increases the accuracy of the LCSNN-based algorithm, but it's not so crusial as to justify the use of such an expensive operation as the introduction and training of a significant number of inhibitory connections with variable values. At the same time, this conclusion is probably only valid only for small networks, like the one studied in this paper. In our opinion, the selection of optimal algorithms and parameters for learnable competition deep SNNs deserves a more thorough study, in which the balance of competition and cooperation of neurons within each layer can lead to the formation of clusters composed of supplied visually similar images. This contributes to building a semantical hierarchy of learned features and their combinations, up to the higher-level images \parencite{MaxActiv2}. Potentially, such a hierarchy of images can lead to a significant increase in the quality metrics.
 
 \addcontentsline{toc}{section}{Conclusion}
 \section*{Conclusion}
