@@ -1,3 +1,6 @@
+article/paper*
+torchMNIST
+.idea
 */sqlite.db
 # Created by .ignore support plugin (hsz.mobi)
 ### JetBrains template
